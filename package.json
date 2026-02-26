@@ -1,6 +1,6 @@
 {
   "name": "infernoflow",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The forge for liquid code — keep capabilities, contracts, and docs in sync.",
   "type": "module",
   "bin": {
@@ -18,8 +18,25 @@
   "scripts": {
     "test": "node bin/infernoflow.mjs --help"
   },
-  "keywords": ["cli", "capabilities", "contract", "documentation", "ai", "liquid-code"],
-  "author": "",
+  "keywords": [
+    "cli",
+    "capabilities",
+    "contract",
+    "documentation",
+    "ai",
+    "liquid-code",
+    "dx",
+    "developer-tools"
+  ],
+  "author": "infernoflow",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ronmiz/infernoflow.git"
+  },
+  "homepage": "https://github.com/ronmiz/infernoflow#readme",
+  "bugs": {
+    "url": "https://github.com/ronmiz/infernoflow/issues"
+  },
   "dependencies": {}
 }
