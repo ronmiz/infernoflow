@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "capabilities": [
+    { "id": "CreateItem", "title": "Create item", "since": "0.1.0" },
+    { "id": "ReadItems", "title": "List items", "since": "0.1.0" },
+    { "id": "UpdateItem", "title": "Edit item", "since": "0.1.0" },
+    { "id": "DeleteItem", "title": "Delete item", "since": "0.1.0" }
+  ]
+}

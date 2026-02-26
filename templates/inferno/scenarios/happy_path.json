@@ -1,0 +1,16 @@
+{
+  "scenarioId": "happy_path",
+  "description": "Basic CRUD flow",
+  "capabilitiesCovered": [
+    "CreateItem",
+    "ReadItems",
+    "UpdateItem",
+    "DeleteItem"
+  ],
+  "steps": [
+    { "action": "CreateItem", "expect": "A new item appears in the list" },
+    { "action": "ReadItems",  "expect": "All items are visible" },
+    { "action": "UpdateItem", "expect": "Item content is updated" },
+    { "action": "DeleteItem", "expect": "Item is removed from the list" }
+  ]
+}

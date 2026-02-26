@@ -1,0 +1,15 @@
+{
+  "policyId": "my_project",
+  "policyVersion": 1,
+  "capabilities": [
+    "CreateItem",
+    "ReadItems",
+    "UpdateItem",
+    "DeleteItem"
+  ],
+  "rules": {
+    "docsRequiredOnCapabilityChange": true,
+    "requireScenarioForEachCapability": true,
+    "requireChangelogOnCapabilityChange": true
+  }
+}
