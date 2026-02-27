@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 
-import { parseArgs } from "node:util";
-import { bold, gray, cyan, red, orange } from "../lib/ui/output.mjs";
+import { bold, gray, cyan, red } from "../lib/ui/output.mjs";
 
-const VERSION = "0.1.0";
+const VERSION = "0.4.2";
 
 const HELP = `
-  ${bold("ðŸ”¥ infernoflow")} ${gray("v" + VERSION)}
+  ${bold("í´¥ infernoflow")} ${gray("v" + VERSION)}
   ${gray("The forge for liquid code")}
 
   ${bold("Usage:")}
@@ -17,6 +16,7 @@ const HELP = `
     check         Validate contract, capabilities, scenarios, changelog
     status        Show contract health at a glance
     doc-gate      Fail if code changed but docs were not updated
+    suggest       Generate AI prompt + apply capability updates
 
   ${bold("Options:")}
     init:
@@ -26,20 +26,6 @@ const HELP = `
     check:
       --skip-doc-gate   Skip the git doc-gate check
       --json            Machine-readable JSON output (for CI)
-
-  ${bold("Examples:")}
-    ${cyan("npx infernoflow init")}
-    ${cyan("infernoflow status")}
-    ${cyan("infernoflow check")}
-    ${cyan("infernoflow check --json")}
-    ${cyan("infernoflow doc-gate")}
-
-  ${bold("CI example:")}
-    ${gray("# In GitHub Actions:")}
-    ${gray("- run: npx infernoflow check --json")}
-    ${gray("  env:")}
-    ${gray("    BASE_SHA: ${{ github.event.pull_request.base.sha }}")}
-    ${gray("    HEAD_SHA: ${{ github.event.pull_request.head.sha }}")}
 `;
 
 const [,, cmd, ...rest] = process.argv;
@@ -54,7 +40,7 @@ if (cmd === "--version" || cmd === "-v") {
   process.exit(0);
 }
 
-const commands = ["init", "check", "status", "doc-gate"];
+const commands = ["init", "check", "status", "doc-gate", "suggest"];
 
 if (!commands.includes(cmd)) {
   console.error(red(`\nUnknown command: ${cmd}`));
@@ -78,6 +64,11 @@ switch (cmd) {
   case "status":
     import("../lib/commands/status.mjs")
       .then(m => m.statusCommand(args))
+      .catch(err => { console.error(red("\nError: ") + err.message); process.exit(1); });
+    break;
+  case "suggest":
+    import("../lib/commands/suggest.mjs")
+      .then(m => m.suggestCommand(args))
       .catch(err => { console.error(red("\nError: ") + err.message); process.exit(1); });
     break;
   case "doc-gate":
