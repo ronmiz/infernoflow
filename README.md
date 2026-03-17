@@ -25,16 +25,19 @@ npx infernoflow init
 ## Quick Start
 
 ```bash
-# In your project root:
+# 1. Scaffold in your project root:
 npx infernoflow init
 
-# See your contract health:
+# 2. See your contract health:
 infernoflow status
 
-# Validate everything:
+# 3. When you add a feature, let AI update the docs:
+infernoflow suggest "added email notifications and user profiles"
+
+# 4. Validate everything:
 infernoflow check
 
-# In CI / pre-push hook:
+# 5. In CI / pre-push hook:
 infernoflow doc-gate
 ```
 
@@ -44,48 +47,61 @@ infernoflow doc-gate
 |---|---|
 | `infernoflow init` | Interactive scaffold — creates `inferno/` in your project |
 | `infernoflow status` | At-a-glance health of your contract |
+| `infernoflow suggest` | Generate an AI prompt, apply capability updates |
 | `infernoflow check` | Full validation: contract, capabilities, scenarios, changelog |
 | `infernoflow doc-gate` | Fails if code changed but docs weren't updated |
 
 ### Options
 
 ```bash
-infernoflow init --force    # overwrite existing files
-infernoflow init --yes      # skip prompts, use defaults
-infernoflow check --json    # machine-readable output for CI
+infernoflow init --force       # overwrite existing files
+infernoflow init --yes         # skip prompts, use defaults
+infernoflow suggest "..."      # describe what changed
+infernoflow check --json       # machine-readable output for CI
 infernoflow check --skip-doc-gate
 ```
 
-## Example: Todo App
+## `infernoflow suggest` — AI-powered updates
 
-After `infernoflow init` in a React Todo project:
+When you add a feature, just describe it in plain language. infernoflow generates a prompt you can paste into **any AI** (Claude, ChatGPT, Copilot, Cursor, etc.), then applies the suggested changes automatically.
 
-```
-inferno/
-├── contract.json
-│   {
-│     "policyId": "todo-app",
-│     "policyVersion": 1,
-│     "capabilities": ["CreateTask", "ReadTasks", "UpdateTask", "ToggleComplete", "DeleteTask"]
-│   }
-├── capabilities.json
-│   { capabilities: [{ id: "CreateTask", title: "Create a task", since: "0.1.0" }, ...] }
-├── scenarios/
-│   └── happy_path.json   ← covers all 5 capabilities
-└── CHANGELOG.md
+```bash
+infernoflow suggest "added payment processing and invoice generation"
 ```
 
-Then in CI:
+**What happens:**
+1. infernoflow reads your current contract state
+2. Generates a structured prompt with full context
+3. You paste it into your AI of choice
+4. Paste the JSON response back
+5. infernoflow previews the changes and asks for confirmation
+6. On approval — updates `contract.json`, `capabilities.json`, `scenarios/`, and `CHANGELOG.md`
 
-```yaml
-- run: npm run inferno:check
+**Example output:**
 ```
+Proposed Changes
+
+  Summary: Added payment processing and invoice generation functionality.
+
+  + New capabilities:
+      ProcessPayment — Process Payment
+      GenerateInvoice — Generate Invoice
+
+  ~ Scenario updates:
+      [update] happy_path.json
+
+  📝 Changelog: - Add payment processing and invoice generation capabilities.
+
+  Apply these changes? (y/n)
+```
+
+Works with any AI — Claude, ChatGPT, GitHub Copilot, Cursor, or your own setup.
 
 ## Why infernoflow?
 
 **The problem:** AI-assisted development moves fast. Code changes daily. But what does the system *actually do*? What changed? What's covered?
 
-**The metaphor:** A forge (כיבשן). Metal becomes liquid — flexible, shapeable. The forge is the controlled environment where that change happens safely, with molds (contracts) and tempering (tests).
+**The metaphor:** A forge (כיבשן). Metal becomes liquid — flexible, shapeable. The forge is the controlled environment where that change happens safely, with molds (contracts) and tempering (validation).
 
 **The principle:** Liquid where you want flexibility. Solid where you need safety.
 
