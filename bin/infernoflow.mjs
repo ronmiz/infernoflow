@@ -23,6 +23,7 @@ const HELP = `
     --working "..."     What you are building right now
     --decision "..."    Record a decision or note
     --show              Print context without writing file
+    --copy, -c          Copy context to clipboard instantly
     --reset             Clear all stored state
 
   ${bold("Typical workflow:")}
