@@ -13,6 +13,7 @@ const help = run(["--help"]);
 if (help.status !== 0) throw new Error("help command failed");
 if (!help.stdout.includes("suggest")) throw new Error("suggest command missing from help output");
 if (!help.stdout.includes("implement")) throw new Error("implement command missing from help output");
+if (!help.stdout.includes("--adopt")) throw new Error("init --adopt option missing from help output");
 
 const version = run(["--version"]);
 if (version.status !== 0) throw new Error("version command failed");

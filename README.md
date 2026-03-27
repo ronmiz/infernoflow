@@ -41,6 +41,43 @@ infernoflow check
 infernoflow doc-gate
 ```
 
+## Adopt Existing Project
+
+Use this when your project already has code and you want InfernoFlow to bootstrap from current behavior.
+
+```bash
+# from existing project root
+infernoflow init --adopt
+```
+
+Non-interactive adoption:
+
+```bash
+infernoflow init --adopt --yes
+```
+
+JSON report for CI/logging:
+
+```bash
+infernoflow init --adopt --yes --report-json
+```
+
+JSON-only output (clean machine output, no text logs):
+
+```bash
+infernoflow init --adopt --yes --report-json-only
+```
+
+What adoption creates:
+- `inferno/contract.json` (inferred capability baseline)
+- `inferno/capabilities.json` (inferred registry)
+- `inferno/scenarios/adoption_baseline.json` (coverage baseline)
+- `inferno/CHANGELOG.md` (adoption entry)
+
+Safety:
+- Existing `inferno/` is not overwritten unless `--force` is provided.
+- Adoption prints an inferred capability report with source-file hints and confidence.
+
 ## Recommended Workflow
 
 ```bash
@@ -117,6 +154,7 @@ infernoflow doc-gate --json
 ```bash
 infernoflow init --force       # overwrite existing files
 infernoflow init --yes         # skip prompts, use defaults
+infernoflow init --adopt       # infer baseline from existing project
 infernoflow suggest "..."      # describe what changed
 infernoflow implement "..." --mode both
 infernoflow implement "..." --mode cursor

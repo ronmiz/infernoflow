@@ -8,7 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8"));
 const VERSION = pkg.version || "0.0.0";
 const COMMAND_DESCRIPTIONS = {
-  init: "Scaffold inferno/ in your project",
+  init: "Scaffold inferno/ in your project (or adopt existing project)",
   check: "Validate contract, capabilities, scenarios, changelog",
   status: "Show contract health at a glance",
   "doc-gate": "Fail if code changed but docs were not updated",
@@ -42,6 +42,13 @@ const HELP = `
 
   ${bold("Commands:")}
 ${formatCommandsHelp()}
+
+  ${bold("init options:")}
+    --adopt             Infer capabilities from an existing codebase
+    --report-json       Print inferred adoption report as JSON
+    --report-json-only  Print JSON report only (no human-readable logs)
+    --yes, -y           Skip prompts and accept inferred/default values
+    --force, -f         Overwrite existing inferno/ files
 
   ${bold("context options:")}
     --intent  "..."     What you plan to build next
