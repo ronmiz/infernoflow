@@ -45,6 +45,9 @@ ${formatCommandsHelp()}
 
   ${bold("init options:")}
     --adopt             Infer capabilities from an existing codebase
+    --lang <name>       Override detected language (e.g. ts, js, py)
+    --framework <name>  Override detected framework (e.g. react, angular, express)
+    --project-type <t>  Override project type (frontend|backend|fullstack|cli|library)
     --report-json       Print inferred adoption report as JSON
     --report-json-only  Print JSON report only (no human-readable logs)
     --report-human-only Print only human-readable adoption report (no JSON block)

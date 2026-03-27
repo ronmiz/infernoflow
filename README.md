@@ -56,6 +56,12 @@ Non-interactive adoption:
 infernoflow init --adopt --yes
 ```
 
+Override detected stack during adoption:
+
+```bash
+infernoflow init --adopt --lang ts --framework angular --project-type frontend
+```
+
 JSON report for CI/logging:
 
 ```bash
@@ -79,6 +85,7 @@ What adoption creates:
 - `inferno/capabilities.json` (inferred registry)
 - `inferno/scenarios/adoption_baseline.json` (coverage baseline)
 - `inferno/adoption_profile.json` (detected components, display fields, external libraries, UI layout, styling hints)
+- `inferno/context-state.json` (saved development profile: language/framework/project type)
 - `inferno/CHANGELOG.md` (adoption entry)
 
 Safety:
@@ -162,6 +169,7 @@ infernoflow doc-gate --json
 infernoflow init --force       # overwrite existing files
 infernoflow init --yes         # skip prompts, use defaults
 infernoflow init --adopt       # infer baseline from existing project
+infernoflow init --adopt --lang ts --framework react --project-type frontend
 infernoflow init --adopt --report-human-only
 infernoflow suggest "..."      # describe what changed
 infernoflow implement "..." --mode both

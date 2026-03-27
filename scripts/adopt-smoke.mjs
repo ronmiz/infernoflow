@@ -81,6 +81,9 @@ try {
   if (!parsed.styling || typeof parsed.styling !== "object") {
     throw new Error("report-json-only missing styling object");
   }
+  if (!parsed.developmentProfile || typeof parsed.developmentProfile !== "object") {
+    throw new Error("report-json-only missing developmentProfile object");
+  }
 
   const humanOnly = run(["init", "--adopt", "--yes", "--force", "--report-human-only"], root);
   if (humanOnly.status !== 0) throw new Error("init --adopt --report-human-only should succeed");
@@ -95,6 +98,9 @@ try {
   }
   if (!humanOnly.stdout.includes("Styling")) {
     throw new Error("report-human-only missing Styling section");
+  }
+  if (!humanOnly.stdout.includes("Development profile")) {
+    throw new Error("report-human-only missing Development profile section");
   }
 
   console.log("adopt smoke checks passed");

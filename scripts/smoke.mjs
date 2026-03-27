@@ -15,6 +15,9 @@ if (!help.stdout.includes("suggest")) throw new Error("suggest command missing f
 if (!help.stdout.includes("implement")) throw new Error("implement command missing from help output");
 if (!help.stdout.includes("--adopt")) throw new Error("init --adopt option missing from help output");
 if (!help.stdout.includes("--report-human-only")) throw new Error("init --report-human-only option missing from help output");
+if (!help.stdout.includes("--lang <name>")) throw new Error("init --lang option missing from help output");
+if (!help.stdout.includes("--framework <name>")) throw new Error("init --framework option missing from help output");
+if (!help.stdout.includes("--project-type <t>")) throw new Error("init --project-type option missing from help output");
 
 const version = run(["--version"]);
 if (version.status !== 0) throw new Error("version command failed");
