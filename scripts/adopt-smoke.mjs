@@ -43,6 +43,7 @@ try {
   if (!existsSync(join(infernoDir, "contract.json"))) throw new Error("contract.json not generated");
   if (!existsSync(join(infernoDir, "capabilities.json"))) throw new Error("capabilities.json not generated");
   if (!existsSync(join(infernoDir, "scenarios", "adoption_baseline.json"))) throw new Error("adoption_baseline.json not generated");
+  if (!existsSync(join(infernoDir, "adoption_profile.json"))) throw new Error("adoption_profile.json not generated");
   if (!existsSync(join(infernoDir, "CHANGELOG.md"))) throw new Error("CHANGELOG.md not generated");
 
   const check = run(["check", "--skip-doc-gate"], root);
@@ -64,6 +65,36 @@ try {
   }
   if (!parsed || !Array.isArray(parsed.inferredCapabilities)) {
     throw new Error("report-json-only missing inferredCapabilities array");
+  }
+  if (!Array.isArray(parsed.components)) {
+    throw new Error("report-json-only missing components array");
+  }
+  if (!Array.isArray(parsed.displayFields)) {
+    throw new Error("report-json-only missing displayFields array");
+  }
+  if (!Array.isArray(parsed.externalLibraries)) {
+    throw new Error("report-json-only missing externalLibraries array");
+  }
+  if (!parsed.uiLayout || typeof parsed.uiLayout !== "object") {
+    throw new Error("report-json-only missing uiLayout object");
+  }
+  if (!parsed.styling || typeof parsed.styling !== "object") {
+    throw new Error("report-json-only missing styling object");
+  }
+
+  const humanOnly = run(["init", "--adopt", "--yes", "--force", "--report-human-only"], root);
+  if (humanOnly.status !== 0) throw new Error("init --adopt --report-human-only should succeed");
+  if (!humanOnly.stdout.includes("Adoption Analysis")) {
+    throw new Error("report-human-only missing human adoption report");
+  }
+  if (humanOnly.stdout.includes("\"inferredCapabilities\"")) {
+    throw new Error("report-human-only should not print JSON block");
+  }
+  if (!humanOnly.stdout.includes("UI layout")) {
+    throw new Error("report-human-only missing UI layout section");
+  }
+  if (!humanOnly.stdout.includes("Styling")) {
+    throw new Error("report-human-only missing Styling section");
   }
 
   console.log("adopt smoke checks passed");

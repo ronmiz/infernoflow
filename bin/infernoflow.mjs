@@ -47,6 +47,7 @@ ${formatCommandsHelp()}
     --adopt             Infer capabilities from an existing codebase
     --report-json       Print inferred adoption report as JSON
     --report-json-only  Print JSON report only (no human-readable logs)
+    --report-human-only Print only human-readable adoption report (no JSON block)
     --yes, -y           Skip prompts and accept inferred/default values
     --force, -f         Overwrite existing inferno/ files
 

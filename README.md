@@ -68,10 +68,17 @@ JSON-only output (clean machine output, no text logs):
 infernoflow init --adopt --yes --report-json-only
 ```
 
+Human-only output (visual report only, no JSON block):
+
+```bash
+infernoflow init --adopt --yes --report-human-only
+```
+
 What adoption creates:
 - `inferno/contract.json` (inferred capability baseline)
 - `inferno/capabilities.json` (inferred registry)
 - `inferno/scenarios/adoption_baseline.json` (coverage baseline)
+- `inferno/adoption_profile.json` (detected components, display fields, external libraries, UI layout, styling hints)
 - `inferno/CHANGELOG.md` (adoption entry)
 
 Safety:
@@ -155,6 +162,7 @@ infernoflow doc-gate --json
 infernoflow init --force       # overwrite existing files
 infernoflow init --yes         # skip prompts, use defaults
 infernoflow init --adopt       # infer baseline from existing project
+infernoflow init --adopt --report-human-only
 infernoflow suggest "..."      # describe what changed
 infernoflow implement "..." --mode both
 infernoflow implement "..." --mode cursor
