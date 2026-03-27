@@ -1,7 +1,37 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { bold, gray, cyan, red } from "../lib/ui/output.mjs";
 
-const VERSION = "0.5.0";
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8"));
+const VERSION = pkg.version || "0.0.0";
+const COMMAND_DESCRIPTIONS = {
+  init: "Scaffold inferno/ in your project",
+  check: "Validate contract, capabilities, scenarios, changelog",
+  status: "Show contract health at a glance",
+  "doc-gate": "Fail if code changed but docs were not updated",
+  suggest: "Generate AI prompt + apply capability updates",
+  implement: "Generate code-agent implementation prompt(s)",
+  context: "Generate AI-ready context for new sessions",
+};
+
+const COMMAND_HANDLERS = {
+  init: async (args) => (await import("../lib/commands/init.mjs")).initCommand(args),
+  check: async (args) => (await import("../lib/commands/check.mjs")).checkCommand(args),
+  status: async (args) => (await import("../lib/commands/status.mjs")).statusCommand(args),
+  suggest: async (args) => (await import("../lib/commands/suggest.mjs")).suggestCommand(args),
+  implement: async (args) => (await import("../lib/commands/implement.mjs")).implementCommand(args),
+  context: async (args) => (await import("../lib/commands/context.mjs")).contextCommand(args),
+  "doc-gate": async (args) => (await import("../lib/commands/docGate.mjs")).docGateCommand(args),
+};
+
+function formatCommandsHelp() {
+  return Object.entries(COMMAND_DESCRIPTIONS)
+    .map(([name, desc]) => `    ${name.padEnd(13, " ")}${desc}`)
+    .join("\n");
+}
 
 const HELP = `
   ${bold("🔥 infernoflow")} ${gray("v" + VERSION)}
@@ -11,12 +41,7 @@ const HELP = `
     infernoflow <command> [options]
 
   ${bold("Commands:")}
-    init          Scaffold inferno/ in your project
-    check         Validate contract, capabilities, scenarios, changelog
-    status        Show contract health at a glance
-    doc-gate      Fail if code changed but docs were not updated
-    suggest       Generate AI prompt + apply capability updates
-    context       Generate AI-ready context for new sessions
+${formatCommandsHelp()}
 
   ${bold("context options:")}
     --intent  "..."     What you plan to build next
@@ -26,12 +51,21 @@ const HELP = `
     --copy, -c          Copy context to clipboard instantly
     --reset             Clear all stored state
 
+  ${bold("implement options:")}
+    --mode <type>       cursor | generic | both (default: both)
+    --copy, -c          Copy generated prompt(s) to clipboard
+
   ${bold("Typical workflow:")}
     ${gray('1. infernoflow context --intent "what I want to build"')}
     ${gray("2. [paste inferno/CONTEXT.md into Claude / Cursor / Copilot]")}
     ${gray("3. [build the feature]")}
     ${gray('4. infernoflow suggest "what I built"')}
     ${gray("5. infernoflow check")}
+
+  ${bold("Machine output:")}
+    ${gray("status --json")}
+    ${gray("check --json")}
+    ${gray("doc-gate --json")}
 `;
 
 const [, , cmd, ...rest] = process.argv;
@@ -45,7 +79,7 @@ if (cmd === "--version" || cmd === "-v") {
   process.exit(0);
 }
 
-const commands = ["init", "check", "status", "doc-gate", "suggest", "context"];
+const commands = Object.keys(COMMAND_HANDLERS);
 
 if (!commands.includes(cmd)) {
   console.error(red(`\nUnknown command: ${cmd}`));
@@ -54,54 +88,7 @@ if (!commands.includes(cmd)) {
 }
 
 const args = [cmd, ...rest];
-
-switch (cmd) {
-  case "init":
-    import("../lib/commands/init.mjs")
-      .then((m) => m.initCommand(args))
-      .catch((err) => {
-        console.error(red("\nError: ") + err.message);
-        process.exit(1);
-      });
-    break;
-  case "check":
-    import("../lib/commands/check.mjs")
-      .then((m) => m.checkCommand(args))
-      .catch((err) => {
-        console.error(red("\nError: ") + err.message);
-        process.exit(1);
-      });
-    break;
-  case "status":
-    import("../lib/commands/status.mjs")
-      .then((m) => m.statusCommand(args))
-      .catch((err) => {
-        console.error(red("\nError: ") + err.message);
-        process.exit(1);
-      });
-    break;
-  case "suggest":
-    import("../lib/commands/suggest.mjs")
-      .then((m) => m.suggestCommand(args))
-      .catch((err) => {
-        console.error(red("\nError: ") + err.message);
-        process.exit(1);
-      });
-    break;
-  case "context":
-    import("../lib/commands/context.mjs")
-      .then((m) => m.contextCommand(args))
-      .catch((err) => {
-        console.error(red("\nError: ") + err.message);
-        process.exit(1);
-      });
-    break;
-  case "doc-gate":
-    import("../lib/commands/docGate.mjs")
-      .then((m) => m.docGateCommand())
-      .catch((err) => {
-        console.error(red("\nError: ") + err.message);
-        process.exit(1);
-      });
-    break;
-}
+COMMAND_HANDLERS[cmd](args).catch((err) => {
+  console.error(red("\nError: ") + err.message);
+  process.exit(1);
+});
