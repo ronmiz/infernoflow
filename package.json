@@ -4,7 +4,7 @@
   "description": "The forge for liquid code — keep capabilities, contracts, and docs in sync.",
   "type": "module",
   "bin": {
-    "infernoflow": "./bin/infernoflow.mjs"
+    "infernoflow": "bin/infernoflow.mjs"
   },
   "engines": {
     "node": ">=18"
@@ -33,7 +33,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ronmiz/infernoflow.git"
+    "url": "git+https://github.com/ronmiz/infernoflow.git"
   },
   "homepage": "https://github.com/ronmiz/infernoflow#readme",
   "bugs": {
