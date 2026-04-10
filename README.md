@@ -166,6 +166,7 @@ infernoflow doc-gate --json
 | `infernoflow status` | At-a-glance health of your contract |
 | `infernoflow suggest` | Generate an AI prompt, apply capability updates |
 | `infernoflow implement` | Generate implementation prompts for coding agents |
+| `infernoflow run` | One-command local-model flow with validation and rollback |
 | `infernoflow pr-impact` | Analyze changed files and infer capability/doc drift |
 | `infernoflow sync --auto` | Deterministic sync flow for agents (skeleton) |
 | `infernoflow check` | Full validation: contract, capabilities, scenarios, changelog |
@@ -185,6 +186,9 @@ infernoflow implement "..." --mode both
 infernoflow implement "..." --mode cursor
 infernoflow implement "..." --mode generic
 infernoflow implement "..." --mode both --copy
+infernoflow run "add favorite badge to tasks"
+infernoflow run "sync check" --dry-run
+infernoflow run "sync check" --json
 infernoflow pr-impact
 infernoflow pr-impact --json
 infernoflow sync --auto
@@ -231,6 +235,43 @@ Proposed Changes
 ```
 
 Works with any AI — Claude, ChatGPT, GitHub Copilot, Cursor, or your own setup.
+
+## `infernoflow run` — zero copy/paste flow
+
+Run one command and infernoflow will:
+1. Detect drift (`pr-impact`)
+2. Generate suggestion via local model
+3. Apply inferno updates
+4. Validate with `check`
+5. Roll back automatically if validation fails
+
+```bash
+infernoflow run "add favorite badge to tasks and filter by favorite"
+```
+
+Machine mode:
+
+```bash
+infernoflow run "sync check" --json
+```
+
+Local model configuration (required):
+
+```bash
+# default provider: ollama
+set INFERNO_LOCAL_PROVIDER=ollama
+set INFERNO_LOCAL_ENDPOINT=http://127.0.0.1:11434/api/generate
+set INFERNO_LOCAL_MODEL=llama3.1:8b
+```
+
+Optional OpenAI-compatible local server:
+
+```bash
+set INFERNO_LOCAL_PROVIDER=openai
+set INFERNO_LOCAL_ENDPOINT=http://127.0.0.1:1234/v1/chat/completions
+set INFERNO_LOCAL_MODEL=local-model
+set INFERNO_LOCAL_API_KEY=local
+```
 
 ## `infernoflow implement` — code-agent execution prompts
 
@@ -279,11 +320,12 @@ Recommended chain:
 
 ```yaml
 # .github/workflows/ci.yml
-- name: infernoflow impact + check
-  run: |
-    npx infernoflow pr-impact --json
-    npx infernoflow check --json
+- name: infernoflow run
+  run: npx infernoflow run "sync check" --json
   env:
+    INFERNO_LOCAL_PROVIDER: ollama
+    INFERNO_LOCAL_ENDPOINT: http://127.0.0.1:11434/api/generate
+    INFERNO_LOCAL_MODEL: llama3.1:8b
     BASE_SHA: ${{ github.event.pull_request.base.sha }}
     HEAD_SHA: ${{ github.event.pull_request.head.sha }}
 ```

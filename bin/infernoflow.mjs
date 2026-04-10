@@ -13,6 +13,7 @@ const COMMAND_DESCRIPTIONS = {
   status: "Show contract health at a glance",
   "pr-impact": "Summarize PR impact on capabilities and docs",
   sync: "Run deterministic inferno sync flow",
+  run: "One-command detect/propose/apply/validate flow",
   "doc-gate": "Fail if code changed but docs were not updated",
   suggest: "Generate AI prompt + apply capability updates",
   implement: "Generate code-agent implementation prompt(s)",
@@ -25,6 +26,7 @@ const COMMAND_HANDLERS = {
   status: async (args) => (await import("../lib/commands/status.mjs")).statusCommand(args),
   "pr-impact": async (args) => (await import("../lib/commands/prImpact.mjs")).prImpactCommand(args),
   sync: async (args) => (await import("../lib/commands/syncAuto.mjs")).syncCommand(args),
+  run: async (args) => (await import("../lib/commands/run.mjs")).runCommand(args),
   suggest: async (args) => (await import("../lib/commands/suggest.mjs")).suggestCommand(args),
   implement: async (args) => (await import("../lib/commands/implement.mjs")).implementCommand(args),
   context: async (args) => (await import("../lib/commands/context.mjs")).contextCommand(args),
@@ -70,6 +72,11 @@ ${formatCommandsHelp()}
     --mode <type>       cursor | generic | both (default: both)
     --copy, -c          Copy generated prompt(s) to clipboard
 
+  ${bold("run options:")}
+    --dry-run           Execute full flow without writing files
+    --json              Emit machine-readable events and result payload
+    --no-rollback       Keep changes even if validation fails
+
   ${bold("Typical workflow:")}
     ${gray('1. infernoflow context --intent "what I want to build"')}
     ${gray("2. [paste inferno/CONTEXT.md into Claude / Cursor / Copilot]")}
@@ -83,6 +90,7 @@ ${formatCommandsHelp()}
     ${gray("doc-gate --json")}
     ${gray("pr-impact --json")}
     ${gray("sync --auto --json")}
+    ${gray('run "task" --json')}
 `;
 
 const [, , cmd, ...rest] = process.argv;
