@@ -14,13 +14,13 @@ if (!fs.existsSync(gitDir)) {
 fs.mkdirSync(hooksDir, { recursive: true });
 
 const preCommit = `#!/bin/sh
-echo "[inferno hooks] pre-commit: infernoflow run --dry-run"
-npx infernoflow run "sync check" --dry-run
+echo "[inferno hooks] pre-commit: infernoflow run --provider auto --dry-run"
+npx infernoflow run "sync check" --provider auto --dry-run
 `;
 
 const prePush = `#!/bin/sh
-echo "[inferno hooks] pre-push: infernoflow run --json"
-npx infernoflow run "sync check" --json
+echo "[inferno hooks] pre-push: infernoflow run --provider auto --json"
+npx infernoflow run "sync check" --provider auto --json
 `;
 
 const writeHook = (name, content) => {

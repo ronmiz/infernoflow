@@ -240,10 +240,11 @@ Works with any AI — Claude, ChatGPT, GitHub Copilot, Cursor, or your own setup
 
 Run one command and infernoflow will:
 1. Detect drift (`pr-impact`)
-2. Generate suggestion via local model
-3. Apply inferno updates
-4. Validate with `check`
-5. Roll back automatically if validation fails
+2. Resolve provider (`auto` defaults to IDE agent)
+3. Generate suggestion
+4. Apply inferno updates
+5. Validate with `check`
+6. Roll back automatically if validation fails
 
 ```bash
 infernoflow run "add favorite badge to tasks and filter by favorite"
@@ -255,10 +256,24 @@ Machine mode:
 infernoflow run "sync check" --json
 ```
 
-Local model configuration (required):
+Provider options:
 
 ```bash
-# default provider: ollama
+infernoflow run "task" --provider auto                # default (IDE agent first)
+infernoflow run "task" --provider agent --ide cursor  # require IDE agent
+infernoflow run "task" --provider local               # explicit local model
+infernoflow run "task" --provider prompt              # deterministic prompt fallback
+```
+
+IDE routing behavior:
+- `auto` + agent available -> uses IDE agent
+- `auto` + no agent -> falls back to prompt mode (`FALLBACK_PROMPT_MODE`)
+- `agent` + no agent -> exits with `EXPLICIT_AGENT_REQUIRED`
+
+Local model configuration (optional):
+
+```bash
+# local provider example: ollama
 set INFERNO_LOCAL_PROVIDER=ollama
 set INFERNO_LOCAL_ENDPOINT=http://127.0.0.1:11434/api/generate
 set INFERNO_LOCAL_MODEL=llama3.1:8b
@@ -320,12 +335,9 @@ Recommended chain:
 
 ```yaml
 # .github/workflows/ci.yml
-- name: infernoflow run
-  run: npx infernoflow run "sync check" --json
+- name: infernoflow run (headless)
+  run: npx infernoflow run "sync check" --provider prompt --json
   env:
-    INFERNO_LOCAL_PROVIDER: ollama
-    INFERNO_LOCAL_ENDPOINT: http://127.0.0.1:11434/api/generate
-    INFERNO_LOCAL_MODEL: llama3.1:8b
     BASE_SHA: ${{ github.event.pull_request.base.sha }}
     HEAD_SHA: ${{ github.event.pull_request.head.sha }}
 ```

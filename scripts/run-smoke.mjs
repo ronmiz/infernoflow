@@ -51,7 +51,6 @@ try {
   sh(root, "git", ["add", "."]);
   sh(root, "git", ["commit", "-m", "baseline"]);
 
-  // Success path
   const okResponse = JSON.stringify({
     summary: "favorite behavior",
     newCapabilities: [{ id: "SetTaskFavorite", title: "Set Task Favorite", reason: "new behavior" }],
@@ -66,18 +65,67 @@ try {
     ],
     changelogEntry: "- Added favorite behavior",
   });
-  const okRun = run(root, ["run", "add favorite badge", "--json"], { INFERNO_LOCAL_MOCK_RESPONSE: okResponse });
+
+  // Auto -> agent path
+  const okRun = run(root, ["run", "add favorite badge", "--json"], {
+    INFERNO_AGENT_AVAILABLE: "1",
+    INFERNO_AGENT_MOCK_RESPONSE: okResponse,
+  });
   if (okRun.status !== 0) throw new Error("run --json success path should pass");
   const okParsed = JSON.parse(okRun.stdout);
   if (!okParsed.ok) throw new Error("run payload ok expected true");
+  if (okParsed.providerResolved !== "agent") throw new Error("auto should resolve to agent when available");
   if (!okParsed.artifactPath || !existsSync(join(root, okParsed.artifactPath))) {
     throw new Error("run artifact missing");
   }
 
+  // Auto -> prompt fallback path
+  const promptRun = run(root, ["run", "headless flow", "--json"], {
+    INFERNO_AGENT_AVAILABLE: "0",
+  });
+  if (promptRun.status !== 0) throw new Error("prompt fallback path should pass");
+  const promptParsed = JSON.parse(promptRun.stdout);
+  if (promptParsed.providerResolved !== "prompt") throw new Error("auto should fallback to prompt");
+  if (!promptParsed.reasonCodes.includes("FALLBACK_PROMPT_MODE")) throw new Error("missing prompt fallback reason code");
+
+  // Explicit agent failure path
+  const explicitAgent = run(root, ["run", "force agent", "--provider", "agent", "--json"], {
+    INFERNO_AGENT_AVAILABLE: "0",
+  });
+  if (explicitAgent.status === 0) throw new Error("explicit agent should fail when unavailable");
+  const explicitAgentParsed = JSON.parse(explicitAgent.stdout);
+  if (!explicitAgentParsed.reasonCodes.includes("EXPLICIT_AGENT_REQUIRED")) {
+    throw new Error("missing explicit agent reason code");
+  }
+
+  // Explicit local path
+  const localResponse = JSON.stringify({
+    summary: "archive behavior",
+    newCapabilities: [{ id: "ArchiveTask", title: "Archive Task", reason: "new behavior" }],
+    removedCapabilities: [],
+    updatedScenarios: [
+      {
+        file: "happy_path.json",
+        isNew: false,
+        capabilitiesCovered: ["ArchiveTask"],
+        stepsToAdd: [{ action: "ArchiveTask", expect: "works" }],
+      },
+    ],
+    changelogEntry: "- Added archive behavior",
+  });
+  const localRun = run(root, ["run", "local route", "--provider", "local", "--json"], {
+    INFERNO_LOCAL_MOCK_RESPONSE: localResponse,
+  });
+  if (localRun.status !== 0) throw new Error("explicit local should pass");
+  const localParsed = JSON.parse(localRun.stdout);
+  if (localParsed.providerResolved !== "local") throw new Error("provider local should resolve local");
+  if (!localParsed.reasonCodes.includes("LOCAL_PROVIDER_SELECTED")) throw new Error("missing local provider reason code");
+
   // Rollback path
   const contractBefore = readFileSync(join(root, "inferno", "contract.json"), "utf8");
   const failRun = run(root, ["run", "force fail validate", "--json"], {
-    INFERNO_LOCAL_MOCK_RESPONSE: JSON.stringify({
+    INFERNO_AGENT_AVAILABLE: "1",
+    INFERNO_AGENT_MOCK_RESPONSE: JSON.stringify({
       summary: "pin behavior",
       newCapabilities: [{ id: "SetTaskPinned", title: "Set Task Pinned", reason: "new behavior" }],
       removedCapabilities: [],

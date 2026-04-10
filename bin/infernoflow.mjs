@@ -76,6 +76,8 @@ ${formatCommandsHelp()}
     --dry-run           Execute full flow without writing files
     --json              Emit machine-readable events and result payload
     --no-rollback       Keep changes even if validation fails
+    --provider <type>   auto | agent | local | prompt (default: auto)
+    --ide <name>        auto | cursor | vscode | windsurf (default: auto)
 
   ${bold("Typical workflow:")}
     ${gray('1. infernoflow context --intent "what I want to build"')}
