@@ -34,6 +34,15 @@ try {
       app.delete("/tasks/:id", () => {});
     `
   );
+  writeFileSync(
+    join(root, "server", "Program.cs"),
+    `
+      var app = WebApplication.CreateBuilder(args).Build();
+      app.MapGet("/health", () => Results.Ok("ok"));
+      app.MapPost("/tasks", () => Results.Ok());
+      app.Run();
+    `
+  );
   writeFileSync(join(root, "package.json"), JSON.stringify({ name: "adopt-smoke", version: "1.0.0" }, null, 2));
 
   const init = run(["init", "--adopt", "--yes"], root);
@@ -84,6 +93,12 @@ try {
   if (!parsed.developmentProfile || typeof parsed.developmentProfile !== "object") {
     throw new Error("report-json-only missing developmentProfile object");
   }
+  if (!parsed.apiCalls || typeof parsed.apiCalls !== "object") {
+    throw new Error("report-json-only missing apiCalls object");
+  }
+  if (!parsed.apiCalls.calls.some((c) => c.style === "csharp-map")) {
+    throw new Error("report-json-only missing csharp-map API detection");
+  }
 
   const humanOnly = run(["init", "--adopt", "--yes", "--force", "--report-human-only"], root);
   if (humanOnly.status !== 0) throw new Error("init --adopt --report-human-only should succeed");
@@ -101,6 +116,9 @@ try {
   }
   if (!humanOnly.stdout.includes("Development profile")) {
     throw new Error("report-human-only missing Development profile section");
+  }
+  if (!humanOnly.stdout.includes("API calls")) {
+    throw new Error("report-human-only missing API calls section");
   }
 
   console.log("adopt smoke checks passed");

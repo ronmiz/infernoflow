@@ -62,6 +62,12 @@ Override detected stack during adoption:
 infernoflow init --adopt --lang ts --framework angular --project-type frontend
 ```
 
+C# / ASP.NET example:
+
+```bash
+infernoflow init --adopt --lang cs --framework aspnet --project-type backend --report-human-only
+```
+
 JSON report for CI/logging:
 
 ```bash
@@ -85,6 +91,7 @@ What adoption creates:
 - `inferno/capabilities.json` (inferred registry)
 - `inferno/scenarios/adoption_baseline.json` (coverage baseline)
 - `inferno/adoption_profile.json` (detected components, display fields, external libraries, UI layout, styling hints)
+- `inferno/adoption_profile.json` (detected components, display fields, external libraries, UI layout, styling hints, API call map)
 - `inferno/context-state.json` (saved development profile: language/framework/project type)
 - `inferno/CHANGELOG.md` (adoption entry)
 
