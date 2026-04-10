@@ -23,6 +23,8 @@ try {
       export async function searchTasks() {}
       export async function createTask() {}
       export async function clearCompleted() {}
+      export async function loadById(id) { return fetch("/api/tasks/" + id); }
+      export async function createViaAxios(payload) { return axios.post("/api/tasks", payload); }
     `
   );
   writeFileSync(
@@ -98,6 +100,12 @@ try {
   }
   if (!parsed.apiCalls.calls.some((c) => c.style === "csharp-map")) {
     throw new Error("report-json-only missing csharp-map API detection");
+  }
+  if (!parsed.apiCalls.calls.some((c) => c.style === "axios")) {
+    throw new Error("report-json-only missing axios API detection");
+  }
+  if (!parsed.apiCalls.calls.some((c) => c.endpointPattern.includes("{var}") || c.endpointPattern.includes("{id}"))) {
+    throw new Error("report-json-only missing normalized endpoint pattern");
   }
 
   const humanOnly = run(["init", "--adopt", "--yes", "--force", "--report-human-only"], root);

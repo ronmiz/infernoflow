@@ -166,6 +166,8 @@ infernoflow doc-gate --json
 | `infernoflow status` | At-a-glance health of your contract |
 | `infernoflow suggest` | Generate an AI prompt, apply capability updates |
 | `infernoflow implement` | Generate implementation prompts for coding agents |
+| `infernoflow pr-impact` | Analyze changed files and infer capability/doc drift |
+| `infernoflow sync --auto` | Deterministic sync flow for agents (skeleton) |
 | `infernoflow check` | Full validation: contract, capabilities, scenarios, changelog |
 | `infernoflow doc-gate` | Fails if code changed but docs weren't updated |
 | `infernoflow context` | Build/persist AI session context for this project |
@@ -183,6 +185,11 @@ infernoflow implement "..." --mode both
 infernoflow implement "..." --mode cursor
 infernoflow implement "..." --mode generic
 infernoflow implement "..." --mode both --copy
+infernoflow pr-impact
+infernoflow pr-impact --json
+infernoflow sync --auto
+infernoflow sync --auto --json
+npm run inferno:hooks      # install local git hooks (after init)
 infernoflow check --json       # machine-readable output for CI
 infernoflow check --skip-doc-gate
 infernoflow status --json      # machine-readable status summary
@@ -272,11 +279,23 @@ Recommended chain:
 
 ```yaml
 # .github/workflows/ci.yml
-- name: infernoflow check
-  run: npx infernoflow check --json
+- name: infernoflow impact + check
+  run: |
+    npx infernoflow pr-impact --json
+    npx infernoflow check --json
   env:
     BASE_SHA: ${{ github.event.pull_request.base.sha }}
     HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+```
+
+When you run `infernoflow init`, it now scaffolds:
+- `scripts/inferno-install-hooks.mjs`
+- `.github/workflows/infernoflow-check.yml`
+
+Install local hooks once per clone:
+
+```bash
+npm run inferno:hooks
 ```
 
 ## Release Checklist

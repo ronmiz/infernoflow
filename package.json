@@ -16,7 +16,7 @@
     "README.md"
   ],
   "scripts": {
-    "test": "node scripts/smoke.mjs && node scripts/json-smoke.mjs && node scripts/json-negative-smoke.mjs && node scripts/implement-smoke.mjs",
+    "test": "node scripts/smoke.mjs && node scripts/json-smoke.mjs && node scripts/json-negative-smoke.mjs && node scripts/implement-smoke.mjs && node scripts/adopt-smoke.mjs && node scripts/pr-impact-smoke.mjs && node scripts/sync-smoke.mjs",
     "test:help": "node bin/infernoflow.mjs --help"
   },
   "keywords": [

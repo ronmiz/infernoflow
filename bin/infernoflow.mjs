@@ -11,6 +11,8 @@ const COMMAND_DESCRIPTIONS = {
   init: "Scaffold inferno/ in your project (or adopt existing project)",
   check: "Validate contract, capabilities, scenarios, changelog",
   status: "Show contract health at a glance",
+  "pr-impact": "Summarize PR impact on capabilities and docs",
+  sync: "Run deterministic inferno sync flow",
   "doc-gate": "Fail if code changed but docs were not updated",
   suggest: "Generate AI prompt + apply capability updates",
   implement: "Generate code-agent implementation prompt(s)",
@@ -21,6 +23,8 @@ const COMMAND_HANDLERS = {
   init: async (args) => (await import("../lib/commands/init.mjs")).initCommand(args),
   check: async (args) => (await import("../lib/commands/check.mjs")).checkCommand(args),
   status: async (args) => (await import("../lib/commands/status.mjs")).statusCommand(args),
+  "pr-impact": async (args) => (await import("../lib/commands/prImpact.mjs")).prImpactCommand(args),
+  sync: async (args) => (await import("../lib/commands/syncAuto.mjs")).syncCommand(args),
   suggest: async (args) => (await import("../lib/commands/suggest.mjs")).suggestCommand(args),
   implement: async (args) => (await import("../lib/commands/implement.mjs")).implementCommand(args),
   context: async (args) => (await import("../lib/commands/context.mjs")).contextCommand(args),
@@ -77,6 +81,8 @@ ${formatCommandsHelp()}
     ${gray("status --json")}
     ${gray("check --json")}
     ${gray("doc-gate --json")}
+    ${gray("pr-impact --json")}
+    ${gray("sync --auto --json")}
 `;
 
 const [, , cmd, ...rest] = process.argv;
