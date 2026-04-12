@@ -28,6 +28,17 @@ npx infernoflow init
 # 1. Scaffold in your project root:
 npx infernoflow init
 
+# Optional: same as init, plus Cursor hooks that append each Agent reply
+# to inferno/CONTEXT.draft.md (gitignored). Promote with npm run inferno:promote-draft.
+npx infernoflow init --yes --cursor-hooks
+
+# Optional: VS Code + GitHub Copilot agent hooks (Preview) — same draft file + promote flow
+npx infernoflow init --yes --vscode-copilot-hooks
+
+# Or add hooks to an existing infernoflow project:
+npx infernoflow install-cursor-hooks
+npx infernoflow install-vscode-copilot-hooks
+
 # 2. See your contract health:
 infernoflow status
 
@@ -172,11 +183,38 @@ infernoflow doc-gate --json
 | `infernoflow check` | Full validation: contract, capabilities, scenarios, changelog |
 | `infernoflow doc-gate` | Fails if code changed but docs weren't updated |
 | `infernoflow context` | Build/persist AI session context for this project |
+| `infernoflow install-cursor-hooks` | Install `.cursor/hooks` + `scripts/inferno-promote-draft.mjs` (Agent → draft → promote) |
+| `infernoflow install-vscode-copilot-hooks` | Install `.github/hooks` for VS Code + Copilot (Preview) + same promote script |
+
+### Cursor hooks (draft → promote)
+
+[Cursor hooks](https://cursor.com/docs/agent/hooks) can run a small Node script after each assistant message. infernoflow can install:
+
+- **`.cursor/hooks.json`** — `afterAgentResponse` and `stop` events
+- **`.cursor/hooks/inferno-session-draft.mjs`** — appends assistant `text` to **`inferno/CONTEXT.draft.md`** (never overwrites `CONTEXT.md` automatically)
+- **`scripts/inferno-promote-draft.mjs`** + **`npm run inferno:promote-draft`** — preview, `--append-notes` (merge under `## Decisions & notes` in `inferno/CONTEXT.md`), or `--clear`
+- **`.gitignore`** entry for `inferno/CONTEXT.draft.md` when possible
+
+Install with **`infernoflow install-cursor-hooks`** or **`infernoflow init --cursor-hooks`**. Restart Cursor after install. Review the draft before promoting; treat chat as **input**, not product truth.
+
+### VS Code + GitHub Copilot hooks (draft → promote, Preview)
+
+VS Code can run [Agent hooks](https://code.visualstudio.com/docs/copilot/customization/hooks) from **`.github/hooks/*.json`**. infernoflow installs:
+
+- **`.github/hooks/infernoflow-drafts.json`** — wires **`UserPromptSubmit`** (your prompt) and **`Stop`** (end of agent turn)
+- **`scripts/inferno-vscode-copilot-hook.mjs`** — appends the user prompt on submit; on **Stop**, reads **`transcript_path`** from stdin (when present), parses **JSONL** or session **JSON**, and appends the **last assistant text** it can infer (format varies by VS Code / Copilot version — if parsing fails, a short marker is still appended)
+- The same **`inferno:promote-draft`** script and **`.gitignore`** entry for **`inferno/CONTEXT.draft.md`** as the Cursor flow
+
+Install with **`infernoflow install-vscode-copilot-hooks`** or **`infernoflow init --vscode-copilot-hooks`**. Restart VS Code, confirm your org allows hooks, and use the **GitHub Copilot Chat Hooks** output channel for diagnostics.
+
+**Limitations:** Hooks are **Preview**; `transcript_path` / JSONL shape may differ by build; some hook events omit `transcript_path` ([vscode#300583](https://github.com/microsoft/vscode/issues/300583)). You still have the full **`infernoflow`** CLI in the terminal when hooks are not enough.
 
 ### Options
 
 ```bash
 infernoflow init --force       # overwrite existing files
+infernoflow init --cursor-hooks # with init: install Cursor draft hooks (see above)
+infernoflow init --vscode-copilot-hooks # with init: install VS Code + Copilot draft hooks (Preview)
 infernoflow init --yes         # skip prompts, use defaults
 infernoflow init --adopt       # infer baseline from existing project
 infernoflow init --adopt --lang ts --framework react --project-type frontend
@@ -194,6 +232,8 @@ infernoflow pr-impact --json
 infernoflow sync --auto
 infernoflow sync --auto --json
 npm run inferno:hooks      # install local git hooks (after init)
+infernoflow install-cursor-hooks --force  # overwrite hook files if present
+infernoflow install-vscode-copilot-hooks --force
 infernoflow check --json       # machine-readable output for CI
 infernoflow check --skip-doc-gate
 infernoflow status --json      # machine-readable status summary

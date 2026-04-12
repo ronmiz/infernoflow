@@ -1,6 +1,6 @@
 {
   "name": "infernoflow",
-  "version": "0.10.9",
+  "version": "0.10.12",
   "description": "The forge for liquid code — keep capabilities, contracts, and docs in sync.",
   "type": "module",
   "bin": {
@@ -13,7 +13,8 @@
     "bin",
     "lib",
     "templates",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "test": "node scripts/smoke.mjs && node scripts/json-smoke.mjs && node scripts/json-negative-smoke.mjs && node scripts/implement-smoke.mjs && node scripts/adopt-smoke.mjs && node scripts/pr-impact-smoke.mjs && node scripts/sync-smoke.mjs && node scripts/run-smoke.mjs",

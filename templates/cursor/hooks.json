@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterAgentResponse": [
+      {
+        "command": "node .cursor/hooks/inferno-session-draft.mjs"
+      }
+    ],
+    "stop": [
+      {
+        "command": "node .cursor/hooks/inferno-session-draft.mjs --agent-stop"
+      }
+    ]
+  }
+}

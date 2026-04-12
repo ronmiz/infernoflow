@@ -9,6 +9,9 @@ const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8
 const VERSION = pkg.version || "0.0.0";
 const COMMAND_DESCRIPTIONS = {
   init: "Scaffold inferno/ in your project (or adopt existing project)",
+  "install-cursor-hooks": "Install Cursor hooks: draft agent replies to inferno/CONTEXT.draft.md",
+  "install-vscode-copilot-hooks":
+    "Install VS Code + Copilot agent hooks (Preview): draft to inferno/CONTEXT.draft.md",
   check: "Validate contract, capabilities, scenarios, changelog",
   status: "Show contract health at a glance",
   "pr-impact": "Summarize PR impact on capabilities and docs",
@@ -22,6 +25,10 @@ const COMMAND_DESCRIPTIONS = {
 
 const COMMAND_HANDLERS = {
   init: async (args) => (await import("../lib/commands/init.mjs")).initCommand(args),
+  "install-cursor-hooks": async (args) =>
+    (await import("../lib/commands/installCursorHooks.mjs")).installCursorHooksCommand(args),
+  "install-vscode-copilot-hooks": async (args) =>
+    (await import("../lib/commands/installVsCodeCopilotHooks.mjs")).installVsCodeCopilotHooksCommand(args),
   check: async (args) => (await import("../lib/commands/check.mjs")).checkCommand(args),
   status: async (args) => (await import("../lib/commands/status.mjs")).statusCommand(args),
   "pr-impact": async (args) => (await import("../lib/commands/prImpact.mjs")).prImpactCommand(args),
@@ -34,8 +41,10 @@ const COMMAND_HANDLERS = {
 };
 
 function formatCommandsHelp() {
+  const names = Object.keys(COMMAND_DESCRIPTIONS);
+  const w = Math.max(...names.map((n) => n.length), 8) + 1;
   return Object.entries(COMMAND_DESCRIPTIONS)
-    .map(([name, desc]) => `    ${name.padEnd(13, " ")}${desc}`)
+    .map(([name, desc]) => `    ${name.padEnd(w, " ")}${desc}`)
     .join("\n");
 }
 
@@ -50,6 +59,8 @@ const HELP = `
 ${formatCommandsHelp()}
 
   ${bold("init options:")}
+    --cursor-hooks           Also install Cursor hooks (draft → inferno/CONTEXT.draft.md)
+    --vscode-copilot-hooks   Also install VS Code + Copilot hooks (.github/hooks — Preview)
     --adopt             Infer capabilities from an existing codebase
     --lang <name>       Override detected language (e.g. ts, js, py)
     --framework <name>  Override detected framework (e.g. react, angular, express)
@@ -59,6 +70,12 @@ ${formatCommandsHelp()}
     --report-human-only Print only human-readable adoption report (no JSON block)
     --yes, -y           Skip prompts and accept inferred/default values
     --force, -f         Overwrite existing inferno/ files
+
+  ${bold("install-cursor-hooks options:")}
+    --force, -f         Overwrite .cursor/hooks.json and hook scripts if they exist
+
+  ${bold("install-vscode-copilot-hooks options:")}
+    --force, -f         Overwrite .github/hooks/infernoflow-drafts.json and scripts if they exist
 
   ${bold("context options:")}
     --intent  "..."     What you plan to build next
