@@ -1,3 +1,7 @@
-.git
+﻿bin/
+lib/
+build.mjs
+scripts/
+node_modules/
+.git/
 .gitignore
-*.log
