@@ -6,7 +6,7 @@
  * - UserPromptSubmit: appends the user's prompt to inferno/CONTEXT.draft.md
  * - Stop: reads transcript_path (JSONL or session JSON), appends last assistant text if found
  *
- * Always prints {"continue":true} so the agent is never blocked. Errors → stderr only.
+ * Always prints {"continue":true} so the agent is never blocked. Errors â†’ stderr only.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -14,7 +14,7 @@ import * as path from "node:path";
 /** Keep in sync with inferno-promote-draft.mjs / inferno-session-draft.mjs */
 const DRAFT_HEADER = `# CONTEXT draft (gitignored)
 
-Auto-captured by VS Code / Copilot hooks. **Not product truth** — review, then run \`npm run inferno:promote-draft\` or \`infernoflow context\`.
+Auto-captured by VS Code / Copilot hooks. **Not product truth** â€” review, then run \`npm run inferno:promote-draft\` or \`infernoflow context\`.
 
 ---
 `;
@@ -24,6 +24,25 @@ const MAX_FILE_BYTES = 280_000;
 
 function draftPath(root) {
   return path.join(root, "inferno", "CONTEXT.draft.md");
+}
+function agentPromptPath(root) { return path.join(root, "inferno", "agent-prompt.md"); }
+function agentResponsePath(root) { return path.join(root, "inferno", "agent-response.json"); }
+function extractJsonFromText(text) {
+  const fm = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fm) { try { JSON.parse(fm[1].trim()); return fm[1].trim(); } catch {} }
+  const jm = text.match(/\{[\s\S]*\}/);
+  if (jm) { try { JSON.parse(jm[0]); return jm[0]; } catch {} }
+  return null;
+}
+function maybeWriteAgentResponse(text, root) {
+  const pf = agentPromptPath(root), rf = agentResponsePath(root);
+  if (!fs.existsSync(pf)) return false;
+  const json = extractJsonFromText(text);
+  if (!json) return false;
+  fs.writeFileSync(rf, json, "utf8");
+  try { fs.unlinkSync(pf); } catch {}
+  process.stderr.write("[inferno-vscode-copilot-hook] ✔ agent-response.json written\n");
+  return true;
 }
 
 function ensureDraft(file) {
@@ -160,6 +179,7 @@ function main() {
       const assistant = lastAssistantFromTranscriptFile(tp);
       const stopActive = data.stop_hook_active ?? data.stopHookActive;
       if (assistant) {
+        maybeWriteAgentResponse(assistant, root);
         append(
           root,
           `\n### Assistant (from transcript) (${new Date().toISOString()})\n\n${assistant}\n\n---\n`
@@ -168,7 +188,7 @@ function main() {
         append(
           root,
           `\n### _Copilot Stop_ (${new Date().toISOString()})\n\nstop_hook_active: ${Boolean(stopActive)}${
-            tp ? ` · transcript: ${tp}` : " · (no transcript_path or empty parse)"
+            tp ? ` Â· transcript: ${tp}` : " Â· (no transcript_path or empty parse)"
           }\n\n---\n`
         );
       }
