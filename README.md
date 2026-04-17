@@ -1,408 +1,97 @@
 # 🔥 infernoflow
-
 > The forge for liquid code — keep capabilities, contracts, and docs in sync with your codebase.
 
 ## What it does
-
-infernoflow ensures that when your code changes, your **capability contracts** and **documentation** stay in sync. It prevents "semantic drift" — where code evolves but no one knows what the system can actually do.
-
-```
-inferno/
-├── contract.json       ← what your system promises to do
-├── capabilities.json   ← registry of each capability
-├── scenarios/          ← test scenarios covering each capability
-└── CHANGELOG.md        ← history of capability changes
-```
+infernoflow ensures that when your code changes, your **capability contracts** and **documentation** stay in sync. It prevents semantic drift — where code evolves but no one knows what the system can actually do.
 
 ## Install
-
 ```bash
 npm install -g infernoflow
-# or use without installing:
+# or:
 npx infernoflow init
 ```
 
 ## Quick Start
-
 ```bash
-# 1. Scaffold in your project root:
 npx infernoflow init
-
-# Optional: same as init, plus Cursor hooks that append each Agent reply
-# to inferno/CONTEXT.draft.md (gitignored). Promote with npm run inferno:promote-draft.
-npx infernoflow init --yes --cursor-hooks
-
-# Optional: VS Code + GitHub Copilot agent hooks (Preview) — same draft file + promote flow
-npx infernoflow init --yes --vscode-copilot-hooks
-
-# Or add hooks to an existing infernoflow project:
-npx infernoflow install-cursor-hooks
-npx infernoflow install-vscode-copilot-hooks
-
-# 2. See your contract health:
+npx infernoflow install-cursor-hooks  # installs MCP server + .cursor/mcp.json
+# Restart Cursor → Settings → MCP → infernoflow: 4 tools enabled
 infernoflow status
-
-# 3. When you add a feature, let AI update the docs:
-infernoflow suggest "added email notifications and user profiles"
-
-# 4. Validate everything:
-infernoflow check
-
-# 5. In CI / pre-push hook:
-infernoflow doc-gate
-```
-
-## Adopt Existing Project
-
-Use this when your project already has code and you want InfernoFlow to bootstrap from current behavior.
-
-```bash
-# from existing project root
-infernoflow init --adopt
-```
-
-Non-interactive adoption:
-
-```bash
-infernoflow init --adopt --yes
-```
-
-Override detected stack during adoption:
-
-```bash
-infernoflow init --adopt --lang ts --framework angular --project-type frontend
-```
-
-C# / ASP.NET example:
-
-```bash
-infernoflow init --adopt --lang cs --framework aspnet --project-type backend --report-human-only
-```
-
-JSON report for CI/logging:
-
-```bash
-infernoflow init --adopt --yes --report-json
-```
-
-JSON-only output (clean machine output, no text logs):
-
-```bash
-infernoflow init --adopt --yes --report-json-only
-```
-
-Human-only output (visual report only, no JSON block):
-
-```bash
-infernoflow init --adopt --yes --report-human-only
-```
-
-What adoption creates:
-- `inferno/contract.json` (inferred capability baseline)
-- `inferno/capabilities.json` (inferred registry)
-- `inferno/scenarios/adoption_baseline.json` (coverage baseline)
-- `inferno/adoption_profile.json` (detected components, display fields, external libraries, UI layout, styling hints)
-- `inferno/adoption_profile.json` (detected components, display fields, external libraries, UI layout, styling hints, API call map)
-- `inferno/context-state.json` (saved development profile: language/framework/project type)
-- `inferno/CHANGELOG.md` (adoption entry)
-
-Safety:
-- Existing `inferno/` is not overwritten unless `--force` is provided.
-- Adoption prints an inferred capability report with source-file hints and confidence.
-
-## Recommended Workflow
-
-```bash
-# start a feature
-infernoflow context --intent "add search to tasks" --working "frontend search UX"
-
-# generate implementation prompt(s) for coding agent
-infernoflow implement "add server-side task search endpoint" --mode both
-
-# build code changes
-
-# sync inferno contract with AI assistance
-infernoflow suggest "added task search by title and due date"
-
-# verify no drift
-infernoflow status
+infernoflow suggest "added email notifications"
 infernoflow check
 ```
 
-## Team SOP (Developer Workflow)
+## Cursor MCP Integration (recommended)
 
-Use this checklist for every feature branch:
+After running `install-cursor-hooks`, infernoflow registers as an MCP server inside Cursor. No copy/paste — Cursor calls infernoflow tools directly in chat.
 
-1) **Set intent**
+### Setup
 ```bash
-infernoflow context --intent "what feature is being built" --working "current slice"
+infernoflow install-cursor-hooks
+# Restart Cursor
+# Settings → MCP → infernoflow: 4 tools enabled
 ```
 
-2) **Build code**
-- Implement UI/API/tests as usual.
+### MCP tools
 
-3) **Sync contract with `suggest`**
-```bash
-infernoflow suggest "plain-language description of what changed"
+| Tool | What it does |
+|---|---|
+| `infernoflow_run` | Generates a task prompt from your contract |
+| `infernoflow_apply` | Applies the JSON response — updates contract + CHANGELOG |
+| `infernoflow_check` | Validates contract sync |
+| `infernoflow_status` | Shows contract health |
+
+### Workflow in Cursor chat
 ```
-- Paste generated prompt into your AI.
-- Paste AI JSON back into terminal.
-- Approve with `y` only after preview looks correct.
-
-4) **Validate before commit**
-```bash
-infernoflow status
-infernoflow check
-```
-
-5) **CI-safe checks**
-```bash
-infernoflow status --json
-infernoflow check --json
-infernoflow doc-gate --json
+You: Use infernoflow_run with task "add search functionality"
+Cursor: [calls infernoflow_run → returns prompt]
+Cursor: [generates JSON]
+Cursor: [calls infernoflow_apply]
+→ contract.json, capabilities.json, CHANGELOG.md updated + validated
 ```
 
-6) **Definition of done**
-- Capability changes are reflected in `inferno/contract.json`.
-- New/changed capabilities exist in `inferno/capabilities.json`.
-- Scenario coverage updated under `inferno/scenarios/`.
-- `inferno/CHANGELOG.md` updated under `## Unreleased`.
-- `infernoflow check` passes.
+### Terminal fallback (without MCP)
+```bash
+infernoflow run "add search functionality"
+# writes inferno/agent-prompt.md and waits
+# paste prompt into Cursor/Claude → save JSON to inferno/agent-response.json
+# infernoflow picks it up and applies automatically
+```
 
 ## Commands
 
 | Command | Description |
 |---|---|
-| `infernoflow init` | Interactive scaffold — creates `inferno/` in your project |
-| `infernoflow status` | At-a-glance health of your contract |
-| `infernoflow suggest` | Generate an AI prompt, apply capability updates |
-| `infernoflow implement` | Generate implementation prompts for coding agents |
-| `infernoflow run` | One-command local-model flow with validation and rollback |
-| `infernoflow pr-impact` | Analyze changed files and infer capability/doc drift |
-| `infernoflow sync --auto` | Deterministic sync flow for agents (skeleton) |
-| `infernoflow check` | Full validation: contract, capabilities, scenarios, changelog |
-| `infernoflow doc-gate` | Fails if code changed but docs weren't updated |
-| `infernoflow context` | Build/persist AI session context for this project |
-| `infernoflow install-cursor-hooks` | Install `.cursor/hooks` + `scripts/inferno-promote-draft.mjs` (Agent → draft → promote) |
-| `infernoflow install-vscode-copilot-hooks` | Install `.github/hooks` for VS Code + Copilot (Preview) + same promote script |
+| `infernoflow init` | Scaffold inferno/ in your project |
+| `infernoflow install-cursor-hooks` | MCP server + hooks + .cursor/mcp.json |
+| `infernoflow install-vscode-copilot-hooks` | VS Code + Copilot hooks (Preview) |
+| `infernoflow status` | Contract health at a glance |
+| `infernoflow check` | Full validation |
+| `infernoflow suggest` | AI-powered contract update |
+| `infernoflow run` | One-command flow with rollback |
+| `infernoflow implement` | Generate coding agent prompts |
+| `infernoflow context` | Build AI session context |
+| `infernoflow doc-gate` | Fail if docs not updated |
+| `infernoflow pr-impact` | Analyze PR capability drift |
 
-### Cursor hooks (draft → promote)
-
-[Cursor hooks](https://cursor.com/docs/agent/hooks) can run a small Node script after each assistant message. infernoflow can install:
-
-- **`.cursor/hooks.json`** — `afterAgentResponse` and `stop` events
-- **`.cursor/hooks/inferno-session-draft.mjs`** — appends assistant `text` to **`inferno/CONTEXT.draft.md`** (never overwrites `CONTEXT.md` automatically)
-- **`scripts/inferno-promote-draft.mjs`** + **`npm run inferno:promote-draft`** — preview, `--append-notes` (merge under `## Decisions & notes` in `inferno/CONTEXT.md`), or `--clear`
-- **`.gitignore`** entry for `inferno/CONTEXT.draft.md` when possible
-
-Install with **`infernoflow install-cursor-hooks`** or **`infernoflow init --cursor-hooks`**. Restart Cursor after install. Review the draft before promoting; treat chat as **input**, not product truth.
-
-### VS Code + GitHub Copilot hooks (draft → promote, Preview)
-
-VS Code can run [Agent hooks](https://code.visualstudio.com/docs/copilot/customization/hooks) from **`.github/hooks/*.json`**. infernoflow installs:
-
-- **`.github/hooks/infernoflow-drafts.json`** — wires **`UserPromptSubmit`** (your prompt) and **`Stop`** (end of agent turn)
-- **`scripts/inferno-vscode-copilot-hook.mjs`** — appends the user prompt on submit; on **Stop**, reads **`transcript_path`** from stdin (when present), parses **JSONL** or session **JSON**, and appends the **last assistant text** it can infer (format varies by VS Code / Copilot version — if parsing fails, a short marker is still appended)
-- The same **`inferno:promote-draft`** script and **`.gitignore`** entry for **`inferno/CONTEXT.draft.md`** as the Cursor flow
-
-Install with **`infernoflow install-vscode-copilot-hooks`** or **`infernoflow init --vscode-copilot-hooks`**. Restart VS Code, confirm your org allows hooks, and use the **GitHub Copilot Chat Hooks** output channel for diagnostics.
-
-**Limitations:** Hooks are **Preview**; `transcript_path` / JSONL shape may differ by build; some hook events omit `transcript_path` ([vscode#300583](https://github.com/microsoft/vscode/issues/300583)). You still have the full **`infernoflow`** CLI in the terminal when hooks are not enough.
-
-### Options
-
-```bash
-infernoflow init --force       # overwrite existing files
-infernoflow init --cursor-hooks # with init: install Cursor draft hooks (see above)
-infernoflow init --vscode-copilot-hooks # with init: install VS Code + Copilot draft hooks (Preview)
-infernoflow init --yes         # skip prompts, use defaults
-infernoflow init --adopt       # infer baseline from existing project
-infernoflow init --adopt --lang ts --framework react --project-type frontend
-infernoflow init --adopt --report-human-only
-infernoflow suggest "..."      # describe what changed
-infernoflow implement "..." --mode both
-infernoflow implement "..." --mode cursor
-infernoflow implement "..." --mode generic
-infernoflow implement "..." --mode both --copy
-infernoflow run "add favorite badge to tasks"
-infernoflow run "sync check" --dry-run
-infernoflow run "sync check" --json
-infernoflow pr-impact
-infernoflow pr-impact --json
-infernoflow sync --auto
-infernoflow sync --auto --json
-npm run inferno:hooks      # install local git hooks (after init)
-infernoflow install-cursor-hooks --force  # overwrite hook files if present
-infernoflow install-vscode-copilot-hooks --force
-infernoflow check --json       # machine-readable output for CI
-infernoflow check --skip-doc-gate
-infernoflow status --json      # machine-readable status summary
-infernoflow doc-gate --json    # machine-readable doc-gate result
+## CI Integration
+```yaml
+- name: infernoflow check
+  run: npx infernoflow check --json
+- name: infernoflow doc-gate
+  run: npx infernoflow doc-gate --json
 ```
-
-## `infernoflow suggest` — AI-powered updates
-
-When you add a feature, just describe it in plain language. infernoflow generates a prompt you can paste into **any AI** (Claude, ChatGPT, Copilot, Cursor, etc.), then applies the suggested changes automatically.
-
-```bash
-infernoflow suggest "added payment processing and invoice generation"
-```
-
-**What happens:**
-1. infernoflow reads your current contract state
-2. Generates a structured prompt with full context
-3. You paste it into your AI of choice
-4. Paste the JSON response back
-5. infernoflow previews the changes and asks for confirmation
-6. On approval — updates `contract.json`, `capabilities.json`, `scenarios/`, and `CHANGELOG.md`
-
-**Example output:**
-```
-Proposed Changes
-
-  Summary: Added payment processing and invoice generation functionality.
-
-  + New capabilities:
-      ProcessPayment — Process Payment
-      GenerateInvoice — Generate Invoice
-
-  ~ Scenario updates:
-      [update] happy_path.json
-
-  📝 Changelog: - Add payment processing and invoice generation capabilities.
-
-  Apply these changes? (y/n)
-```
-
-Works with any AI — Claude, ChatGPT, GitHub Copilot, Cursor, or your own setup.
-
-## `infernoflow run` — zero copy/paste flow
-
-Run one command and infernoflow will:
-1. Detect drift (`pr-impact`)
-2. Resolve provider (`auto` defaults to IDE agent)
-3. Generate suggestion
-4. Apply inferno updates
-5. Validate with `check`
-6. Roll back automatically if validation fails
-
-```bash
-infernoflow run "add favorite badge to tasks and filter by favorite"
-```
-
-Machine mode:
-
-```bash
-infernoflow run "sync check" --json
-```
-
-Provider options:
-
-```bash
-infernoflow run "task" --provider auto                # default (IDE agent first)
-infernoflow run "task" --provider agent --ide cursor  # require IDE agent
-infernoflow run "task" --provider local               # explicit local model
-infernoflow run "task" --provider prompt              # deterministic prompt fallback
-```
-
-IDE routing behavior:
-- `auto` + agent available -> uses IDE agent
-- `auto` + no agent -> falls back to prompt mode (`FALLBACK_PROMPT_MODE`)
-- `agent` + no agent -> exits with `EXPLICIT_AGENT_REQUIRED`
-
-Local model configuration (optional):
-
-```bash
-# local provider example: ollama
-set INFERNO_LOCAL_PROVIDER=ollama
-set INFERNO_LOCAL_ENDPOINT=http://127.0.0.1:11434/api/generate
-set INFERNO_LOCAL_MODEL=llama3.1:8b
-```
-
-Optional OpenAI-compatible local server:
-
-```bash
-set INFERNO_LOCAL_PROVIDER=openai
-set INFERNO_LOCAL_ENDPOINT=http://127.0.0.1:1234/v1/chat/completions
-set INFERNO_LOCAL_MODEL=local-model
-set INFERNO_LOCAL_API_KEY=local
-```
-
-## `infernoflow implement` — code-agent execution prompts
-
-Generate coding prompts from your project context and inferno contract:
-
-```bash
-infernoflow implement "add pagination to tasks" --mode both
-```
-
-Modes:
-- `--mode cursor`: Cursor-specific coding prompt
-- `--mode generic`: generic prompt for any coding agent
-- `--mode both`: print both sections (default)
-- `--copy`: copy selected prompt output to clipboard
-
-Recommended chain:
-1) `infernoflow context --intent "..."`
-2) `infernoflow implement "..."`
-3) run the coding agent and apply code changes
-4) `infernoflow suggest "..."`
-5) `infernoflow check`
 
 ## Troubleshooting
 
-- `Unknown command: suggest`:
-  - Run `infernoflow --help` and confirm `suggest` appears.
-  - If using `npx`, force a specific version: `npx infernoflow@latest --help`.
-- `infernoflow: command not found`:
-  - Use `npx infernoflow ...` or install globally: `npm install -g infernoflow`.
-- `npm publish` fails with existing version:
-  - Bump version first (`npm version patch|minor|major`) then publish.
-- `status` or `check` fails due to missing inferno files:
-  - Run `infernoflow init` at project root.
-- Windows/Git Bash path confusion:
-  - Prefer `node bin/infernoflow.mjs --help` from package root for local debugging.
+- **MCP not showing in Cursor** — restart Cursor completely after install-cursor-hooks
+- `ide_agent_bridge_not_configured` — use MCP tools in Cursor chat instead
+- **infernoflow not found** — use `npx infernoflow` or install globally
+- **PowerShell scripts disabled** — run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
 
 ## Why infernoflow?
 
-**The problem:** AI-assisted development moves fast. Code changes daily. But what does the system *actually do*? What changed? What's covered?
-
-**The metaphor:** A forge (כיבשן). Metal becomes liquid — flexible, shapeable. The forge is the controlled environment where that change happens safely, with molds (contracts) and tempering (validation).
-
-**The principle:** Liquid where you want flexibility. Solid where you need safety.
-
-## CI Integration
-
-```yaml
-# .github/workflows/ci.yml
-- name: infernoflow run (headless)
-  run: npx infernoflow run "sync check" --provider prompt --json
-  env:
-    BASE_SHA: ${{ github.event.pull_request.base.sha }}
-    HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-```
-
-When you run `infernoflow init`, it now scaffolds:
-- `scripts/inferno-install-hooks.mjs`
-- `.github/workflows/infernoflow-check.yml`
-
-Install local hooks once per clone:
-
-```bash
-npm run inferno:hooks
-```
-
-## Release Checklist
-
-```bash
-npm test
-npm pack --dry-run
-node bin/infernoflow.mjs --help
-node bin/infernoflow.mjs check --help
-```
-
-Then bump version and publish.
+AI-assisted development moves fast. Code changes daily. But what does the system *actually do*? infernoflow keeps the answer current — automatically.
 
 ## License
-
 MIT
