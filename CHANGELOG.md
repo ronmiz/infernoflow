@@ -1,5 +1,11 @@
 # Changelog — infernoflow
 
+## 0.10.23 — 2026-04-21
+
+### Added
+- Release 0.10.23
+
+
 ## 0.10.22 — 2026-04-21
 
 ### Added
