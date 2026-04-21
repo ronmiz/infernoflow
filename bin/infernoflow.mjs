@@ -9,6 +9,8 @@ const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8
 const VERSION = pkg.version || "0.0.0";
 const COMMAND_DESCRIPTIONS = {
   publish: "Bump version, update changelog, build, npm publish, git commit + push in one shot",
+  diff: "Show what capabilities changed since the last git tag (or any ref)",
+  changelog: "Draft a changelog entry from commits since the last tag",
   setup: "One command to get fully operational — detects IDE, inits, installs hooks + MCP",
   init: "Scaffold inferno/ in your project (or adopt existing project)",
   "install-cursor-hooks": "Install Cursor hooks: draft agent replies to inferno/CONTEXT.draft.md",
@@ -28,6 +30,8 @@ const COMMAND_DESCRIPTIONS = {
 
 const COMMAND_HANDLERS = {
   publish: async (args) => (await import("../lib/commands/publish.mjs")).publishCommand(args),
+  diff: async (args) => (await import("../lib/commands/diff.mjs")).diffCommand(args),
+  changelog: async (args) => (await import("../lib/commands/changelog.mjs")).changelogCommand(args),
   setup: async (args) => (await import("../lib/commands/setup.mjs")).setupCommand(args),
   init: async (args) => (await import("../lib/commands/init.mjs")).initCommand(args),
   "install-cursor-hooks": async (args) =>
@@ -63,6 +67,20 @@ const HELP = `
 
   ${bold("Commands:")}
 ${formatCommandsHelp()}
+
+  ${bold("diff options:")}
+    --ref <tag|commit>        Compare against a specific ref (default: last git tag)
+    --summary                 One-liner count only
+    --json                    Machine-readable output
+
+  ${bold("changelog options:")}
+    update                    Draft ## Unreleased from commits (default sub-command)
+    show                      Print the current ## Unreleased block
+    list                      List commits since last tag
+    --ref <tag|commit>        Use a specific ref instead of last tag
+    --dry-run                 Print what would be written without modifying file
+    --append                  Append to existing ## Unreleased instead of replacing
+    --json                    Machine-readable output
 
   ${bold("publish options:")}
     --bump patch|minor|major  Version bump type (default: patch)
@@ -105,6 +123,8 @@ ${formatCommandsHelp()}
     --reset             Clear all stored state
     --watch             Poll git diff every 30s and auto-update CONTEXT.md (living context)
     --interval <secs>   Watch poll interval in seconds (default: 30)
+    --auto-commit       Watch mode: commit CONTEXT.md to git on every change
+    --auto-push         Watch mode: commit + push CONTEXT.md on every change
 
   ${bold("generate-skills options:")}
     --cursor            Also install rules to .cursor/rules/infernoflow.md
@@ -128,6 +148,11 @@ ${formatCommandsHelp()}
     ${gray('4. infernoflow suggest "what I built"')}
     ${gray("5. infernoflow check")}
 
+  ${bold("suggest options:")}
+    --json                    Non-interactive: emit prompt as JSON, no readline prompts
+    --response <json|@file>   Provide AI response directly (use with --json)
+    --apply                   Apply the response changes when using --json --response
+
   ${bold("Machine output:")}
     ${gray("status --json")}
     ${gray("check --json")}
@@ -135,6 +160,8 @@ ${formatCommandsHelp()}
     ${gray("pr-impact --json")}
     ${gray("sync --auto --json")}
     ${gray('run "task" --json')}
+    ${gray('suggest "what changed" --json')}
+    ${gray('suggest "what changed" --json --response \'{"newCapabilities":[...]}\' --apply')}
 `;
 
 // ── Silent behavior observation ───────────────────────────────────────────
