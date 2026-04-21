@@ -1,6 +1,6 @@
 # Changelog — infernoflow
 
-## Unreleased
+## 0.10.19 — 2026-04-21
 
 ## 0.10.12 — 2026-04-12
 
