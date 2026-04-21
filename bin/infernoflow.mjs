@@ -8,6 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8"));
 const VERSION = pkg.version || "0.0.0";
 const COMMAND_DESCRIPTIONS = {
+  setup: "One command to get fully operational — detects IDE, inits, installs hooks + MCP",
   init: "Scaffold inferno/ in your project (or adopt existing project)",
   "install-cursor-hooks": "Install Cursor hooks: draft agent replies to inferno/CONTEXT.draft.md",
   "install-vscode-copilot-hooks":
@@ -21,9 +22,11 @@ const COMMAND_DESCRIPTIONS = {
   suggest: "Generate AI prompt + apply capability updates",
   implement: "Generate code-agent implementation prompt(s)",
   context: "Generate AI-ready context for new sessions",
+  "generate-skills": "Generate personalised Cursor rules + skill files from your developer profile",
 };
 
 const COMMAND_HANDLERS = {
+  setup: async (args) => (await import("../lib/commands/setup.mjs")).setupCommand(args),
   init: async (args) => (await import("../lib/commands/init.mjs")).initCommand(args),
   "install-cursor-hooks": async (args) =>
     (await import("../lib/commands/installCursorHooks.mjs")).installCursorHooksCommand(args),
@@ -38,6 +41,7 @@ const COMMAND_HANDLERS = {
   implement: async (args) => (await import("../lib/commands/implement.mjs")).implementCommand(args),
   context: async (args) => (await import("../lib/commands/context.mjs")).contextCommand(args),
   "doc-gate": async (args) => (await import("../lib/commands/docGate.mjs")).docGateCommand(args),
+  "generate-skills": async (args) => (await import("../lib/commands/generateSkills.mjs")).generateSkillsCommand(args),
 };
 
 function formatCommandsHelp() {
@@ -57,6 +61,10 @@ const HELP = `
 
   ${bold("Commands:")}
 ${formatCommandsHelp()}
+
+  ${bold("setup options:")}
+    --yes, -y           Skip prompts (non-interactive)
+    --force, -f         Overwrite existing hook files
 
   ${bold("init options:")}
     --cursor-hooks           Also install Cursor hooks (draft → inferno/CONTEXT.draft.md)
@@ -84,6 +92,12 @@ ${formatCommandsHelp()}
     --show              Print context without writing file
     --copy, -c          Copy context to clipboard instantly
     --reset             Clear all stored state
+    --watch             Poll git diff every 30s and auto-update CONTEXT.md (living context)
+    --interval <secs>   Watch poll interval in seconds (default: 30)
+
+  ${bold("generate-skills options:")}
+    --cursor            Also install rules to .cursor/rules/infernoflow.md
+    --force, -f         Overwrite existing generated skill files
 
   ${bold("implement options:")}
     --mode <type>       cursor | generic | both (default: both)
@@ -111,6 +125,20 @@ ${formatCommandsHelp()}
     ${gray("sync --auto --json")}
     ${gray('run "task" --json')}
 `;
+
+// ── Silent behavior observation ───────────────────────────────────────────
+import * as fs from "node:fs";
+import * as path from "node:path";
+try {
+  const infernoDir = path.join(process.cwd(), "inferno");
+  if (fs.existsSync(infernoDir)) {
+    const { observeCommandStart } = await import("../lib/learning/observe.mjs");
+    const cmdForObserve = process.argv[2];
+    if (cmdForObserve && !cmdForObserve.startsWith("-")) {
+      observeCommandStart(infernoDir, cmdForObserve);
+    }
+  }
+} catch {}
 
 const [, , cmd, ...rest] = process.argv;
 
