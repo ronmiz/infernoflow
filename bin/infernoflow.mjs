@@ -8,6 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8"));
 const VERSION = pkg.version || "0.0.0";
 const COMMAND_DESCRIPTIONS = {
+  publish: "Bump version, update changelog, build, npm publish, git commit + push in one shot",
   setup: "One command to get fully operational — detects IDE, inits, installs hooks + MCP",
   init: "Scaffold inferno/ in your project (or adopt existing project)",
   "install-cursor-hooks": "Install Cursor hooks: draft agent replies to inferno/CONTEXT.draft.md",
@@ -26,6 +27,7 @@ const COMMAND_DESCRIPTIONS = {
 };
 
 const COMMAND_HANDLERS = {
+  publish: async (args) => (await import("../lib/commands/publish.mjs")).publishCommand(args),
   setup: async (args) => (await import("../lib/commands/setup.mjs")).setupCommand(args),
   init: async (args) => (await import("../lib/commands/init.mjs")).initCommand(args),
   "install-cursor-hooks": async (args) =>
@@ -61,6 +63,15 @@ const HELP = `
 
   ${bold("Commands:")}
 ${formatCommandsHelp()}
+
+  ${bold("publish options:")}
+    --bump patch|minor|major  Version bump type (default: patch)
+    --skip-build              Skip the build step
+    --skip-tests              Skip smoke tests
+    --skip-push               Commit but don't git push
+    --tag                     Also create a git tag vX.Y.Z
+    --dry-run                 Print all steps without executing
+    --yes, -y                 Non-interactive (skip confirmation prompt)
 
   ${bold("setup options:")}
     --yes, -y           Skip prompts (non-interactive)
