@@ -61,6 +61,7 @@ const COMMAND_DESCRIPTIONS = {
   thaw:       "Reset a capability to experimental (liquid) — free to evolve",
   why:        "Given a file or function name — show which capability it serves, scenarios, stability, and git history",
   impact:     "Blast radius analysis — see every cap, scenario, and risk level affected before you change anything",
+  scaffold:   "Generate a new capability — source skeleton, contract registration, and placeholder scenario in one command",
 };
 
 const COMMAND_HANDLERS = {
@@ -115,6 +116,7 @@ const COMMAND_HANDLERS = {
   thaw:      async (args) => (await import("../lib/commands/stability.mjs")).thawCommand(args),
   why:       async (args) => (await import("../lib/commands/why.mjs")).whyCommand(args),
   impact:    async (args) => (await import("../lib/commands/impact.mjs")).impactCommand(args),
+  scaffold:  async (args) => (await import("../lib/commands/scaffold.mjs")).scaffoldCommand(args),
 };
 
 function formatCommandsHelp() {
@@ -404,6 +406,14 @@ ${formatCommandsHelp()}
     --depth <n>                          Max transitive depth to traverse (default: 10)
     --check                              Exit 1 if risk level is HIGH or CRITICAL (CI gate)
     --json                               Machine-readable output
+
+  ${bold("scaffold options:")}
+    infernoflow scaffold <cap-id>        Generate a new capability skeleton
+    --dir <path>                         Output directory for the source file (default: auto-detected)
+    --lang ts|js|py|go                   Language override (default: auto-detected from project)
+    --description "..."                  Capability description to embed in the file
+    --dry-run                            Preview what would be generated without writing files
+    --json                               Machine-readable output including generated code
 
   ${bold("Machine output:")}
     ${gray("status --json")}
