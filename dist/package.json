@@ -1,7 +1,7 @@
 {
   "name": "infernoflow",
   "version": "0.27.0",
-  "description": "The forge for liquid code - keep capabilities, contracts, and docs in sync.",
+  "description": "The forge for liquid code â€” keep capabilities, contracts, and docs in sync.",
   "type": "module",
   "bin": {
     "infernoflow": "dist/bin/infernoflow.mjs"
@@ -14,15 +14,13 @@
     "dist/lib",
     "dist/templates",
     "README.md",
-    "CHANGELOG.md",
-    "dist/lib/templates"
+    "CHANGELOG.md"
   ],
   "scripts": {
     "test": "node scripts/smoke.mjs && node scripts/json-smoke.mjs && node scripts/json-negative-smoke.mjs && node scripts/implement-smoke.mjs && node scripts/adopt-smoke.mjs && node scripts/pr-impact-smoke.mjs && node scripts/sync-smoke.mjs && node scripts/run-smoke.mjs",
     "test:help": "node bin/infernoflow.mjs --help",
     "build": "node build.mjs",
-    "prepublishOnly": "node build.mjs",
-    "inferno:promote-draft": "node scripts/inferno-promote-draft.mjs"
+    "prepublishOnly": "node build.mjs"
   },
   "keywords": [
     "cli",
