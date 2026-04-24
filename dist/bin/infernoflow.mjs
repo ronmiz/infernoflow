@@ -62,6 +62,7 @@ const COMMAND_DESCRIPTIONS = {
   why:        "Given a file or function name — show which capability it serves, scenarios, stability, and git history",
   impact:     "Blast radius analysis — see every cap, scenario, and risk level affected before you change anything",
   scaffold:   "Generate a new capability — source skeleton, contract registration, and placeholder scenario in one command",
+  explain:    "AI narrative about a capability — what it does, why it exists, what's risky, and what to test",
 };
 
 const COMMAND_HANDLERS = {
@@ -117,6 +118,7 @@ const COMMAND_HANDLERS = {
   why:       async (args) => (await import("../lib/commands/why.mjs")).whyCommand(args),
   impact:    async (args) => (await import("../lib/commands/impact.mjs")).impactCommand(args),
   scaffold:  async (args) => (await import("../lib/commands/scaffold.mjs")).scaffoldCommand(args),
+  explain:   async (args) => (await import("../lib/commands/explain.mjs")).explainCommand(args),
 };
 
 function formatCommandsHelp() {
@@ -414,6 +416,11 @@ ${formatCommandsHelp()}
     --description "..."                  Capability description to embed in the file
     --dry-run                            Preview what would be generated without writing files
     --json                               Machine-readable output including generated code
+
+  ${bold("explain options:")}
+    infernoflow explain <cap-id>         AI narrative: what it does, risk, what to test
+    --dry-run                            Print the AI prompt only — no API call made
+    --json                               Machine-readable output (narrative, stability, scenarios)
 
   ${bold("Machine output:")}
     ${gray("status --json")}
