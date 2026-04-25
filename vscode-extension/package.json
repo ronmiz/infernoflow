@@ -2,19 +2,24 @@
   "name": "infernoflow",
   "displayName": "infernoflow",
   "description": "Keep capabilities, contracts, and docs in sync — live status panel for VS Code and Cursor",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "publisher": "infernoflow",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/ronmiz/infernoflow.git"
   },
+  "bugs": {
+    "url": "https://github.com/ronmiz/infernoflow/issues"
+  },
+  "homepage": "https://github.com/ronmiz/infernoflow#readme",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
     "Other",
-    "Linters"
+    "Linters",
+    "Visualization"
   ],
   "keywords": [
     "infernoflow",
@@ -22,8 +27,16 @@
     "contracts",
     "documentation",
     "ai",
-    "cursor"
+    "cursor",
+    "claude",
+    "copilot",
+    "developer-tools",
+    "liquid-code"
   ],
+  "galleryBanner": {
+    "color": "#1a1a2e",
+    "theme": "dark"
+  },
   "icon": "media/icon.png",
   "activationEvents": [
     "workspaceContains:inferno/contract.json"
@@ -53,6 +66,10 @@
         {
           "id": "infernoflow.changelog",
           "name": "Changelog"
+        },
+        {
+          "id": "infernoflow.agents",
+          "name": "Agents"
         }
       ]
     },
@@ -98,6 +115,96 @@
         "title": "Show Capability Diff",
         "icon": "$(diff)",
         "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.runAgent",
+        "title": "Run Agent",
+        "icon": "$(play)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.version",
+        "title": "Version Recommendation",
+        "icon": "$(tag)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.changelogAi",
+        "title": "Generate AI Changelog",
+        "icon": "$(sparkle)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.dashboard",
+        "title": "Open Dashboard",
+        "icon": "$(dashboard)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.onboard",
+        "title": "Onboarding Wizard",
+        "icon": "$(rocket)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.openDashboard",
+        "title": "Open Dashboard (Webview)",
+        "icon": "$(browser)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.linkCapability",
+        "title": "Link Capability to Ticket",
+        "icon": "$(link)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.audit",
+        "title": "Run Security Audit",
+        "icon": "$(shield)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.health",
+        "title": "Show Health Score",
+        "icon": "$(heart)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.scout",
+        "title": "Scout Undocumented Capabilities",
+        "icon": "$(search)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.snapshotSave",
+        "title": "Save Contract Snapshot",
+        "icon": "$(save)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.aiSuggest",
+        "title": "AI Sync Contract (Copilot / Claude / GPT / Gemini)",
+        "icon": "$(sparkle)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.aiReview",
+        "title": "AI Review Staged Changes",
+        "icon": "$(comment-discussion)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.quickActions",
+        "title": "Quick Actions",
+        "icon": "$(flame)",
+        "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.syncThisFile",
+        "title": "Sync infernoflow Contract for This File",
+        "icon": "$(sparkle)",
+        "category": "infernoflow"
       }
     ],
     "menus": {
@@ -116,6 +223,72 @@
           "command": "infernoflow.updateContext",
           "when": "view == infernoflow.capabilities",
           "group": "navigation"
+        },
+        {
+          "command": "infernoflow.version",
+          "when": "view == infernoflow.capabilities",
+          "group": "navigation"
+        },
+        {
+          "command": "infernoflow.changelogAi",
+          "when": "view == infernoflow.changelog",
+          "group": "navigation"
+        },
+        {
+          "command": "infernoflow.dashboard",
+          "when": "view == infernoflow.agents",
+          "group": "navigation"
+        },
+        {
+          "command": "infernoflow.openDashboard",
+          "when": "view == infernoflow.capabilities",
+          "group": "navigation"
+        },
+        {
+          "command": "infernoflow.linkCapability",
+          "when": "view == infernoflow.capabilities",
+          "group": "navigation"
+        },
+        {
+          "command": "infernoflow.health",
+          "when": "view == infernoflow.capabilities",
+          "group": "navigation"
+        },
+        {
+          "command": "infernoflow.audit",
+          "when": "view == infernoflow.capabilities",
+          "group": "navigation"
+        },
+        {
+          "command": "infernoflow.aiSuggest",
+          "when": "view == infernoflow.capabilities",
+          "group": "navigation"
+        },
+        {
+          "command": "infernoflow.aiReview",
+          "when": "view == infernoflow.capabilities",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "infernoflow.runAgent",
+          "when": "view == infernoflow.agents && viewItem == agent",
+          "group": "inline"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "infernoflow.syncThisFile",
+          "when": "resourceExtname =~ /\\.(ts|tsx|js|jsx|mjs|py|go|java|cs|rb|swift)$/",
+          "group": "infernoflow@1"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "infernoflow.syncThisFile",
+          "when": "resourceExtname =~ /\\.(ts|tsx|js|jsx|mjs|py|go|java|cs|rb|swift)$/",
+          "group": "infernoflow@1"
         }
       ]
     },
@@ -131,6 +304,11 @@
           "type": "number",
           "default": 30,
           "description": "How often (in seconds) to auto-refresh the status panel. Set to 0 to disable."
+        },
+        "infernoflow.autoSyncOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically sync the capability contract when a mapped source file is saved (3s debounce)."
         }
       }
     }
@@ -139,8 +317,10 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package",
-    "publish": "vsce publish"
+    "package": "npx @vscode/vsce package --no-dependencies",
+    "publish:marketplace": "node publish.mjs --marketplace",
+    "publish:openvsx": "node publish.mjs --openvsx",
+    "publish:all": "node publish.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

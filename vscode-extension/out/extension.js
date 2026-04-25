@@ -39,6 +39,76 @@ const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const child_process_1 = require("child_process");
+// ── VS Code Language Model API (Tier 1 AI — Copilot: Gemini, Claude, GPT, etc.) ──
+async function callVsCodeLM(prompt) {
+    try {
+        // Select the best available Copilot model — user's active choice
+        const [model] = await vscode.lm.selectChatModels({
+            vendor: "copilot",
+            family: "gpt-4o", // fallback family; VS Code picks the best match
+        });
+        if (!model)
+            return null;
+        const messages = [vscode.LanguageModelChatMessage.User(prompt)];
+        const response = await model.sendRequest(messages, {}, new vscode.CancellationTokenSource().token);
+        let text = "";
+        for await (const chunk of response.text) {
+            text += chunk;
+        }
+        return text || null;
+    }
+    catch {
+        // vscode.lm not available (older VS Code, no Copilot) — fall through to CLI provider
+        return null;
+    }
+}
+/**
+ * AI suggest via VS Code LM API first, then fall back to CLI infernoflow suggest.
+ * This means Copilot subscribers (Gemini, Claude opus-4.6, GPT-4o, etc.) get
+ * zero-config AI sync — no extra API key needed.
+ */
+async function aiSuggest(description, cwd) {
+    // Build the suggest prompt from the contract
+    const infernoDir = path.join(cwd, "inferno");
+    const contractPath = path.join(infernoDir, "contract.json");
+    const capsPath = path.join(infernoDir, "capabilities.json");
+    if (!fs.existsSync(contractPath))
+        return "none";
+    const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
+    const caps = contract.capabilities || [];
+    const prompt = [
+        `You are a capability contract assistant for an infernoflow project.`,
+        `Current capabilities: ${caps.join(", ")}`,
+        `The developer just made this change: "${description}"`,
+        ``,
+        `Return ONLY a JSON object in this format (no markdown, no explanation):`,
+        `{"newCapabilities":[],"updatedCapabilities":[],"removedCapabilities":[],"summary":"one sentence"}`,
+    ].join("\n");
+    const text = await callVsCodeLM(prompt);
+    if (text) {
+        // Try to parse and apply
+        try {
+            const match = text.match(/\{[\s\S]*\}/);
+            if (match) {
+                const result = JSON.parse(match[0]);
+                // Apply: add new capabilities to contract
+                if (result.newCapabilities?.length) {
+                    const newCaps = [...caps, ...result.newCapabilities.filter((c) => !caps.includes(c))];
+                    contract.capabilities = newCaps;
+                    fs.writeFileSync(contractPath, JSON.stringify(contract, null, 2) + "\n");
+                }
+                return "vscodelm";
+            }
+        }
+        catch { }
+    }
+    // Fall back to CLI (which tries Anthropic/OpenAI/Gemini/Ollama)
+    const r = (0, child_process_1.spawnSync)(getCli(), ["suggest", description, "--json"], {
+        cwd, encoding: "utf8", timeout: 30000,
+        env: { ...process.env, NO_COLOR: "1" }, stdio: ["ignore", "pipe", "pipe"],
+    });
+    return r.status === 0 ? "cli" : "none";
+}
 // ── CLI runner ────────────────────────────────────────────────────────────────
 function getCli() {
     const config = vscode.workspace.getConfiguration("infernoflow");
@@ -287,13 +357,290 @@ class ChangelogProvider {
         return sections;
     }
 }
+// ── Agents tree provider ──────────────────────────────────────────────────────
+class AgentsProvider {
+    constructor() {
+        this._onDidChangeTreeData = new vscode.EventEmitter();
+        this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+    }
+    refresh() { this._onDidChangeTreeData.fire(); }
+    getTreeItem(el) { return el; }
+    getChildren() {
+        const cwd = getCwd();
+        if (!cwd)
+            return [new InfoItem("No workspace", undefined, "folder")];
+        const agentsDir = path.join(cwd, "inferno", "agents");
+        if (!fs.existsSync(agentsDir)) {
+            return [
+                new InfoItem("No agents yet", undefined, "info"),
+                new InfoItem("Run: infernoflow synthesize", undefined, "terminal"),
+            ];
+        }
+        const files = fs.readdirSync(agentsDir).filter(f => f.endsWith(".json"));
+        if (!files.length) {
+            return [new InfoItem("No agents found", "Run: infernoflow synthesize", "info")];
+        }
+        return files.flatMap(f => {
+            try {
+                const agent = JSON.parse(fs.readFileSync(path.join(agentsDir, f), "utf8"));
+                const steps = (agent.steps || []).map(s => typeof s === "string" ? s : s.command).join(" → ");
+                const conf = agent.confidence ? `${Math.round(agent.confidence * 100)}%` : "";
+                const header = new vscode.TreeItem(agent.name, vscode.TreeItemCollapsibleState.None);
+                header.description = conf;
+                header.tooltip = `${agent.description || steps}\n\nRun: infernoflow agent run ${agent.name}`;
+                header.iconPath = new vscode.ThemeIcon("play-circle");
+                header.command = {
+                    command: "infernoflow.runAgent",
+                    title: "Run agent",
+                    arguments: [agent.name],
+                };
+                const detail = new InfoItem(steps, undefined, "arrow-right");
+                return [header, detail];
+            }
+            catch {
+                return [new InfoItem(f, "invalid JSON", "error")];
+            }
+        });
+    }
+}
+function loadAudit(cwd) {
+    const p = path.join(cwd, "inferno", "audit.json");
+    if (!fs.existsSync(p))
+        return null;
+    try {
+        return JSON.parse(fs.readFileSync(p, "utf8"));
+    }
+    catch {
+        return null;
+    }
+}
+// ── Gutter audit severity decorations ────────────────────────────────────────
+const auditDecorationTypes = {};
+function getAuditDecorationType(severity) {
+    if (!auditDecorationTypes[severity]) {
+        const color = severity === "high" ? new vscode.ThemeColor("testing.iconFailed")
+            : severity === "medium" ? new vscode.ThemeColor("testing.iconQueued")
+                : new vscode.ThemeColor("testing.iconPassed");
+        const badge = severity === "high" ? "🔴" : severity === "medium" ? "🟡" : "🟢";
+        auditDecorationTypes[severity] = vscode.window.createTextEditorDecorationType({
+            gutterIconSize: "contain",
+            before: {
+                contentText: badge,
+                margin: "0 6px 0 0",
+                color,
+                fontStyle: "normal",
+            },
+            overviewRulerColor: severity === "high" ? new vscode.ThemeColor("editorError.foreground")
+                : severity === "medium" ? new vscode.ThemeColor("editorWarning.foreground")
+                    : new vscode.ThemeColor("editorInfo.foreground"),
+            overviewRulerLane: vscode.OverviewRulerLane.Left,
+        });
+    }
+    return auditDecorationTypes[severity];
+}
+function applyAuditDecorations(editor, auditCaps) {
+    if (!auditCaps.length)
+        return;
+    const text = editor.document.getText();
+    const lines = text.split("\n");
+    const byseverity = {
+        high: [], medium: [], low: [],
+    };
+    for (const cap of auditCaps) {
+        if (!byseverity[cap.severity])
+            continue;
+        // Match capability id references in code (camelCase or kebab-case)
+        const idVariants = [
+            cap.id,
+            cap.id.replace(/-([a-z])/g, (_, c) => c.toUpperCase()), // kebab→camel
+            cap.id.replace(/([A-Z])/g, "_$1").toLowerCase(), // camel→snake
+        ];
+        const pattern = new RegExp(`\\b(${idVariants.join("|")})\\b`, "i");
+        for (let i = 0; i < lines.length; i++) {
+            if (pattern.test(lines[i])) {
+                byseverity[cap.severity].push({
+                    range: new vscode.Range(i, 0, i, 0),
+                    hoverMessage: new vscode.MarkdownString(`**infernoflow audit** — \`${cap.id}\`\n\nSeverity: **${cap.severity.toUpperCase()}**\n\nTags: ${cap.tags.join(", ") || "—"}`),
+                });
+                break;
+            }
+        }
+    }
+    for (const [sev, decs] of Object.entries(byseverity)) {
+        editor.setDecorations(getAuditDecorationType(sev), decs);
+    }
+}
+// ── Dashboard webview panel ───────────────────────────────────────────────────
+let dashboardPanel;
+function openDashboardWebview(context) {
+    const cwd = getCwd();
+    if (!cwd) {
+        vscode.window.showWarningMessage("No workspace folder open.");
+        return;
+    }
+    if (dashboardPanel) {
+        dashboardPanel.reveal(vscode.ViewColumn.One);
+        refreshDashboardWebview(cwd);
+        return;
+    }
+    dashboardPanel = vscode.window.createWebviewPanel("infernoDashboard", "🔥 infernoflow Dashboard", vscode.ViewColumn.One, { enableScripts: true, retainContextWhenHidden: true });
+    dashboardPanel.onDidDispose(() => { dashboardPanel = undefined; });
+    refreshDashboardWebview(cwd);
+    // Auto-refresh every 15s while panel is open
+    const timer = setInterval(() => {
+        if (dashboardPanel)
+            refreshDashboardWebview(cwd);
+        else
+            clearInterval(timer);
+    }, 15000);
+    context.subscriptions.push({ dispose: () => clearInterval(timer) });
+}
+function refreshDashboardWebview(cwd) {
+    if (!dashboardPanel)
+        return;
+    // Try to get share HTML from CLI (fastest path)
+    const result = runCli(["share", "--out", path.join(cwd, "inferno", ".dashboard-preview.html")]);
+    const previewPath = path.join(cwd, "inferno", ".dashboard-preview.html");
+    if (result.status === 0 && fs.existsSync(previewPath)) {
+        try {
+            dashboardPanel.webview.html = fs.readFileSync(previewPath, "utf8");
+            return;
+        }
+        catch { }
+    }
+    // Fallback: build a simple inline HTML from contract data
+    dashboardPanel.webview.html = buildFallbackDashboardHtml(cwd);
+}
+function buildFallbackDashboardHtml(cwd) {
+    const infernoDir = path.join(cwd, "inferno");
+    const status = loadStatus(cwd);
+    const audit = loadAudit(cwd);
+    const caps = status.capabilityDetails || [];
+    const projectName = path.basename(cwd);
+    const capRows = caps.map(c => `<tr><td><code>${c.id}</code></td><td>${c.title || ""}</td><td>${c.covered ? "✔" : "✘"}</td></tr>`).join("");
+    const auditStats = audit
+        ? `<p>Security: ${audit.capabilities.filter(c => c.severity === "high").length} high · ${audit.capabilities.filter(c => c.severity === "medium").length} medium</p>`
+        : `<p>No audit data — run <code>infernoflow audit</code></p>`;
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body { font-family: system-ui; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+    h1 { color: #f97316; } table { border-collapse: collapse; width: 100%; }
+    td, th { padding: 8px 12px; border-bottom: 1px solid #333; text-align: left; }
+    code { background: #2d2d2d; padding: 2px 5px; border-radius: 3px; }
+  </style></head><body>
+  <h1>🔥 infernoflow — ${projectName}</h1>
+  <p>${caps.length} capabilities · ${caps.filter(c => c.covered).length} covered · ${status.scenarioCount || 0} scenarios</p>
+  ${auditStats}
+  <table><thead><tr><th>ID</th><th>Title</th><th>Covered</th></tr></thead>
+  <tbody>${capRows || "<tr><td colspan='3'>No capabilities</td></tr>"}</tbody></table>
+  <p style="color:#666;font-size:12px">Auto-refreshes every 15s</p>
+  </body></html>`;
+}
+// ── Quick-pick capability ticket linking ──────────────────────────────────────
+async function quickPickLinkCapability(cwd) {
+    const infernoDir = path.join(cwd, "inferno");
+    const status = loadStatus(cwd);
+    const caps = status.capabilityDetails || [];
+    if (!caps.length) {
+        vscode.window.showWarningMessage("No capabilities found. Run infernoflow init first.");
+        return;
+    }
+    // Step 1: pick capability
+    const capId = await vscode.window.showQuickPick(caps.map(c => ({ label: c.id, description: c.title || "" })), { placeHolder: "Select capability to link" });
+    if (!capId)
+        return;
+    // Step 2: pick platform
+    const platform = await vscode.window.showQuickPick([
+        { label: "$(github) GitHub Issue", value: "--github" },
+        { label: "$(link) Jira Ticket", value: "--jira" },
+        { label: "$(link) Linear Issue", value: "--linear" },
+    ], { placeHolder: "Select ticket platform" });
+    if (!platform)
+        return;
+    // Step 3: enter ticket ID
+    const placeholder = platform.value === "--github" ? "Issue number (e.g. 42)" :
+        platform.value === "--jira" ? "Ticket ID (e.g. PROJ-123)" :
+            "Issue ID (e.g. LIN-456)";
+    const ticketId = await vscode.window.showInputBox({ prompt: placeholder, placeHolder: placeholder });
+    if (!ticketId)
+        return;
+    // Run the link command
+    const args = ["link", "--capability", capId.label, platform.value, ticketId];
+    const result = runCli(args);
+    if (result.status === 0) {
+        vscode.window.showInformationMessage(`✓ Linked ${capId.label} → ${ticketId}`);
+    }
+    else {
+        vscode.window.showErrorMessage(`Link failed: ${result.stderr || result.stdout}`);
+    }
+}
+// ── Inline capability decorations ─────────────────────────────────────────────
+let decorationType = null;
+function getOrCreateDecorationType() {
+    if (!decorationType) {
+        decorationType = vscode.window.createTextEditorDecorationType({
+            after: {
+                color: new vscode.ThemeColor("editorCodeLens.foreground"),
+                margin: "0 0 0 12px",
+                fontStyle: "italic",
+                fontWeight: "normal",
+            },
+        });
+    }
+    return decorationType;
+}
+function applyCapabilityDecorations(editor, caps) {
+    if (!caps.length)
+        return;
+    const decorations = [];
+    const text = editor.document.getText();
+    const lines = text.split("\n");
+    for (const cap of caps) {
+        // Match function/method names that resemble the capability id
+        const idParts = cap.id.replace(/([A-Z])/g, " $1").toLowerCase().split(/[\s_-]+/).filter(Boolean);
+        if (idParts.length < 2)
+            continue;
+        // Build a loose regex: all parts must appear near each other
+        const pattern = new RegExp(`\\b(function|async function|const|let|var)?\\s*(${idParts.join("\\w*")}\\w*)\\s*[=(]`, "i");
+        for (let i = 0; i < lines.length; i++) {
+            if (pattern.test(lines[i])) {
+                const range = new vscode.Range(i, 0, i, 0);
+                decorations.push({
+                    range,
+                    renderOptions: {
+                        after: {
+                            contentText: ` 🔥 ${cap.id}`,
+                        },
+                    },
+                });
+                break; // one annotation per capability
+            }
+        }
+    }
+    editor.setDecorations(getOrCreateDecorationType(), decorations);
+}
 // ── Status bar ────────────────────────────────────────────────────────────────
 function createStatusBarItem() {
     const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-    item.command = "infernoflow.refresh";
+    item.command = "infernoflow.quickActions";
     return item;
 }
-function updateStatusBar(item, status) {
+function loadVersionRecommendation(cwd) {
+    try {
+        const result = (0, child_process_1.spawnSync)(getCli(), ["version", "--json"], {
+            cwd,
+            encoding: "utf8",
+            env: { ...process.env, NO_COLOR: "1" },
+            timeout: 15000,
+        });
+        const out = result.stdout?.trim();
+        if (out)
+            return JSON.parse(out);
+    }
+    catch { }
+    return null;
+}
+function updateStatusBar(item, status, versionRec) {
     if (!status) {
         item.hide();
         return;
@@ -309,24 +656,30 @@ function updateStatusBar(item, status) {
     const covered = caps.filter((c) => c.covered).length;
     const total = caps.length;
     const allCovered = covered === total;
-    item.text = allCovered
-        ? `$(pass-filled) infernoflow: ${total} caps`
-        : `$(warning) infernoflow: ${covered}/${total} covered`;
+    const bump = versionRec?.bump;
+    const bumpIcon = bump === "major" ? "$(error)" : bump === "minor" ? "$(warning)" : bump === "patch" ? "$(info)" : "";
+    item.text = [
+        allCovered ? "$(pass-filled)" : "$(warning)",
+        `infernoflow: ${total} caps`,
+        bump && bump !== "none" ? `${bumpIcon} ${bump} bump` : "",
+    ].filter(Boolean).join("  ");
     item.tooltip = [
-        `infernoflow — ${status.policyId} v${status.policyVersion}`,
-        `Capabilities: ${total}`,
-        `Coverage: ${covered}/${total}`,
-        status.hasUnreleased ? "Unreleased changes ready" : "No unreleased changes",
+        `infernoflow — ${status.policyId || "project"} v${status.policyVersion || "?"}`,
+        `Capabilities: ${total}  ·  Coverage: ${covered}/${total}`,
+        status.hasUnreleased ? "⚠ Unreleased changes in CHANGELOG" : "✔ No unreleased changes",
+        bump && bump !== "none"
+            ? `📦 Recommended bump: ${bump.toUpperCase()} (${versionRec?.current} → ${versionRec?.next})`
+            : "✔ Version up to date",
         "",
         "Click to refresh",
     ].join("\n");
-    item.backgroundColor = allCovered
+    item.backgroundColor = (allCovered && (!bump || bump === "none" || bump === "patch"))
         ? undefined
         : new vscode.ThemeColor("statusBarItem.warningBackground");
     item.show();
 }
 // ── Auto-refresh ──────────────────────────────────────────────────────────────
-function startAutoRefresh(capsProvider, scenProvider, chgProvider, statusBar) {
+function startAutoRefresh(capsProvider, scenProvider, chgProvider, agentsProvider, statusBar) {
     let timer = null;
     const schedule = () => {
         if (timer)
@@ -338,9 +691,11 @@ function startAutoRefresh(capsProvider, scenProvider, chgProvider, statusBar) {
                 capsProvider.refresh();
                 scenProvider.refresh();
                 chgProvider.refresh();
+                agentsProvider.refresh();
                 const cwd = getCwd();
                 const status = cwd ? loadStatus(cwd) : null;
-                updateStatusBar(statusBar, status);
+                const versionRec = cwd ? loadVersionRecommendation(cwd) : null;
+                updateStatusBar(statusBar, status, versionRec);
             }, interval);
         }
     };
@@ -357,14 +712,43 @@ function startAutoRefresh(capsProvider, scenProvider, chgProvider, statusBar) {
         },
     };
 }
+// ── Source-file save watcher ──────────────────────────────────────────────────
+const SOURCE_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".go", ".java", ".cs", ".rb", ".swift"]);
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build", "out", ".next", "coverage", "__pycache__"]);
+function isSourceFile(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    if (!SOURCE_EXTS.has(ext))
+        return false;
+    const parts = filePath.split(/[/\\]/);
+    return !parts.some(p => SKIP_DIRS.has(p));
+}
+function loadCapabilityMap(cwd) {
+    const p = path.join(cwd, "inferno", "capability-map.json");
+    if (!fs.existsSync(p))
+        return {};
+    try {
+        return JSON.parse(fs.readFileSync(p, "utf8"));
+    }
+    catch {
+        return {};
+    }
+}
+function getAffectedCaps(filePath, cwd, capMap) {
+    const rel = path.relative(cwd, filePath).replace(/\\/g, "/");
+    return Object.entries(capMap)
+        .filter(([prefix]) => rel.startsWith(prefix.replace(/\\/g, "/")))
+        .flatMap(([, caps]) => caps);
+}
 // ── Activate ──────────────────────────────────────────────────────────────────
 function activate(context) {
     const capsProvider = new CapabilitiesProvider();
     const scenProvider = new ScenariosProvider();
     const chgProvider = new ChangelogProvider();
+    const agentsProvider = new AgentsProvider();
     vscode.window.registerTreeDataProvider("infernoflow.capabilities", capsProvider);
     vscode.window.registerTreeDataProvider("infernoflow.scenarios", scenProvider);
     vscode.window.registerTreeDataProvider("infernoflow.changelog", chgProvider);
+    vscode.window.registerTreeDataProvider("infernoflow.agents", agentsProvider);
     // Status bar
     const statusBar = createStatusBarItem();
     context.subscriptions.push(statusBar);
@@ -373,13 +757,25 @@ function activate(context) {
         capsProvider.refresh();
         scenProvider.refresh();
         chgProvider.refresh();
+        agentsProvider.refresh();
         const cwd = getCwd();
         const status = cwd ? loadStatus(cwd) : null;
-        updateStatusBar(statusBar, status);
+        const versionRec = cwd ? loadVersionRecommendation(cwd) : null;
+        updateStatusBar(statusBar, status, versionRec);
+        // Re-apply capability decorations + audit badges on the active editor
+        const editor = vscode.window.activeTextEditor;
+        if (editor && status?.capabilityDetails) {
+            applyCapabilityDecorations(editor, status.capabilityDetails);
+        }
+        if (editor && cwd) {
+            const audit = loadAudit(cwd);
+            if (audit?.capabilities)
+                applyAuditDecorations(editor, audit.capabilities);
+        }
     };
     doRefresh();
     // Auto-refresh
-    const autoRefresh = startAutoRefresh(capsProvider, scenProvider, chgProvider, statusBar);
+    const autoRefresh = startAutoRefresh(capsProvider, scenProvider, chgProvider, agentsProvider, statusBar);
     context.subscriptions.push(autoRefresh);
     // File watcher — refresh when inferno/ files change
     const watcher = vscode.workspace.createFileSystemWatcher("**/inferno/**/*.{json,md}");
@@ -387,6 +783,21 @@ function activate(context) {
     watcher.onDidCreate(doRefresh);
     watcher.onDidDelete(doRefresh);
     context.subscriptions.push(watcher);
+    // Apply decorations when the active editor changes
+    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor((editor) => {
+        if (!editor)
+            return;
+        const cwd = getCwd();
+        const status = cwd ? loadStatus(cwd) : null;
+        if (status?.capabilityDetails) {
+            applyCapabilityDecorations(editor, status.capabilityDetails);
+        }
+        // Apply audit gutter badges
+        const audit = cwd ? loadAudit(cwd) : null;
+        if (audit?.capabilities) {
+            applyAuditDecorations(editor, audit.capabilities);
+        }
+    }));
     // ── Commands ────────────────────────────────────────────────────────────────
     context.subscriptions.push(vscode.commands.registerCommand("infernoflow.refresh", doRefresh), vscode.commands.registerCommand("infernoflow.check", async () => {
         const terminal = vscode.window.createTerminal("infernoflow check");
@@ -432,6 +843,324 @@ function activate(context) {
         const terminal = vscode.window.createTerminal("infernoflow diff");
         terminal.sendText(`${getCli()} diff`);
         terminal.show();
+    }), 
+    // ── New commands ─────────────────────────────────────────────────────────
+    vscode.commands.registerCommand("infernoflow.runAgent", async (agentName) => {
+        const cwd = getCwd();
+        if (!cwd)
+            return;
+        let agentId = agentName;
+        if (!agentId) {
+            // If triggered from command palette, let user pick
+            const agentsDir = path.join(cwd, "inferno", "agents");
+            if (!fs.existsSync(agentsDir)) {
+                vscode.window.showWarningMessage("No agents found. Run infernoflow synthesize first.");
+                return;
+            }
+            const files = fs.readdirSync(agentsDir).filter((f) => f.endsWith(".json"));
+            const picked = await vscode.window.showQuickPick(files.map((f) => f.replace(".json", "")), { placeHolder: "Select agent to run" });
+            if (!picked)
+                return;
+            agentId = picked;
+        }
+        const terminal = vscode.window.createTerminal(`infernoflow agent: ${agentId}`);
+        terminal.sendText(`${getCli()} agent run ${agentId}`);
+        terminal.show();
+        setTimeout(doRefresh, 5000);
+    }), vscode.commands.registerCommand("infernoflow.version", async () => {
+        const cwd = getCwd();
+        if (!cwd)
+            return;
+        const versionRec = loadVersionRecommendation(cwd);
+        if (!versionRec) {
+            vscode.window.showWarningMessage("Could not determine version recommendation.");
+            return;
+        }
+        if (versionRec.bump === "none") {
+            vscode.window.showInformationMessage(`infernoflow: version ${versionRec.current} — no bump needed.`);
+            return;
+        }
+        const choice = await vscode.window.showInformationMessage(`infernoflow recommends a ${(versionRec.bump ?? "patch").toUpperCase()} bump: ${versionRec.current} → ${versionRec.next}`, "Apply bump", "Cancel");
+        if (choice === "Apply bump") {
+            const terminal = vscode.window.createTerminal("infernoflow version");
+            terminal.sendText(`${getCli()} version --apply`);
+            terminal.show();
+            setTimeout(doRefresh, 2000);
+        }
+    }), vscode.commands.registerCommand("infernoflow.changelogAi", async () => {
+        const terminal = vscode.window.createTerminal("infernoflow changelog ai");
+        terminal.sendText(`${getCli()} changelog ai`);
+        terminal.show();
+        setTimeout(doRefresh, 5000);
+    }), vscode.commands.registerCommand("infernoflow.dashboard", async () => {
+        const terminal = vscode.window.createTerminal("infernoflow dashboard");
+        terminal.sendText(`${getCli()} dashboard`);
+        terminal.show();
+    }), vscode.commands.registerCommand("infernoflow.onboard", async () => {
+        const terminal = vscode.window.createTerminal("infernoflow onboard");
+        terminal.sendText(`${getCli()} onboard`);
+        terminal.show();
+    }), 
+    // ── v0.3 commands ─────────────────────────────────────────────────────────
+    vscode.commands.registerCommand("infernoflow.openDashboard", () => {
+        openDashboardWebview(context);
+    }), vscode.commands.registerCommand("infernoflow.linkCapability", async () => {
+        const cwd = getCwd();
+        if (!cwd) {
+            vscode.window.showWarningMessage("No workspace folder open.");
+            return;
+        }
+        await quickPickLinkCapability(cwd);
+    }), vscode.commands.registerCommand("infernoflow.audit", async () => {
+        const terminal = vscode.window.createTerminal("infernoflow audit");
+        terminal.sendText(`${getCli()} audit`);
+        terminal.show();
+        // After audit runs, refresh decorations
+        setTimeout(doRefresh, 5000);
+    }), vscode.commands.registerCommand("infernoflow.health", async () => {
+        const cwd = getCwd();
+        if (!cwd)
+            return;
+        const result = runCli(["health", "--json"]);
+        try {
+            const data = JSON.parse(result.stdout);
+            if (data.ok) {
+                const score = data.score;
+                const grade = data.grade;
+                const msg = `infernoflow health: ${score}/100 (${grade})`;
+                if (score >= 80)
+                    vscode.window.showInformationMessage(`✅ ${msg}`);
+                else if (score >= 60)
+                    vscode.window.showWarningMessage(`⚠ ${msg}`);
+                else
+                    vscode.window.showErrorMessage(`❌ ${msg}`);
+            }
+        }
+        catch {
+            const terminal = vscode.window.createTerminal("infernoflow health");
+            terminal.sendText(`${getCli()} health`);
+            terminal.show();
+        }
+    }), vscode.commands.registerCommand("infernoflow.scout", async () => {
+        const terminal = vscode.window.createTerminal("infernoflow scout");
+        terminal.sendText(`${getCli()} scout`);
+        terminal.show();
+    }), 
+    // ── AI commands (use vscode.lm → CLI fallback) ──────────────────────────
+    vscode.commands.registerCommand("infernoflow.aiSuggest", async () => {
+        const cwd = getCwd();
+        if (!cwd)
+            return;
+        const description = await vscode.window.showInputBox({
+            prompt: "What did you just build or change?",
+            placeHolder: "e.g. added search filtering to the task list",
+        });
+        if (!description)
+            return;
+        await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: "🔥 infernoflow: syncing contract…", cancellable: false }, async () => {
+            const result = await aiSuggest(description, cwd);
+            if (result === "vscodelm") {
+                vscode.window.showInformationMessage("✔ Contract synced via Copilot");
+            }
+            else if (result === "cli") {
+                vscode.window.showInformationMessage("✔ Contract synced via CLI");
+            }
+            else {
+                vscode.window.showWarningMessage("No AI provider available — set ANTHROPIC_API_KEY or install Copilot");
+            }
+            doRefresh();
+        });
+    }), vscode.commands.registerCommand("infernoflow.aiReview", async () => {
+        const cwd = getCwd();
+        if (!cwd)
+            return;
+        await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: "🔥 infernoflow: generating review…", cancellable: false }, async () => {
+            // Get git diff
+            let diff = "";
+            try {
+                diff = (0, child_process_1.execSync)("git diff --staged", { cwd, encoding: "utf8" });
+            }
+            catch { }
+            if (!diff.trim()) {
+                try {
+                    diff = (0, child_process_1.execSync)("git diff HEAD~1", { cwd, encoding: "utf8" });
+                }
+                catch { }
+            }
+            if (!diff.trim()) {
+                vscode.window.showWarningMessage("No staged changes found. Stage some files first.");
+                return;
+            }
+            const infernoDir = path.join(cwd, "inferno");
+            const contract = fs.existsSync(path.join(infernoDir, "contract.json"))
+                ? JSON.parse(fs.readFileSync(path.join(infernoDir, "contract.json"), "utf8")) : {};
+            const caps = (contract.capabilities || []).join(", ");
+            const prompt = [
+                `You are a code reviewer analysing capability impact.`,
+                `Known capabilities: ${caps}`,
+                `Git diff:\n${diff.slice(0, 4000)}`,
+                ``,
+                `Write a concise (3-5 sentences) review comment explaining:`,
+                `1. Which capabilities are affected`,
+                `2. Any new capabilities introduced`,
+                `3. Any risks or missing test coverage`,
+                `Be direct and developer-friendly.`,
+            ].join("\n");
+            const text = await callVsCodeLM(prompt);
+            if (text) {
+                // Show in a new document
+                const doc = await vscode.workspace.openTextDocument({
+                    content: `# infernoflow review\n\n${text}\n`,
+                    language: "markdown",
+                });
+                vscode.window.showTextDocument(doc);
+            }
+            else {
+                // Fallback to CLI
+                const terminal = vscode.window.createTerminal("infernoflow review");
+                terminal.sendText(`${getCli()} review`);
+                terminal.show();
+            }
+        });
+    }), vscode.commands.registerCommand("infernoflow.snapshotSave", async () => {
+        const name = await vscode.window.showInputBox({
+            prompt: "Snapshot name",
+            placeHolder: "e.g. v1.2-release",
+            validateInput: (v) => /^[a-zA-Z0-9._-]+$/.test(v) ? null : "Use letters, digits, dots, dashes, underscores only",
+        });
+        if (!name)
+            return;
+        const result = runCli(["snapshot", "save", name]);
+        if (result.status === 0)
+            vscode.window.showInformationMessage(`✓ Snapshot saved: ${name}`);
+        else
+            vscode.window.showErrorMessage(`Snapshot failed: ${result.stderr || result.stdout}`);
+    }), 
+    // ── Quick Actions (status bar click) ──────────────────────────────────────
+    vscode.commands.registerCommand("infernoflow.quickActions", async () => {
+        const cwd = getCwd();
+        const action = await vscode.window.showQuickPick([
+            { label: "$(sync)               Refresh", value: "refresh" },
+            { label: "$(pass-filled)        Run check", value: "check" },
+            { label: "$(sparkle)            Sync contract (suggest)", value: "suggest" },
+            { label: "$(comment-discussion) AI Review", value: "review" },
+            { label: "$(tag)                Version recommendation", value: "version" },
+            { label: "$(browser)            Open dashboard", value: "dashboard" },
+            { label: "$(shield)             Security audit", value: "audit" },
+            { label: "$(heart)              Health score", value: "health" },
+        ], { placeHolder: "infernoflow — choose an action" });
+        if (!action)
+            return;
+        switch (action.value) {
+            case "refresh":
+                doRefresh();
+                break;
+            case "check":
+                vscode.commands.executeCommand("infernoflow.check");
+                break;
+            case "suggest":
+                vscode.commands.executeCommand("infernoflow.aiSuggest");
+                break;
+            case "review":
+                vscode.commands.executeCommand("infernoflow.aiReview");
+                break;
+            case "version":
+                vscode.commands.executeCommand("infernoflow.version");
+                break;
+            case "dashboard":
+                vscode.commands.executeCommand("infernoflow.openDashboard");
+                break;
+            case "audit":
+                vscode.commands.executeCommand("infernoflow.audit");
+                break;
+            case "health":
+                vscode.commands.executeCommand("infernoflow.health");
+                break;
+        }
+    }), 
+    // ── Sync this file (right-click in explorer / editor) ────────────────────
+    vscode.commands.registerCommand("infernoflow.syncThisFile", async (uri) => {
+        const cwd = getCwd();
+        if (!cwd)
+            return;
+        const filePath = uri?.fsPath || vscode.window.activeTextEditor?.document.fileName;
+        if (!filePath) {
+            vscode.window.showWarningMessage("No file selected.");
+            return;
+        }
+        const capMap = loadCapabilityMap(cwd);
+        const affected = getAffectedCaps(filePath, cwd, capMap);
+        const fileName = path.basename(filePath);
+        const desc = affected.length
+            ? `changes in ${fileName} (affects: ${affected.slice(0, 3).join(", ")})`
+            : `changes in ${fileName}`;
+        await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `🔥 infernoflow: syncing ${fileName}…`, cancellable: false }, async () => {
+            const result = await aiSuggest(desc, cwd);
+            if (result === "vscodelm")
+                vscode.window.showInformationMessage(`✔ Contract synced for ${fileName}`);
+            else if (result === "cli")
+                vscode.window.showInformationMessage(`✔ Contract synced for ${fileName} (CLI)`);
+            else
+                vscode.window.showWarningMessage(`No AI provider — run: infernoflow ai setup`);
+            doRefresh();
+        });
+    }));
+    // ── On-save source file watcher ──────────────────────────────────────────────
+    let saveDebounce = null;
+    let pendingSaveFiles = new Set();
+    let driftWarningShown = false;
+    context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(async (doc) => {
+        if (!isSourceFile(doc.fileName))
+            return;
+        const cwd = getCwd();
+        if (!cwd)
+            return;
+        // Only act if file is mapped in capability-map
+        const capMap = loadCapabilityMap(cwd);
+        if (!Object.keys(capMap).length)
+            return; // no map yet — skip
+        const affected = getAffectedCaps(doc.fileName, cwd, capMap);
+        if (!affected.length)
+            return; // file not tracked — skip silently
+        pendingSaveFiles.add(doc.fileName);
+        // Debounce — batch rapid multi-file saves
+        if (saveDebounce)
+            clearTimeout(saveDebounce);
+        saveDebounce = setTimeout(async () => {
+            const files = Array.from(pendingSaveFiles);
+            pendingSaveFiles.clear();
+            const fileNames = files.map(f => path.basename(f)).slice(0, 3).join(", ");
+            const allCaps = [...new Set(files.flatMap(f => getAffectedCaps(f, cwd, capMap)))];
+            // Update status bar to show sync in progress
+            const prevText = statusBar.text;
+            statusBar.text = "$(sync~spin) infernoflow: syncing…";
+            // Run suggest silently via CLI (no popup)
+            const desc = `changes in ${fileNames}`;
+            (0, child_process_1.spawnSync)(getCli(), ["suggest", desc], {
+                cwd, encoding: "utf8", timeout: 30000,
+                env: { ...process.env, NO_COLOR: "1" }, stdio: "ignore",
+            });
+            // Run check and update status bar accordingly
+            const checkResult = (0, child_process_1.spawnSync)(getCli(), ["check", "--json"], {
+                cwd, encoding: "utf8", timeout: 15000,
+                env: { ...process.env, NO_COLOR: "1" },
+            });
+            doRefresh(); // refresh tree views and status bar
+            try {
+                const data = JSON.parse(checkResult.stdout?.trim() || "{}");
+                if ((data.status === "error" || data.status === "warning") && !driftWarningShown) {
+                    driftWarningShown = true;
+                    const action = await vscode.window.showWarningMessage(`infernoflow: contract drift detected in ${allCaps.slice(0, 2).join(", ")}`, "View check", "Dismiss");
+                    if (action === "View check")
+                        vscode.commands.executeCommand("infernoflow.check");
+                    setTimeout(() => { driftWarningShown = false; }, 60000); // re-arm after 1 min
+                }
+                else if (data.status === "ok") {
+                    driftWarningShown = false;
+                }
+            }
+            catch { }
+        }, 3000); // 3s debounce — matches infernoflow watch default
     }));
 }
 function deactivate() { }
