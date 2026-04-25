@@ -63,6 +63,8 @@ const COMMAND_DESCRIPTIONS = {
   impact:     "Blast radius analysis — see every cap, scenario, and risk level affected before you change anything",
   scaffold:   "Generate a new capability — source skeleton, contract registration, and placeholder scenario in one command",
   explain:    "AI narrative about a capability — what it does, why it exists, what's risky, and what to test",
+  test:       "Run registered scenarios for a capability — auto-generates a smoke harness if no test runner is configured",
+  ai:         "Manage AI providers — setup, status, test connection (subcommands: setup | status | test | clear)",
 };
 
 const COMMAND_HANDLERS = {
@@ -119,6 +121,8 @@ const COMMAND_HANDLERS = {
   impact:    async (args) => (await import("../lib/commands/impact.mjs")).impactCommand(args),
   scaffold:  async (args) => (await import("../lib/commands/scaffold.mjs")).scaffoldCommand(args),
   explain:   async (args) => (await import("../lib/commands/explain.mjs")).explainCommand(args),
+  test:      async (args) => (await import("../lib/commands/test.mjs")).testCommand(args),
+  ai:        async (args) => (await import("../lib/commands/ai.mjs")).aiCommand(args),
 };
 
 function formatCommandsHelp() {
@@ -421,6 +425,22 @@ ${formatCommandsHelp()}
     infernoflow explain <cap-id>         AI narrative: what it does, risk, what to test
     --dry-run                            Print the AI prompt only — no API call made
     --json                               Machine-readable output (narrative, stability, scenarios)
+
+  ${bold("test options:")}
+    infernoflow test                     Run all caps that have registered scenarios
+    infernoflow test <cap-id>            Run scenarios for a specific capability
+    infernoflow test --all               Run every capability (including those without scenarios)
+    --generate                           Print generated ad-hoc test file without running
+    --bail                               Stop on first failure
+    --verbose, -v                        Show runner output for each scenario
+    --json                               Machine-readable output (passed/failed/skipped counts)
+
+  ${bold("ai options:")}
+    infernoflow ai setup                 Interactive wizard — pick provider, enter API key, verify
+    infernoflow ai status                Show all providers and which are configured
+    infernoflow ai test [provider]       Send a test prompt and verify the connection
+    infernoflow ai clear <provider>      Remove a provider's config from integrations.json
+    Supported providers: anthropic  openai  gemini  openrouter  ollama
 
   ${bold("Machine output:")}
     ${gray("status --json")}

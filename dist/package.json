@@ -1,7 +1,7 @@
 {
   "name": "infernoflow",
-  "version": "0.29.0",
-  "description": "The forge for liquid code â€” keep capabilities, contracts, and docs in sync.",
+  "version": "0.30.0",
+  "description": "The forge for liquid code \u00e2\u20ac\u201d keep capabilities, contracts, and docs in sync.",
   "type": "module",
   "bin": {
     "infernoflow": "dist/bin/infernoflow.mjs"
