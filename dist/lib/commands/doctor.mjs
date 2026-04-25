@@ -45,12 +45,17 @@ function checkNodeVersion() {
 }
 
 function checkCli() {
+  // Use shell: true so Windows .cmd wrappers resolve correctly.
+  // If the spawn fails entirely, we're still clearly running — downgrade to warn.
   try {
-    const r = spawnSync("infernoflow", ["--version"], { encoding: "utf8", timeout: 5000 });
-    if (r.status === 0) return pass(`infernoflow v${r.stdout.trim()} installed`);
-    return fail("infernoflow CLI not found on PATH", "npm install -g infernoflow");
+    const r = spawnSync("infernoflow", ["--version"], { encoding: "utf8", timeout: 5000, shell: true });
+    if (r.status === 0 && r.stdout.trim()) {
+      return pass(`infernoflow v${r.stdout.trim()} on PATH`);
+    }
+    // Running but PATH lookup failed for subprocesses (common on Windows)
+    return warn("infernoflow not resolvable in subprocesses", "Ensure npm global bin folder is in your PATH");
   } catch {
-    return fail("infernoflow CLI not found on PATH", "npm install -g infernoflow");
+    return warn("infernoflow not resolvable in subprocesses", "Ensure npm global bin folder is in your PATH");
   }
 }
 
