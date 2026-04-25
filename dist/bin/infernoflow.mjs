@@ -65,6 +65,7 @@ const COMMAND_DESCRIPTIONS = {
   explain:    "AI narrative about a capability — what it does, why it exists, what's risky, and what to test",
   test:       "Run registered scenarios for a capability — auto-generates a smoke harness if no test runner is configured",
   ai:         "Manage AI providers — setup, status, test connection (subcommands: setup | status | test | clear)",
+  demo:       "Interactive walkthrough — scaffolds a sample project and runs the full capability chain end-to-end",
 };
 
 const COMMAND_HANDLERS = {
@@ -123,6 +124,7 @@ const COMMAND_HANDLERS = {
   explain:   async (args) => (await import("../lib/commands/explain.mjs")).explainCommand(args),
   test:      async (args) => (await import("../lib/commands/test.mjs")).testCommand(args),
   ai:        async (args) => (await import("../lib/commands/ai.mjs")).aiCommand(args),
+  demo:      async (args) => (await import("../lib/commands/demo.mjs")).demoCommand(args),
 };
 
 function formatCommandsHelp() {
@@ -441,6 +443,11 @@ ${formatCommandsHelp()}
     infernoflow ai test [provider]       Send a test prompt and verify the connection
     infernoflow ai clear <provider>      Remove a provider's config from integrations.json
     Supported providers: anthropic  openai  gemini  openrouter  ollama
+
+  ${bold("demo options:")}
+    infernoflow demo                     Full interactive walkthrough (sample e-commerce project)
+    infernoflow demo --fast              Skip pauses — good for CI or screen recording
+    infernoflow demo --no-cleanup        Keep the temp demo project after the run
 
   ${bold("Machine output:")}
     ${gray("status --json")}

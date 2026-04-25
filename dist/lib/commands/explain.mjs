@@ -270,8 +270,8 @@ function printExplain(capId, cap, narrative, provider, dryRun) {
   if (provider) {
     console.log(gray(`  ── via ${provider}`));
   } else {
-    console.log(gray("  ── (AI provider not configured — showing structural summary)"));
-    console.log(gray("     Run: infernoflow setup  to connect an AI provider"));
+    console.log(gray("  ── structural summary (no AI provider configured)"));
+    console.log(`  ${yellow("💡")} ${gray("For richer AI narratives:")}  ${cyan("infernoflow ai setup")}`);
   }
   console.log();
 }
