@@ -1,6 +1,6 @@
 {
   "name": "infernoflow",
-  "version": "0.32.0",
+  "version": "0.32.1",
   "description": "The forge for liquid code \u00e2\u20ac\u201d keep capabilities, contracts, and docs in sync.",
   "type": "module",
   "bin": {
