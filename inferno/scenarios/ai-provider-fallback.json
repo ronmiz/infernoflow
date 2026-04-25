@@ -1,0 +1,18 @@
+{
+  "scenarioId": "ai-provider-fallback",
+  "description": "AI provider router degrades gracefully when no provider is configured",
+  "capabilitiesCovered": ["ai-provider-router"],
+  "steps": [
+    "Unset all API key env vars (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.)",
+    "Run: infernoflow explain <any-cap-id>",
+    "Verify structural fallback narrative is printed",
+    "Verify 💡 nudge for infernoflow ai setup is shown",
+    "Run: infernoflow ai status → all providers show 'not configured'"
+  ],
+  "expects": [
+    "No crash or unhandled error when no provider is configured",
+    "Structural fallback always produces non-empty narrative",
+    "AI setup nudge appears exactly once per command output",
+    "Exit code is 0 (fallback is not an error)"
+  ]
+}

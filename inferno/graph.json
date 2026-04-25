@@ -1,0 +1,31 @@
+{
+  "deps": {
+    "cli-entry": ["capability-suggest", "capability-check", "capability-scan", "capability-graph", "capability-stability", "capability-impact", "capability-why", "capability-explain", "capability-scaffold", "capability-test", "ai-management", "capability-demo", "capability-review", "watch-mode", "setup-wizard", "capability-init", "dashboard-server", "capability-health", "capability-doctor"],
+    "capability-suggest": ["ai-provider-router"],
+    "capability-explain": ["ai-provider-router"],
+    "capability-review": ["ai-provider-router"],
+    "capability-why": ["capability-scan", "capability-graph"],
+    "capability-impact": ["capability-graph"],
+    "capability-demo": ["capability-stability", "capability-impact", "capability-explain", "capability-why", "capability-test"],
+    "ai-management": ["ai-provider-router"],
+    "watch-mode": ["capability-suggest", "capability-check"],
+    "setup-wizard": ["capability-init"],
+    "capability-scaffold": ["capability-scan"],
+    "capability-health": ["capability-check", "capability-scan", "capability-graph"],
+    "dashboard-server": ["capability-check", "capability-scan", "capability-graph", "capability-stability"]
+  },
+  "dependents": {
+    "ai-provider-router": ["capability-suggest", "capability-explain", "capability-review", "ai-management"],
+    "capability-scan": ["capability-why", "capability-scaffold", "capability-health", "dashboard-server"],
+    "capability-graph": ["capability-why", "capability-impact", "capability-health", "dashboard-server"],
+    "capability-check": ["watch-mode", "capability-health", "dashboard-server"],
+    "capability-suggest": ["watch-mode", "cli-entry"],
+    "capability-stability": ["capability-demo", "dashboard-server"],
+    "capability-impact": ["capability-demo"],
+    "capability-explain": ["capability-demo"],
+    "capability-why": ["capability-demo"],
+    "capability-test": ["capability-demo"],
+    "capability-init": ["setup-wizard"],
+    "cli-entry": []
+  }
+}
