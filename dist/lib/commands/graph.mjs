@@ -48,7 +48,8 @@ function buildGraph(scanCaps, allCaps) {
   const reverse = {};
 
   // Build function → capId index
-  const funcIndex = {}; // functionName → capId
+  // Use Map (not plain object) to avoid collisions with inherited properties like toString, constructor, etc.
+  const funcIndex = new Map(); // functionName → capId
   for (const entry of scanCaps) {
     const capFull = allCaps.find(c => c.id === entry.id) || {};
     nodes[entry.id] = {
@@ -66,8 +67,8 @@ function buildGraph(scanCaps, allCaps) {
 
     for (const fn of (entry.codeAnalysis?.functions || [])) {
       const bare = fn.replace(/\(\)$/, "");
-      funcIndex[bare] = entry.id;
-      funcIndex[bare.toLowerCase()] = entry.id;
+      funcIndex.set(bare, entry.id);
+      funcIndex.set(bare.toLowerCase(), entry.id);
     }
   }
 
@@ -75,7 +76,7 @@ function buildGraph(scanCaps, allCaps) {
   for (const [capId, node] of Object.entries(nodes)) {
     for (const call of node.calls) {
       const bare   = call.replace(/\(\)$/, "");
-      const target = funcIndex[bare] || funcIndex[bare.toLowerCase()];
+      const target = funcIndex.get(bare) || funcIndex.get(bare.toLowerCase());
       if (target && target !== capId) {
         edges[capId].add(target);
         reverse[target].add(capId);
