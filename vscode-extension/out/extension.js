@@ -470,6 +470,49 @@ function applyAuditDecorations(editor, auditCaps) {
         editor.setDecorations(getAuditDecorationType(sev), decs);
     }
 }
+// ── Graph webview panel ───────────────────────────────────────────────────────
+let graphPanel;
+function openGraphWebview(context) {
+    const cwd = getCwd();
+    if (!cwd) {
+        vscode.window.showWarningMessage("No workspace folder open.");
+        return;
+    }
+    if (graphPanel) {
+        graphPanel.reveal(vscode.ViewColumn.One);
+        refreshGraphWebview(cwd);
+        return;
+    }
+    graphPanel = vscode.window.createWebviewPanel("infernoGraph", "🔥 infernoflow — Capability Graph", vscode.ViewColumn.One, { enableScripts: true, retainContextWhenHidden: true });
+    graphPanel.onDidDispose(() => { graphPanel = undefined; });
+    refreshGraphWebview(cwd);
+}
+function refreshGraphWebview(cwd) {
+    if (!graphPanel)
+        return;
+    // Run infernoflow graph --html to get the HTML file
+    const htmlPath = path.join(cwd, "inferno", "graph.html");
+    const result = runCli(["graph", "--html"]);
+    if (result.status === 0 && fs.existsSync(htmlPath)) {
+        try {
+            graphPanel.webview.html = fs.readFileSync(htmlPath, "utf8");
+            return;
+        }
+        catch { }
+    }
+    // Fallback: load existing graph.html if present
+    if (fs.existsSync(htmlPath)) {
+        try {
+            graphPanel.webview.html = fs.readFileSync(htmlPath, "utf8");
+            return;
+        }
+        catch { }
+    }
+    graphPanel.webview.html = `<!DOCTYPE html><html><body style="background:#0f1117;color:#e2e8f0;font-family:sans-serif;padding:40px;text-align:center">
+    <h2 style="color:#f97316">🔥 No graph data yet</h2>
+    <p style="margin-top:16px;color:#64748b">Run <code style="background:#1e2535;padding:4px 8px;border-radius:4px">infernoflow scan</code> first to build the capability map, then re-open this panel.</p>
+  </body></html>`;
+}
 // ── Dashboard webview panel ───────────────────────────────────────────────────
 let dashboardPanel;
 function openDashboardWebview(context) {
@@ -904,6 +947,8 @@ function activate(context) {
     // ── v0.3 commands ─────────────────────────────────────────────────────────
     vscode.commands.registerCommand("infernoflow.openDashboard", () => {
         openDashboardWebview(context);
+    }), vscode.commands.registerCommand("infernoflow.openGraph", () => {
+        openGraphWebview(context);
     }), vscode.commands.registerCommand("infernoflow.linkCapability", async () => {
         const cwd = getCwd();
         if (!cwd) {
@@ -1045,6 +1090,7 @@ function activate(context) {
             { label: "$(sparkle)            Sync contract (suggest)", value: "suggest" },
             { label: "$(comment-discussion) AI Review", value: "review" },
             { label: "$(tag)                Version recommendation", value: "version" },
+            { label: "$(type-hierarchy)      Capability graph", value: "graph" },
             { label: "$(browser)            Open dashboard", value: "dashboard" },
             { label: "$(shield)             Security audit", value: "audit" },
             { label: "$(heart)              Health score", value: "health" },
@@ -1066,6 +1112,9 @@ function activate(context) {
                 break;
             case "version":
                 vscode.commands.executeCommand("infernoflow.version");
+                break;
+            case "graph":
+                vscode.commands.executeCommand("infernoflow.openGraph");
                 break;
             case "dashboard":
                 vscode.commands.executeCommand("infernoflow.openDashboard");

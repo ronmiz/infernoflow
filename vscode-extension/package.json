@@ -2,7 +2,7 @@
   "name": "infernoflow",
   "displayName": "infernoflow",
   "description": "Keep capabilities, contracts, and docs in sync — live status panel for VS Code and Cursor",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "infernoflow",
   "license": "MIT",
   "repository": {
@@ -205,6 +205,12 @@
         "title": "Sync infernoflow Contract for This File",
         "icon": "$(sparkle)",
         "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.openGraph",
+        "title": "Open Capability Graph",
+        "icon": "$(type-hierarchy)",
+        "category": "infernoflow"
       }
     ],
     "menus": {
@@ -241,6 +247,11 @@
         },
         {
           "command": "infernoflow.openDashboard",
+          "when": "view == infernoflow.capabilities",
+          "group": "navigation"
+        },
+        {
+          "command": "infernoflow.openGraph",
           "when": "view == infernoflow.capabilities",
           "group": "navigation"
         },
