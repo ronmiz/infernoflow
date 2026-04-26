@@ -866,11 +866,7 @@ function updateStatusBar(
 // ── Auto-refresh ──────────────────────────────────────────────────────────────
 
 function startAutoRefresh(
-  capsProvider: CapabilitiesProvider,
-  scenProvider: ScenariosProvider,
-  chgProvider: ChangelogProvider,
-  agentsProvider: AgentsProvider,
-  statusBar: vscode.StatusBarItem
+  refreshFn: () => void
 ): vscode.Disposable {
   let timer: ReturnType<typeof setInterval> | null = null;
 
@@ -879,16 +875,7 @@ function startAutoRefresh(
     const config = vscode.workspace.getConfiguration("infernoflow");
     const interval = (config.get<number>("autoRefreshInterval") ?? 30) * 1000;
     if (interval > 0) {
-      timer = setInterval(() => {
-        capsProvider.refresh();
-        scenProvider.refresh();
-        chgProvider.refresh();
-        agentsProvider.refresh();
-        const cwd = getCwd();
-        const status = cwd ? loadStatus(cwd) : null;
-        const versionRec = cwd ? loadVersionRecommendation(cwd) : null;
-        updateStatusBar(statusBar, status, versionRec);
-      }, interval);
+      timer = setInterval(refreshFn, interval);
     }
   };
 
@@ -939,7 +926,13 @@ export function activate(context: vscode.ExtensionContext): void {
   const chgProvider     = new ChangelogProvider();
   const agentsProvider  = new AgentsProvider();
 
-  vscode.window.registerTreeDataProvider("infernoflow.capabilities", capsProvider);
+  // Use createTreeView (not registerTreeDataProvider) so we can set the badge
+  // on the activity-bar icon to show uncovered capability count.
+  const capsTreeView = vscode.window.createTreeView("infernoflow.capabilities", {
+    treeDataProvider: capsProvider,
+    showCollapseAll: false,
+  });
+  context.subscriptions.push(capsTreeView);
   vscode.window.registerTreeDataProvider("infernoflow.scenarios",    scenProvider);
   vscode.window.registerTreeDataProvider("infernoflow.changelog",    chgProvider);
   vscode.window.registerTreeDataProvider("infernoflow.agents",       agentsProvider);
@@ -959,6 +952,22 @@ export function activate(context: vscode.ExtensionContext): void {
     const versionRec = cwd ? loadVersionRecommendation(cwd) : null;
     updateStatusBar(statusBar, status, versionRec);
 
+    // Update activity-bar badge: show count of uncovered capabilities
+    if (status?.ok && status.capabilityDetails) {
+      const uncovered = status.capabilityDetails.filter(c => !c.covered).length;
+      const total     = status.capabilityDetails.length;
+      if (uncovered > 0) {
+        capsTreeView.badge = {
+          value: uncovered,
+          tooltip: `${uncovered} of ${total} capabilities have no scenario coverage`,
+        };
+      } else {
+        capsTreeView.badge = undefined;
+      }
+    } else {
+      capsTreeView.badge = undefined;
+    }
+
     // Re-apply capability decorations + audit badges on the active editor
     const editor = vscode.window.activeTextEditor;
     if (editor && status?.capabilityDetails) {
@@ -971,8 +980,8 @@ export function activate(context: vscode.ExtensionContext): void {
   };
   doRefresh();
 
-  // Auto-refresh
-  const autoRefresh = startAutoRefresh(capsProvider, scenProvider, chgProvider, agentsProvider, statusBar);
+  // Auto-refresh — calls doRefresh() on the configured interval so badge + status bar stay in sync
+  const autoRefresh = startAutoRefresh(doRefresh);
   context.subscriptions.push(autoRefresh);
 
   // File watcher — refresh when inferno/ files change
