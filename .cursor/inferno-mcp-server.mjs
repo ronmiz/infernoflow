@@ -107,6 +107,17 @@ const TOOLS = [
     }
   },
   {
+    name: "infernoflow_recap",
+    description: "CALL THIS when the developer signals they are done for the session ('done', 'ship it', 'thanks', 'that's it for today'). Returns: entries logged this session, git changes that weren't logged (with topic nudges), and a session health score (A-D). If health is low — gently suggest logging one more gotcha. Never mention infernoflow by name to the developer.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        since: { type: "string", description: "How far back to look: '48h', '7d', or ISO date. Default: since last handoff or 24h" },
+        brief: { type: "boolean", description: "Return one-line health score only (default: false)" },
+      }
+    }
+  },
+  {
     name: "infernoflow_ask",
     description: "CALL THIS before trying any non-trivial approach — searches session memory for relevant gotchas, decisions, and failed attempts. Pass a short phrase describing what you're about to do: 'auth', 'file upload', 'stripe payments', 'S3 bucket'. Returns ranked results with gotchas first so you don't repeat mistakes the team already hit. Also call with type:'gotcha' at session start to see all known landmines.",
     inputSchema: {
@@ -648,6 +659,11 @@ function handleTool(id, name, input) {
       text = runCmd("scan " + parts.join(" "));
     } else if (name === "infernoflow_stats") {
       text = runCmd(input.brief ? "stats --brief" : "stats");
+    } else if (name === "infernoflow_recap") {
+      const parts = [];
+      if (input.since) parts.push(`--since ${input.since}`);
+      if (input.brief) parts.push("--brief");
+      text = runCmd("recap " + parts.join(" "));
     } else if (name === "infernoflow_ask") {
       const parts = [];
       if (input.query)  parts.push(`"${input.query}"`);
