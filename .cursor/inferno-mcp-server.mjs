@@ -96,6 +96,16 @@ const TOOLS = [
     description: "Call when generating or editing UI code to get the project's design system — exact fonts, color palette, CSS variables, and framework. Returns inferno/theme.json so you always match the visual system. Call this before generating any UI component, button, form, or page to avoid introducing wrong colors or fonts.",
     inputSchema: { type: "object", properties: {} }
   },
+  {
+    name: "infernoflow_switch",
+    description: "CALL THIS when the developer says they are switching to a different AI agent (Copilot, Cursor, Claude, Windsurf, etc.) or when ending a session. Generates a complete handoff summary — gotchas, decisions, failed attempts, design system, capabilities — written to inferno/HANDOFF.md. Tell the developer: 'Handoff ready — paste inferno/HANDOFF.md into your next session.'",
+    inputSchema: {
+      type: "object",
+      properties: {
+        to: { type: "string", description: "The agent being handed off to (e.g. cursor, copilot, claude, windsurf)" }
+      }
+    }
+  },
 ];
 
 // ── git drift detection (inline — no external imports in this template file) ─
@@ -598,6 +608,8 @@ function handleTool(id, name, input) {
       text = logSession(input.summary, input.type || "note", input.result || null);
     } else if (name === "infernoflow_theme") {
       text = getTheme();
+    } else if (name === "infernoflow_switch") {
+      text = generateHandoff(input.to || null);
     } else { return sendError(id, -32601, `Unknown tool: ${name}`); }
     sendResult(id, { content: [{ type: "text", text: text || "(no output)" }] });
   } catch (err) { sendError(id, -32000, err.message); }
@@ -610,6 +622,65 @@ function logSession(summary, type, result) {
   const entry = { ts: new Date().toISOString(), agent: "claude", type, summary, ...(result ? { result } : {}) };
   fs.appendFileSync(sessionsFile, JSON.stringify(entry) + "\n", "utf8");
   return `Logged [${type}]${result ? ` [${result}]` : ""}: ${summary}`;
+}
+
+function generateHandoff(toAgent) {
+  const cwd = process.cwd();
+  const infernoDir = path.join(cwd, "inferno");
+  const readJ = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return null; } };
+  const fmtTs = (iso) => iso ? new Date(iso).toLocaleString("en-GB", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" }) : "";
+
+  const state    = readJ(path.join(infernoDir, "context-state.json")) || {};
+  const contract = readJ(path.join(infernoDir, "contract.json")) || {};
+  const theme    = readJ(path.join(infernoDir, "theme.json"));
+
+  let sessions = [];
+  const sessFile = path.join(infernoDir, "sessions.jsonl");
+  if (fs.existsSync(sessFile)) {
+    sessions = fs.readFileSync(sessFile, "utf8").split("\n").filter(Boolean)
+      .map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean).slice(-10);
+  }
+
+  const lines = ["## 🔥 infernoflow Handoff", `> ${new Date().toLocaleString("en-GB")}${toAgent ? ` → ${toAgent}` : ""}`, ""];
+  if (state.working) lines.push(`**Working on:** ${state.working}`);
+  if (state.intent)  lines.push(`**Intent:** ${state.intent}`);
+  lines.push("");
+
+  const gotchas   = sessions.filter(e => e.type === "gotcha");
+  const decisions = sessions.filter(e => e.type === "decision");
+  const failed    = sessions.filter(e => e.type === "attempt" && (e.result === "failed" || e.result === "partial"));
+  const prefs     = sessions.filter(e => e.type === "preference");
+
+  if (gotchas.length)   { lines.push("**⚠ Gotchas:**"); gotchas.forEach(e => lines.push(`- ${e.summary}`)); lines.push(""); }
+  if (decisions.length) { lines.push("**Decisions:**"); decisions.forEach(e => lines.push(`- ${e.summary}${e.result ? ` → ${e.result}` : ""}`)); lines.push(""); }
+  if (failed.length)    { lines.push("**✗ Already tried (don't repeat):**"); failed.forEach(e => lines.push(`- ${e.summary}`)); lines.push(""); }
+  if (prefs.length)     { lines.push("**Preferences:**"); prefs.forEach(e => lines.push(`- ${e.summary}`)); lines.push(""); }
+
+  if (theme) {
+    lines.push("**Design system:**");
+    if (theme.fonts?.primary) lines.push(`- Font: ${theme.fonts.primary}`);
+    if (theme.colors?.palette) lines.push(`- Palette: ${Object.entries(theme.colors.palette).map(([k,v])=>`${k}=${v}`).join("  ")}`);
+    if (theme.cssVars) lines.push(`- CSS vars: ${Object.keys(theme.cssVars).slice(0,5).join(", ")}`);
+    lines.push("> ⚠ Always match these exactly.", "");
+  }
+
+  if (contract.capabilities?.length) {
+    lines.push(`**Capabilities (${contract.capabilities.length}):** ${contract.capabilities.slice(0,15).join(", ")}`);
+    lines.push("");
+  }
+
+  const handoff = lines.join("\n");
+
+  // Write HANDOFF.md
+  try {
+    fs.writeFileSync(path.join(infernoDir, "HANDOFF.md"), handoff + "\n", "utf8");
+    // Log to sessions
+    if (fs.existsSync(sessFile)) {
+      fs.appendFileSync(sessFile, JSON.stringify({ ts: new Date().toISOString(), agent: "claude", type: "handoff", summary: toAgent ? `Handed off to ${toAgent}` : "Handoff generated" }) + "\n", "utf8");
+    }
+  } catch {}
+
+  return handoff + "\n\nHandoff written to inferno/HANDOFF.md — paste this at the start of your next AI session.";
 }
 
 function getTheme() {

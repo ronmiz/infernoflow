@@ -68,6 +68,7 @@ const COMMAND_DESCRIPTIONS = {
   demo:       "Interactive walkthrough — scaffolds a sample project and runs the full capability chain end-to-end",
   log:        "Append to session memory (decisions, gotchas, failed attempts, theme changes) — what AI can't infer from code",
   theme:      "Scan fonts, colors, and CSS variables — write inferno/theme.json so AI always matches the design system",
+  switch:     "Generate a handoff summary when switching AI agents — paste into the next session so nothing is lost",
 };
 
 const COMMAND_HANDLERS = {
@@ -129,6 +130,7 @@ const COMMAND_HANDLERS = {
   demo:      async (args) => (await import("../lib/commands/demo.mjs")).demoCommand(args),
   log:       async (args) => (await import("../lib/commands/log.mjs")).logCommand(args),
   theme:     async (args) => (await import("../lib/commands/theme.mjs")).themeCommand(args),
+  switch:    async (args) => (await import("../lib/commands/switch.mjs")).switchCommand(args),
 };
 
 function formatCommandsHelp() {
