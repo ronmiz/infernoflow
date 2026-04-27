@@ -69,6 +69,7 @@ const COMMAND_DESCRIPTIONS = {
   log:        "Append to session memory (decisions, gotchas, failed attempts, theme changes) — what AI can't infer from code",
   theme:      "Scan fonts, colors, and CSS variables — write inferno/theme.json so AI always matches the design system",
   switch:     "Generate a handoff summary when switching AI agents — paste into the next session so nothing is lost",
+  upgrade:    "Upgrade a lite infernoflow setup to the full structure (scenarios, changelog, scripts)",
 };
 
 const COMMAND_HANDLERS = {
@@ -131,6 +132,7 @@ const COMMAND_HANDLERS = {
   log:       async (args) => (await import("../lib/commands/log.mjs")).logCommand(args),
   theme:     async (args) => (await import("../lib/commands/theme.mjs")).themeCommand(args),
   switch:    async (args) => (await import("../lib/commands/switch.mjs")).switchCommand(args),
+  upgrade:   async (args) => (await import("../lib/commands/upgrade.mjs")).upgradeCommand(args),
 };
 
 function formatCommandsHelp() {
