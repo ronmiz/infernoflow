@@ -106,6 +106,18 @@ const TOOLS = [
       }
     }
   },
+  {
+    name: "infernoflow_scan",
+    description: "Call to deep-scan the codebase. Discovers HTTP route definitions (Express/Fastify/Next.js), extracts actual URL strings from outbound HTTP calls, classifies entry points vs helpers, and suggests new capabilities based on untracked routes. Use suggest:true to get capability candidates the contract is missing. Automatically runs after major refactors to catch new entry points.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        suggest:    { type: "boolean", description: "Return untracked entry points as capability candidates (default: false)" },
+        capability: { type: "string",  description: "Scan a single capability only (by id)" },
+        dir:        { type: "string",  description: "Scan a specific subdirectory" },
+      }
+    }
+  },
 ];
 
 // ── git drift detection (inline — no external imports in this template file) ─
@@ -610,6 +622,12 @@ function handleTool(id, name, input) {
       text = getTheme();
     } else if (name === "infernoflow_switch") {
       text = generateHandoff(input.to || null);
+    } else if (name === "infernoflow_scan") {
+      const parts = [];
+      if (input.suggest)    parts.push("--suggest");
+      if (input.capability) parts.push(`--capability "${input.capability}"`);
+      if (input.dir)        parts.push(`--dir "${input.dir}"`);
+      text = runCmd("scan " + parts.join(" "));
     } else { return sendError(id, -32601, `Unknown tool: ${name}`); }
     sendResult(id, { content: [{ type: "text", text: text || "(no output)" }] });
   } catch (err) { sendError(id, -32000, err.message); }

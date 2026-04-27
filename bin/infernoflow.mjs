@@ -54,7 +54,7 @@ const COMMAND_DESCRIPTIONS = {
   doctor:  "Diagnose your infernoflow setup — checks Node, git, contract, AI providers, MCP, hooks",
   coverage: "Map test files to capabilities — show which caps have test coverage and which don't",
   review:  "AI-powered capability impact review for staged or recent git changes",
-  scan:       "Deep AST scan — reads actual function bodies, extracts calls, DB ops, external services",
+  scan:       "Deep AST scan — route discovery, entry point detection, HTTP URL extraction, capability suggestions",
   graph:      "Build capability dependency graph — shows which caps call which, detects breaking changes",
   stability:  "Show solid/liquid stability level for every capability (frozen/stable/experimental)",
   freeze:     "Mark a capability as frozen (solid) — AI will not modify it without explicit instruction",
@@ -390,8 +390,9 @@ ${formatCommandsHelp()}
   ${bold("scan options:")}
     --dir <path>              Extra directory to scan (repeatable)
     --capability <id>         Scan and enrich a single capability only
+    --suggest, -s             Show untracked entry points as new capability candidates
     --dry-run                 Print results without writing files
-    --json                    Machine-readable scan output
+    --json                    Machine-readable scan output (includes discovered routes)
 
   ${bold("graph options:")}
     --cap <id>                Show dependency view for a single capability
