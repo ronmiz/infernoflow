@@ -71,6 +71,7 @@ const COMMAND_DESCRIPTIONS = {
   switch:     "Generate a handoff summary when switching AI agents — paste into the next session so nothing is lost",
   upgrade:    "Upgrade a lite infernoflow setup to the full structure (scenarios, changelog, scripts)",
   stats:      "Value dashboard — session memory, tokens injected per session, coverage %, estimated savings",
+  ask:        "Query session memory — search gotchas, decisions, and failed attempts by keyword or type",
 };
 
 const COMMAND_HANDLERS = {
@@ -135,6 +136,7 @@ const COMMAND_HANDLERS = {
   switch:    async (args) => (await import("../lib/commands/switch.mjs")).switchCommand(args),
   upgrade:   async (args) => (await import("../lib/commands/upgrade.mjs")).upgradeCommand(args),
   stats:     async (args) => (await import("../lib/commands/stats.mjs")).statsCommand(args),
+  ask:       async (args) => (await import("../lib/commands/ask.mjs")).askCommand(args),
 };
 
 function formatCommandsHelp() {

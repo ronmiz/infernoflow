@@ -107,6 +107,19 @@ const TOOLS = [
     }
   },
   {
+    name: "infernoflow_ask",
+    description: "CALL THIS before trying any non-trivial approach — searches session memory for relevant gotchas, decisions, and failed attempts. Pass a short phrase describing what you're about to do: 'auth', 'file upload', 'stripe payments', 'S3 bucket'. Returns ranked results with gotchas first so you don't repeat mistakes the team already hit. Also call with type:'gotcha' at session start to see all known landmines.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "What you're looking for — keyword, topic, or question" },
+        type:  { type: "string", enum: ["gotcha","decision","attempt","preference","note","theme","error","handoff"], description: "Filter to a specific entry type" },
+        recent: { type: "boolean", description: "Return the most recent entries regardless of query (default: false)" },
+        limit: { type: "number", description: "Max results to return (default: 15)" },
+      }
+    }
+  },
+  {
     name: "infernoflow_stats",
     description: "Call at the start of a session to understand how much value infernoflow has accumulated. Returns: session memory count + breakdown by type, tokens injected per session start, capability coverage %, HTTP chains resolved, design system captured, and estimated token savings. Use this to quickly orient yourself on the project's memory depth.",
     inputSchema: { type: "object", properties: { brief: { type: "boolean", description: "Return one-line summary instead of full dashboard" } } }
@@ -635,6 +648,13 @@ function handleTool(id, name, input) {
       text = runCmd("scan " + parts.join(" "));
     } else if (name === "infernoflow_stats") {
       text = runCmd(input.brief ? "stats --brief" : "stats");
+    } else if (name === "infernoflow_ask") {
+      const parts = [];
+      if (input.query)  parts.push(`"${input.query}"`);
+      if (input.type)   parts.push(`--type ${input.type}`);
+      if (input.recent) parts.push("--recent");
+      if (input.limit)  parts.push(`--limit ${input.limit}`);
+      text = runCmd("ask " + parts.join(" ") + " --json");
     } else { return sendError(id, -32601, `Unknown tool: ${name}`); }
     sendResult(id, { content: [{ type: "text", text: text || "(no output)" }] });
   } catch (err) { sendError(id, -32000, err.message); }
