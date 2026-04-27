@@ -107,6 +107,11 @@ const TOOLS = [
     }
   },
   {
+    name: "infernoflow_stats",
+    description: "Call at the start of a session to understand how much value infernoflow has accumulated. Returns: session memory count + breakdown by type, tokens injected per session start, capability coverage %, HTTP chains resolved, design system captured, and estimated token savings. Use this to quickly orient yourself on the project's memory depth.",
+    inputSchema: { type: "object", properties: { brief: { type: "boolean", description: "Return one-line summary instead of full dashboard" } } }
+  },
+  {
     name: "infernoflow_scan",
     description: "Call to deep-scan the codebase. Discovers HTTP route definitions (Express/Fastify/Next.js), extracts actual URL strings from outbound HTTP calls, classifies entry points vs helpers, and suggests new capabilities based on untracked routes. Use suggest:true to get capability candidates the contract is missing. Automatically runs after major refactors to catch new entry points.",
     inputSchema: {
@@ -628,6 +633,8 @@ function handleTool(id, name, input) {
       if (input.capability) parts.push(`--capability "${input.capability}"`);
       if (input.dir)        parts.push(`--dir "${input.dir}"`);
       text = runCmd("scan " + parts.join(" "));
+    } else if (name === "infernoflow_stats") {
+      text = runCmd(input.brief ? "stats --brief" : "stats");
     } else { return sendError(id, -32601, `Unknown tool: ${name}`); }
     sendResult(id, { content: [{ type: "text", text: text || "(no output)" }] });
   } catch (err) { sendError(id, -32000, err.message); }
