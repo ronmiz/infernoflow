@@ -75,6 +75,7 @@ const COMMAND_DESCRIPTIONS = {
   recap:      "End-of-session summary — what was captured, what git changes weren't logged, session health score",
   uninstall:  "Remove infernoflow from a project — inferno/, CLAUDE.md, MCP server, git hooks (--dry-run to preview)",
   feedback:   "60-second CLI survey about how you use infernoflow (--form to open web form)",
+  telemetry:  "Manage anonymous usage telemetry (on | off | status) — opt-in, command names only",
 };
 
 const COMMAND_HANDLERS = {
@@ -143,6 +144,7 @@ const COMMAND_HANDLERS = {
   recap:     async (args) => (await import("../lib/commands/recap.mjs")).recapCommand(args),
   uninstall: async (args) => (await import("../lib/commands/uninstall.mjs")).uninstallCommand(args),
   feedback:  async (args) => (await import("../lib/commands/feedback.mjs")).feedbackCommand(args),
+  telemetry: async (args) => (await import("../lib/telemetry.mjs")).telemetryCommand(args),
 };
 
 function formatCommandsHelp() {
