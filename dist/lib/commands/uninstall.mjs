@@ -5,13 +5,16 @@
  * The inverse of `infernoflow setup`.
  *
  * What it removes:
- *   - inferno/           — contract, capabilities, session memory, HANDOFF.md
- *   - CLAUDE.md          — auto-behavior instruction file
- *   - .claude/           — settings.json with pre-approved tools
- *   - .cursor/inferno-mcp-server.mjs  — MCP server file
- *   - .cursor/mcp.json   — infernoflow entry (other entries preserved)
- *   - ~/.claude.json     — infernoflow mcpServers entry (other entries preserved)
- *   - .git/hooks/post-commit / pre-push — infernoflow sections (other hooks preserved)
+ *   - inferno/                              — contract, capabilities, session memory, HANDOFF.md
+ *   - CLAUDE.md                             — auto-behavior instruction file
+ *   - .claude/settings.json                 — pre-approved tools (infernoflow entries only)
+ *   - .cursor/inferno-mcp-server.mjs        — MCP server file
+ *   - .cursor/hooks.json                    — cursor hooks config (if infernoflow-only)
+ *   - .cursor/hooks/inferno-session-draft.mjs — cursor hook script
+ *   - .cursor/mcp.json                      — infernoflow entry (other entries preserved)
+ *   - inferno-mcp-server.mjs                — root-level MCP server copy
+ *   - ~/.claude.json                        — infernoflow mcpServers entry (other entries preserved)
+ *   - .git/hooks/post-commit / pre-push     — infernoflow sections (other hooks preserved)
  *
  * Flags:
  *   --dry-run         Preview what would be removed without touching anything
@@ -33,15 +36,18 @@ import * as os   from "node:os";
 import * as readline from "node:readline";
 import { bold, cyan, gray, green, yellow, red } from "../ui/output.mjs";
 
-const INFERNO_DIR    = "inferno";
-const CLAUDE_MD      = "CLAUDE.md";
-const CLAUDE_DIR     = ".claude";
-const CURSOR_DIR     = ".cursor";
-const MCP_SERVER     = path.join(CURSOR_DIR, "inferno-mcp-server.mjs");
-const CURSOR_MCP     = path.join(CURSOR_DIR, "mcp.json");
-const CLAUDE_JSON    = path.join(os.homedir(), ".claude.json");
-const GIT_HOOKS      = [".git/hooks/post-commit", ".git/hooks/pre-push"];
-const INFERNO_MARKER = "# infernoflow";
+const INFERNO_DIR      = "inferno";
+const CLAUDE_MD        = "CLAUDE.md";
+const CLAUDE_DIR       = ".claude";
+const CURSOR_DIR       = ".cursor";
+const MCP_SERVER       = path.join(CURSOR_DIR, "inferno-mcp-server.mjs");
+const MCP_SERVER_ROOT  = "inferno-mcp-server.mjs";  // root-level copy from install-cursor-hooks
+const CURSOR_HOOKS_JSON= path.join(CURSOR_DIR, "hooks.json");
+const CURSOR_HOOK_FILE = path.join(CURSOR_DIR, "hooks", "inferno-session-draft.mjs");
+const CURSOR_MCP       = path.join(CURSOR_DIR, "mcp.json");
+const CLAUDE_JSON      = path.join(os.homedir(), ".claude.json");
+const GIT_HOOKS        = [".git/hooks/post-commit", ".git/hooks/pre-push"];
+const INFERNO_MARKER   = "# infernoflow";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -123,9 +129,26 @@ function planClaudeDir(cwd) {
 }
 
 function planCursorMcpServer(cwd) {
-  const p = path.join(cwd, MCP_SERVER);
-  if (!exists(p)) return [];
-  return [{ type: "rm", path: MCP_SERVER }];
+  const items = [];
+  // .cursor/inferno-mcp-server.mjs
+  if (exists(path.join(cwd, MCP_SERVER))) items.push({ type: "rm", path: MCP_SERVER });
+  // root-level inferno-mcp-server.mjs (written by install-cursor-hooks)
+  if (exists(path.join(cwd, MCP_SERVER_ROOT))) items.push({ type: "rm", path: MCP_SERVER_ROOT });
+  // .cursor/hooks/inferno-session-draft.mjs
+  if (exists(path.join(cwd, CURSOR_HOOK_FILE))) items.push({ type: "rm", path: CURSOR_HOOK_FILE });
+  // .cursor/hooks.json — only remove if it only contains the infernoflow hook
+  const hooksJsonPath = path.join(cwd, CURSOR_HOOKS_JSON);
+  if (exists(hooksJsonPath)) {
+    const cfg = readJSON(hooksJsonPath);
+    const hooks = cfg?.hooks || [];
+    const hasOnlyInferno = hooks.every(h => (h.name || h.command || "").includes("inferno"));
+    if (hasOnlyInferno) {
+      items.push({ type: "rm", path: CURSOR_HOOKS_JSON, desc: "infernoflow-only hooks config" });
+    } else {
+      items.push({ type: "edit", path: CURSOR_HOOKS_JSON, desc: "remove infernoflow hook entry (preserve others)" });
+    }
+  }
+  return items;
 }
 
 function planCursorMcpJson(cwd) {
@@ -212,7 +235,15 @@ function removeCursorMcpServer(cwd, plan, dryRun) {
   if (dryRun) return;
   for (const item of plan) {
     if (item.type === "rm") {
-      try { fs.unlinkSync(path.join(cwd, MCP_SERVER)); } catch {}
+      try { fs.unlinkSync(path.join(cwd, item.path)); } catch {}
+    } else if (item.type === "edit" && item.path === CURSOR_HOOKS_JSON) {
+      try {
+        const cfg = readJSON(path.join(cwd, CURSOR_HOOKS_JSON));
+        if (cfg?.hooks) {
+          cfg.hooks = cfg.hooks.filter(h => !(h.name || h.command || "").includes("inferno"));
+        }
+        fs.writeFileSync(path.join(cwd, CURSOR_HOOKS_JSON), JSON.stringify(cfg, null, 2) + "\n", "utf8");
+      } catch {}
     }
   }
 }
