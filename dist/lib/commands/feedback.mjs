@@ -3,18 +3,32 @@
  *
  * Collects in-CLI feedback about infernoflow and optionally opens the web form.
  *
+ * Responses are:
+ *   1. Saved locally in ~/.infernoflow/feedback.json
+ *   2. POSTed to Formspree (free, no backend needed — Ron gets email per submission)
+ *
+ * To activate Formspree:
+ *   1. Go to https://formspree.io → create free account → New Form
+ *   2. Replace FORMSPREE_ENDPOINT below with your form URL (e.g. https://formspree.io/f/xabc1234)
+ *   3. Publish the package — submissions arrive in your email immediately
+ *
  * Usage:
  *   infernoflow feedback            Interactive 5-question survey
  *   infernoflow feedback --form     Open Google Form in browser
  *   infernoflow feedback --json     Print last stored feedback as JSON
  */
 
-import * as fs   from "node:fs";
-import * as path from "node:path";
-import * as os   from "node:os";
+import * as fs    from "node:fs";
+import * as path  from "node:path";
+import * as os    from "node:os";
+import * as https from "node:https";
 import * as readline from "node:readline";
 import { execSync } from "node:child_process";
 import { bold, cyan, gray, green, yellow, red } from "../ui/output.mjs";
+
+// ── Replace this URL with your Formspree form endpoint ───────────────────────
+// Get one free at https://formspree.io (50 submissions/mo free, emails you each response)
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/infernoflow"; // placeholder
 
 const FEEDBACK_FORM_URL = "https://forms.gle/infernoflow-feedback"; // placeholder — replace with real form
 const FEEDBACK_FILE     = path.join(os.homedir(), ".infernoflow", "feedback.json");
@@ -47,6 +61,39 @@ const QUESTIONS = [
     optional: true,
   },
 ];
+
+/**
+ * Fire-and-forget POST to Formspree.
+ * Formspree emails the form owner on each submission — zero backend needed.
+ */
+function sendToFormspree(record) {
+  try {
+    if (!FORMSPREE_ENDPOINT || FORMSPREE_ENDPOINT.includes("placeholder")) return;
+
+    const url  = new URL(FORMSPREE_ENDPOINT);
+    const body = JSON.stringify({
+      ...record.responses,
+      _subject:  `infernoflow feedback v${record.version}`,
+      _version:  record.version,
+      _ts:       record.ts,
+    });
+
+    const req = https.request({
+      hostname: url.hostname,
+      path:     url.pathname,
+      method:   "POST",
+      headers:  {
+        "Content-Type":   "application/json",
+        "Accept":         "application/json",
+        "Content-Length": Buffer.byteLength(body),
+      },
+      timeout: 5000,
+    });
+    req.on("error", () => {}); // never surface errors to the user
+    req.write(body);
+    req.end();
+  } catch {}
+}
 
 function saveFeedback(responses) {
   const dir = path.dirname(FEEDBACK_FILE);
@@ -119,6 +166,9 @@ async function runSurvey() {
   rl.close();
 
   const record = saveFeedback(responses);
+
+  // Fire-and-forget cloud send (Formspree — Ron gets an email)
+  sendToFormspree(record);
 
   console.log(green("  ✔ Feedback saved — thank you!\n"));
   console.log(gray("  Stored in: ~/.infernoflow/feedback.json"));
