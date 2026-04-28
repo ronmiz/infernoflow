@@ -151,15 +151,49 @@ function formatCommandsHelp() {
     .join("\n");
 }
 
+// ── Full grouped command list (infernoflow commands) ──────────────────────────
+const COMMAND_GROUPS = {
+  "Session Memory":  ["log", "ask", "switch", "recap", "stats", "theme"],
+  "Context":         ["context", "scan", "suggest", "check", "status"],
+  "Code Analysis":   ["graph", "impact", "why", "coverage", "stability", "freeze", "thaw", "scout"],
+  "Workflow":        ["run", "sync", "watch", "vibe", "implement", "doc-gate", "synthesize", "agent"],
+  "Publishing":      ["publish", "version", "changelog", "diff"],
+  "Team":            ["team-sync", "cloud", "share", "notify", "pr-comment", "pr-impact"],
+  "Quality":         ["health", "audit", "review", "snapshot", "export", "link"],
+  "Integration":     ["ai", "ci", "coverage"],
+  "Setup":           ["init", "setup", "adopt", "demo", "doctor", "onboard", "generate-skills", "upgrade", "uninstall"],
+  "Advanced":        ["scaffold", "explain", "test", "report", "monorepo", "feedback", "telemetry"],
+};
+
+function formatCommandGroups() {
+  const w = 18;
+  return Object.entries(COMMAND_GROUPS).map(([group, cmds]) =>
+    `  ${bold(group + ":")}
+    ${cmds.join("  ")}`
+  ).join("\n\n");
+}
+
 const HELP = `
   ${bold("🔥 infernoflow")} ${gray("v" + VERSION)}
-  ${gray("The forge for liquid code — keep every AI session in sync")}
+  ${gray("Persistent memory for AI coding sessions")}
 
   ${bold("Usage:")}
-    infernoflow <command> [options]
+    infernoflow [command] [options]
 
-  ${bold("Commands:")}
-${formatCommandsHelp()}
+  ${bold("Core Commands:")}
+    ${cyan("log")} ${gray('"..."')}         Add to session memory ${gray("(--type gotcha|decision|attempt|preference)")}
+    ${cyan("ask")} ${gray('"..."')}         Search your memory by keyword ${gray("(gotchas surface first)")}
+    ${cyan("switch")}            Generate handoff for next AI agent
+    ${cyan("recap")}             End-of-session health score + unlogged changes
+    ${cyan("status")}            Contract health at a glance
+
+  ${bold("Getting Started:")}
+    ${cyan("setup")}             One command to get fully operational
+    ${cyan("demo")}              Interactive walkthrough ${gray("(5 minutes)")}
+    ${cyan("doctor")}            Diagnose your setup
+
+  ${gray("Run")} ${cyan("infernoflow commands")} ${gray("to see all commands.")}
+  ${gray("Run")} ${cyan("infernoflow <command> --help")} ${gray("for command-specific options.")}
 
   ${bold("diff options:")}
     --ref <tag|commit>        Compare against a specific ref (default: last git tag)
@@ -503,12 +537,19 @@ if (cmd === "--version" || cmd === "-v") {
   console.log(VERSION);
   process.exit(0);
 }
+if (cmd === "commands") {
+  console.log(`\n  ${bold("🔥 infernoflow")} ${gray("v" + VERSION)} ${gray("— all commands")}\n`);
+  console.log(formatCommandGroups());
+  console.log(`\n  ${gray("Run")} ${cyan("infernoflow <command> --help")} ${gray("for options.")}\n`);
+  process.exit(0);
+}
 
 const commands = Object.keys(COMMAND_HANDLERS);
 
 if (!commands.includes(cmd)) {
   console.error(red(`\nUnknown command: ${cmd}`));
-  console.error(gray("Run: infernoflow --help\n"));
+  console.error(gray(`Run: infernoflow commands  (see all commands)`));
+  console.error(gray("Run: infernoflow --help    (quick start)\n"));
   process.exit(1);
 }
 
