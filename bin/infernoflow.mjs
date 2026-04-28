@@ -73,6 +73,7 @@ const COMMAND_DESCRIPTIONS = {
   stats:      "Value dashboard — session memory, tokens injected per session, coverage %, estimated savings",
   ask:        "Query session memory — search gotchas, decisions, and failed attempts by keyword or type",
   recap:      "End-of-session summary — what was captured, what git changes weren't logged, session health score",
+  uninstall:  "Remove infernoflow from a project — inferno/, CLAUDE.md, MCP server, git hooks (--dry-run to preview)",
 };
 
 const COMMAND_HANDLERS = {
@@ -139,6 +140,7 @@ const COMMAND_HANDLERS = {
   stats:     async (args) => (await import("../lib/commands/stats.mjs")).statsCommand(args),
   ask:       async (args) => (await import("../lib/commands/ask.mjs")).askCommand(args),
   recap:     async (args) => (await import("../lib/commands/recap.mjs")).recapCommand(args),
+  uninstall: async (args) => (await import("../lib/commands/uninstall.mjs")).uninstallCommand(args),
 };
 
 function formatCommandsHelp() {
