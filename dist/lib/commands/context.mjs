@@ -50,6 +50,7 @@ export async function contextCommand(args) {
   const watchFlag      = has("--watch");
   const autoCommit     = has("--auto-commit") || has("--auto-push");
   const autoPush       = has("--auto-push");
+  const statsFlag      = has("--stats");
   const watchInterval  = parseInt(flag("--interval") || "30", 10) * 1000;
 
   console.log("\n  "+bold("��� infernoflow — context"));
@@ -200,7 +201,17 @@ export async function contextCommand(args) {
   console.log("  Sync         "+(allInSync?green("✓ in sync"):yellow("⚠ check needed")));
   console.log("  Working on   "+(state.working?cyan(state.working):gray("not set")));
   console.log("  Intent       "+(state.intent ?cyan(state.intent) :gray("not set")));
-  console.log("  Decisions    "+(state.decisions?state.decisions.length:0)+" recorded\n");
+  console.log("  Decisions    "+(state.decisions?state.decisions.length:0)+" recorded");
+
+  // Brief stats line when --stats flag is set
+  if (statsFlag) {
+    try {
+      const { statsCommand } = await import("./stats.mjs");
+      process.stdout.write("\n");
+      await statsCommand(["--brief"]);
+    } catch {}
+  }
+  console.log();
   console.log("  "+bold("Implementation Prompt"));
   console.log("  "+cyan("→")+" Run "+cyan(`infernoflow implement "${implementTask}" --mode both`)+"\n");
 
