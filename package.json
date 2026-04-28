@@ -1,7 +1,7 @@
 {
   "name": "infernoflow",
-  "version": "0.34.2",
-  "description": "The forge for liquid code - keep capabilities, contracts, and docs in sync.",
+  "version": "0.34.3",
+  "description": "Persistent memory for AI coding sessions — captures what agents can't infer from code alone. Works with Copilot, Cursor, Claude, and Windsurf.",
   "type": "module",
   "bin": {
     "infernoflow": "dist/bin/infernoflow.mjs"
@@ -25,14 +25,26 @@
     "inferno:promote-draft": "node scripts/inferno-promote-draft.mjs"
   },
   "keywords": [
-    "cli",
-    "capabilities",
-    "contract",
-    "documentation",
     "ai",
-    "liquid-code",
-    "dx",
-    "developer-tools"
+    "ai-memory",
+    "ai-context",
+    "ai-coding",
+    "session-memory",
+    "persistent-memory",
+    "agent-memory",
+    "agent-handoff",
+    "copilot",
+    "cursor",
+    "claude",
+    "windsurf",
+    "mcp",
+    "mcp-server",
+    "context-switching",
+    "developer-tools",
+    "cli",
+    "infernoflow",
+    "gotchas",
+    "coding-assistant"
   ],
   "author": "infernoflow",
   "license": "MIT",
