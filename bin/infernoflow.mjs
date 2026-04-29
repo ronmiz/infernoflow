@@ -1,4 +1,39 @@
 #!/usr/bin/env node
+
+// ── Windows PowerShell unicode fix ───────────────────────────────────────
+// Default PowerShell can't render box-drawing chars — patch stdout/stderr
+// to replace them with ASCII equivalents before any output happens.
+(function patchUnicodeForWindows() {
+  if (process.platform !== "win32") return;
+  if (process.env.WT_SESSION) return;   // Windows Terminal — supports unicode
+  if (process.env.ConEmuPID) return;    // ConEmu/Cmder
+  if (process.env.TERM_PROGRAM === "vscode") return; // VS Code terminal
+
+  const MAP = {
+    "─": "-", "━": "-", "═": "=",
+    "│": "|", "┃": "|", "║": "|",
+    "┌": "+", "┐": "+", "└": "+", "┘": "+",
+    "├": "+", "┤": "+", "┬": "+", "┴": "+", "┼": "+",
+    "·": "*", "→": "->", "←": "<-", "✔": "[OK]", "✓": "[OK]",
+    "✘": "[X]", "✗": "[X]", "⚠": "[!]", "ℹ": "[i]",
+  };
+  const RE = new RegExp(Object.keys(MAP).join("|"), "g");
+
+  function patch(stream) {
+    const orig = stream.write.bind(stream);
+    stream.write = function(chunk, ...args) {
+      if (typeof chunk === "string") chunk = chunk.replace(RE, c => MAP[c]);
+      else if (Buffer.isBuffer(chunk)) {
+        const s = chunk.toString("utf8").replace(RE, c => MAP[c]);
+        chunk = Buffer.from(s, "utf8");
+      }
+      return orig(chunk, ...args);
+    };
+  }
+  patch(process.stdout);
+  patch(process.stderr);
+})();
+
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
