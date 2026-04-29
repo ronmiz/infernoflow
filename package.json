@@ -1,6 +1,6 @@
 {
   "name": "infernoflow",
-  "version": "0.38.3",
+  "version": "0.38.4",
   "description": "Persistent memory for AI coding sessions — captures what agents can't infer from code alone. Works with Copilot, Cursor, Claude, and Windsurf.",
   "type": "module",
   "bin": {
