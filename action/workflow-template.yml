@@ -1,0 +1,36 @@
+# .github/workflows/infernoflow.yml
+# Drop this file into your project to get PR comments with gotcha warnings.
+#
+# Requirements:
+#   - Run: infernoflow init  (creates inferno/)
+#   - Log gotchas: infernoflow log "..." --type gotcha
+#   - Commit inferno/sessions.jsonl to your repo
+#
+# The action will comment on every PR showing which gotchas and decisions
+# are relevant to the files being changed.
+
+name: infernoflow PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write   # needed to post PR comments
+  contents: read
+
+jobs:
+  infernoflow:
+    name: Memory Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: infernoflow PR Check
+        uses: ronmiz/infernoflow@action-v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # sessions-file: inferno/sessions.jsonl   # default
+          # min-type: both                           # gotcha | decision | both
+          # fail-on-frozen: false                    # set true to block PRs touching frozen caps
