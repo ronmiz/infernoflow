@@ -5,13 +5,6 @@
  * Extracts: external calls, DB operations, HTTP calls, auth patterns, error types,
  * external service usage (Stripe, S3, SendGrid, etc.).
  *
- * Sprint 4 additions:
- * - Route discovery (Express / Fastify / Next.js App Router / Next.js Pages API)
- * - HTTP URL extraction — captures actual URL strings, not just call patterns
- * - Capability name inference from route paths (POST /api/users → CreateUser)
- * - Entry point classification (route handlers + exported functions vs helpers)
- * - --suggest flag: shows untracked entry points as capability candidates
- *
  * Enriches capabilities.json with a `codeAnalysis` block on each capability,
  * and saves the full scan report to inferno/scan.json.
  *
@@ -21,7 +14,6 @@
  *   infernoflow scan --json            Print scan.json to stdout
  *   infernoflow scan --dry-run         Print without writing files
  *   infernoflow scan --capability auth-login   Scan one capability only
- *   infernoflow scan --suggest         Show untracked entry points as new capability candidates
  */
 
 import * as fs   from "node:fs";
@@ -101,7 +93,7 @@ function detectDbCalls(text) {
   return [...calls].slice(0, 10);
 }
 
-// ── HTTP call patterns + URL extraction ──────────────────────────────────────
+// ── HTTP call patterns ────────────────────────────────────────────────────────
 
 const HTTP_PATTERNS = [
   /fetch\s*\(/g,
@@ -120,201 +112,6 @@ function detectHttpCalls(text) {
     while ((m = r.exec(text)) !== null) calls.add(m[0].replace(/\s*\($/, "()"));
   }
   return [...calls].slice(0, 8);
-}
-
-/**
- * Extract actual URL strings from HTTP calls.
- * axios.post('/api/users', data) → { method: 'POST', url: '/api/users' }
- * fetch('/api/tasks')            → { method: 'GET',  url: '/api/tasks' }
- */
-const HTTP_URL_CALL_RE = /(?:(?:axios|got|request|\$http)\.(get|post|put|patch|delete)\s*\(\s*|fetch\s*\(\s*)['"`]([^'"`\s\)]+)['"`]/g;
-
-function extractHttpCallUrls(text) {
-  const calls = [];
-  const r = new RegExp(HTTP_URL_CALL_RE.source, "g");
-  let m;
-  while ((m = r.exec(text)) !== null) {
-    const methodLiteral = m[1]; // undefined for fetch
-    const url = m[2];
-    // Only internal paths (start with / or contain /api/)
-    if (!url.startsWith("/") && !url.includes("/api/")) continue;
-    const method = methodLiteral ? methodLiteral.toUpperCase() : "GET";
-    calls.push({ method, url });
-  }
-  return calls;
-}
-
-// ── Route discovery ───────────────────────────────────────────────────────────
-
-const HTTP_METHODS = ["get", "post", "put", "patch", "delete", "head", "options", "all"];
-
-// Express/Koa/Hapi: app.get('/path', fn) or router.post('/path', fn)
-const ROUTE_RE = new RegExp(
-  `(?:app|router|server|api|routes?)\\.(${HTTP_METHODS.join("|")})\\s*\\(\\s*['"\`]([^'"\`\\s)]+)['"\`]`,
-  "g"
-);
-
-// Fastify: fastify.route({ method: 'POST', url: '/path' ... })
-const FASTIFY_ROUTE_RE = /fastify\.route\s*\(\s*\{[^}]*?method\s*:\s*['"](\w+)['"][^}]*?url\s*:\s*['"]([^'"]+)['"]/gs;
-
-// Express router.route('/path').get(...) chaining
-const ROUTE_CHAIN_RE = /(?:app|router)\.route\s*\(\s*['"`]([^'"`\s)]+)['"`]\s*\)\s*\.(get|post|put|patch|delete)/g;
-
-// Next.js App Router: export async function GET(req) in route.ts/route.js
-const NEXT_EXPORT_RE = /export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s*\(/g;
-
-/**
- * Extract route definitions from a source file.
- * Returns: [{ method, path, source, filePath, loc }]
- */
-function extractRoutes(filePath, code) {
-  const routes = [];
-  const isNextAppRouter = /app[/\\].*route\.[jt]sx?$/.test(filePath) ||
-                          /app[/\\].*\broute\b.*\.[jt]sx?$/.test(filePath);
-  const isNextApiPages  = /pages[/\\]api[/\\]/.test(filePath);
-
-  let m;
-
-  // Express/Koa style
-  const rr = new RegExp(ROUTE_RE.source, "g");
-  while ((m = rr.exec(code)) !== null) {
-    const method = m[1].toUpperCase();
-    if (method === "ALL") continue; // skip catch-alls for capability inference
-    routes.push({
-      method,
-      path:   m[2],
-      source: "express",
-      filePath,
-      loc:    code.slice(0, m.index).split("\n").length,
-    });
-  }
-
-  // Fastify route()
-  const fr = new RegExp(FASTIFY_ROUTE_RE.source, "gs");
-  while ((m = fr.exec(code)) !== null) {
-    routes.push({
-      method:   m[1].toUpperCase(),
-      path:     m[2],
-      source:   "fastify",
-      filePath,
-      loc:      code.slice(0, m.index).split("\n").length,
-    });
-  }
-
-  // Express router.route('/path').get(...)
-  const cr = new RegExp(ROUTE_CHAIN_RE.source, "g");
-  while ((m = cr.exec(code)) !== null) {
-    routes.push({
-      method:   m[2].toUpperCase(),
-      path:     m[1],
-      source:   "express-chain",
-      filePath,
-      loc:      code.slice(0, m.index).split("\n").length,
-    });
-  }
-
-  // Next.js App Router
-  if (isNextAppRouter) {
-    const nr = new RegExp(NEXT_EXPORT_RE.source, "g");
-    while ((m = nr.exec(code)) !== null) {
-      // Infer URL from file path: app/users/[id]/route.ts → /users/:id
-      const routePath = filePath
-        .replace(/\\/g, "/")
-        .replace(/.*\/app\//, "/")
-        .replace(/\/route\.[jt]sx?$/, "")
-        .replace(/\[([^\]]+)\]/g, ":$1") || "/";
-      routes.push({
-        method:  m[1].toUpperCase(),
-        path:    routePath,
-        source:  "next-app",
-        filePath,
-        loc:     code.slice(0, m.index).split("\n").length,
-      });
-    }
-  }
-
-  // Next.js Pages API (export default handler)
-  if (isNextApiPages) {
-    const routePath = filePath
-      .replace(/\\/g, "/")
-      .replace(/.*\/pages\/api\//, "/api/")
-      .replace(/\.[jt]sx?$/, "")
-      .replace(/\/index$/, "")
-      .replace(/\[([^\]]+)\]/g, ":$1");
-    routes.push({
-      method:  "*",
-      path:    routePath || "/api",
-      source:  "next-pages",
-      filePath,
-      loc:     1,
-    });
-  }
-
-  return routes;
-}
-
-// ── Capability name inference from routes ─────────────────────────────────────
-
-/**
- * Derive a human-readable capability name from a route.
- * POST /api/users           → CreateUser
- * GET  /api/users/:id       → GetUser
- * DELETE /api/tasks/:id     → DeleteTask
- * GET  /api/tasks/:id/comments → ListTaskComment
- * PUT  /api/upload          → UpdateUpload
- */
-function capNameFromRoute(method, routePath) {
-  // Normalise: strip leading /api or /v1 etc.
-  const clean = routePath
-    .replace(/^\/+/, "")
-    .replace(/^api\/v?\d+\//, "")
-    .replace(/^api\//, "");
-
-  const parts = clean.split("/").filter(Boolean);
-  const resources = parts.filter(p => !p.startsWith(":"));
-  const hasId = parts.some(p => p.startsWith(":"));
-
-  const noun   = resources[resources.length - 1] || "Resource";
-  const parent = resources.length > 1 ? resources[resources.length - 2] : null;
-
-  const singularize = (s) => {
-    if (s.endsWith("ies")) return s.slice(0, -3) + "y";
-    if (s.endsWith("ses")) return s.slice(0, -2);
-    if (s.endsWith("s") && !s.endsWith("ss")) return s.slice(0, -1);
-    return s;
-  };
-  const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-  const toCamel    = (s) => s.split(/[-_]/).map(capitalize).join("");
-
-  const nounCap   = capitalize(toCamel(singularize(noun)));
-  const parentCap = parent ? capitalize(toCamel(singularize(parent))) : "";
-
-  const verbMap = {
-    GET:     hasId ? "Get"   : "List",
-    POST:    hasId ? "Add"   : "Create",
-    PUT:               "Update",
-    PATCH:             "Update",
-    DELETE:            "Delete",
-    HEAD:              "Check",
-    OPTIONS:           "Options",
-    "*":               "Handle",
-  };
-
-  const verb = verbMap[method] || "Handle";
-
-  // Nested resource: /tasks/:id/comments → ListTaskComment
-  if (parentCap && resources.length > 1) return `${verb}${parentCap}${nounCap}`;
-  return `${verb}${nounCap}`;
-}
-
-/**
- * Convert a capability name to a kebab-case id.
- * CreateUser → create-user
- */
-function nameToId(name) {
-  return name
-    .replace(/([a-z])([A-Z])/g, "$1-$2")
-    .toLowerCase();
 }
 
 // ── TypeScript / JavaScript AST analysis ─────────────────────────────────────
@@ -388,17 +185,6 @@ function getParentVariableName(node) {
   return null;
 }
 
-/**
- * Check whether a node has the `export` modifier.
- */
-function isExportedNode(node) {
-  if (!ts) return false;
-  try {
-    const flags = ts.getCombinedModifierFlags(node);
-    return !!(flags & ts.ModifierFlags.Export);
-  } catch { return false; }
-}
-
 function analyzeJsTs(filePath, code) {
   if (!ts) return null;
 
@@ -420,28 +206,13 @@ function analyzeJsTs(filePath, code) {
       const text  = code.slice(node.pos, node.end);
       const calls = callsInRange(allCalls, node.pos, node.end);
       const throws = throwsInRange(allThrows, node.pos, node.end);
-
-      // Check export status: either node itself or parent VariableStatement is exported
-      let exported = isExportedNode(node);
-      if (!exported && node.parent) {
-        // const foo = () => {} inside export const foo = ...
-        if (ts.isVariableDeclaration(node.parent) && node.parent.parent) {
-          const varList = node.parent.parent;
-          if (ts.isVariableDeclarationList(varList) && varList.parent) {
-            exported = isExportedNode(varList.parent);
-          }
-        }
-      }
-
       functions.push({
         name,
         calls,
         throws,
-        services:    detectServices(text),
-        dbCalls:     detectDbCalls(text),
-        httpCalls:   detectHttpCalls(text),
-        httpCallUrls: extractHttpCallUrls(text),
-        isExported:  exported,
+        services:  detectServices(text),
+        dbCalls:   detectDbCalls(text),
+        httpCalls: detectHttpCalls(text),
         loc: srcFile.getLineAndCharacterOfPosition(node.pos).line + 1,
       });
     }
@@ -505,11 +276,9 @@ function analyzePython(filePath) {
     const code = fs.readFileSync(filePath, "utf8");
     return fns.map(f => ({
       ...f,
-      services:     detectServices(code),
-      dbCalls:      detectDbCalls(code),
-      httpCalls:    detectHttpCalls(code),
-      httpCallUrls: extractHttpCallUrls(code),
-      isExported:   false,
+      services:  detectServices(code),
+      dbCalls:   detectDbCalls(code),
+      httpCalls: detectHttpCalls(code),
     }));
   } catch {
     return null;
@@ -539,15 +308,13 @@ function analyzeWithRegex(filePath, code) {
     const end    = Math.min(start + 2000, code.length);
     const chunk  = code.slice(start, end);
     functions.push({
-      name:         m[1],
-      calls:        [],
-      throws:       [],
-      services:     detectServices(chunk),
-      dbCalls:      detectDbCalls(chunk),
-      httpCalls:    detectHttpCalls(chunk),
-      httpCallUrls: extractHttpCallUrls(chunk),
-      isExported:   false,
-      loc:          code.slice(0, start).split("\n").length,
+      name:      m[1],
+      calls:     [],
+      throws:    [],
+      services:  detectServices(chunk),
+      dbCalls:   detectDbCalls(chunk),
+      httpCalls: detectHttpCalls(chunk),
+      loc:       code.slice(0, start).split("\n").length,
     });
   }
   return functions.length > 0 ? functions : null;
@@ -589,184 +356,17 @@ function* walkFiles(dir) {
 function analyzeFile(filePath) {
   let code;
   try { code = fs.readFileSync(filePath, "utf8"); }
-  catch { return { functions: [], routes: [] }; }
+  catch { return []; }
 
   const ext = path.extname(filePath);
-  let functions = [];
 
   if ([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].includes(ext)) {
-    functions = analyzeJsTs(filePath, code) || analyzeWithRegex(filePath, code) || [];
-  } else if (ext === ".py") {
-    functions = analyzePython(filePath) || analyzeWithRegex(filePath, code) || [];
-  } else {
-    functions = analyzeWithRegex(filePath, code) || [];
+    return analyzeJsTs(filePath, code) || analyzeWithRegex(filePath, code) || [];
   }
-
-  const routes = ([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].includes(ext))
-    ? extractRoutes(filePath, code)
-    : [];
-
-  return { functions, routes };
-}
-
-// ── entry point classification ────────────────────────────────────────────────
-
-/**
- * Mark each function as isEntryPoint / isHelper based on:
- * 1. It's an exported function
- * 2. It's registered as a route handler (function name appears near a route definition)
- * 3. It directly has HTTP/DB calls (leaf service calls are likely entry-adjacent)
- */
-function classifyEntryPoints(allFunctions, allRoutes) {
-  // Build set of function names used in route registration lines
-  // e.g. router.post('/api/x', createUser) — "createUser" is a handler
-  const routeHandlerNames = new Set();
-  for (const route of allRoutes) {
-    if (route.handler) routeHandlerNames.add(route.handler);
+  if (ext === ".py") {
+    return analyzePython(filePath) || analyzeWithRegex(filePath, code) || [];
   }
-
-  // Build caller graph
-  const calledByCount = new Map(); // name → number of callers
-  for (const { fn } of allFunctions) {
-    for (const callee of fn.calls || []) {
-      const name = callee.replace("()", "");
-      calledByCount.set(name, (calledByCount.get(name) || 0) + 1);
-    }
-  }
-
-  return allFunctions.map(({ fn, filePath }) => {
-    const isRouteHandler = routeHandlerNames.has(fn.name);
-    const isExported     = fn.isExported || false;
-    const callerCount    = calledByCount.get(fn.name) || 0;
-    const hasServiceCalls = (fn.dbCalls?.length || 0) + (fn.services?.length || 0) +
-                            (fn.httpCallUrls?.length || 0) > 0;
-
-    // Entry point: exported OR a known route handler
-    // Also treat functions with service calls that are NOT called by anyone as entry-point candidates
-    const isEntryPoint = isRouteHandler || isExported ||
-                         (hasServiceCalls && callerCount === 0);
-    const isHelper     = !isEntryPoint && callerCount > 0;
-
-    return {
-      fn: { ...fn, isEntryPoint, isHelper, callerCount },
-      filePath,
-    };
-  });
-}
-
-// ── HTTP chain resolver ───────────────────────────────────────────────────────
-
-/**
- * Build a route index for fast URL lookup.
- * Normalises dynamic segments: /users/:id and /users/123 both map to the same key.
- * Returns: Map<"METHOD /normalised/path" → route>
- */
-function buildRouteIndex(allRoutes) {
-  const index = new Map();
-
-  for (const route of allRoutes) {
-    // Normalise path: replace :param with :*
-    const norm = route.path.replace(/:[^/]+/g, ":*");
-    const key  = `${route.method} ${norm}`;
-    if (!index.has(key)) index.set(key, route);
-    // Also index the raw path
-    const rawKey = `${route.method} ${route.path}`;
-    if (!index.has(rawKey)) index.set(rawKey, route);
-  }
-  return index;
-}
-
-/**
- * Match an outbound HTTP call URL to a discovered route.
- * Handles: exact match, normalised dynamic segments, prefix stripping (/api/v1/).
- */
-function resolveUrl(method, url, routeIndex) {
-  // Strip query string
-  const cleanUrl = url.split("?")[0];
-
-  // Try exact match first
-  const exact = routeIndex.get(`${method} ${cleanUrl}`);
-  if (exact) return exact;
-
-  // Normalise dynamics and try
-  const norm = cleanUrl.replace(/\/[0-9a-f-]{8,}|\/\d+/g, "/:*");
-  const normKey = `${method} ${norm}`;
-  const normMatch = routeIndex.get(normKey);
-  if (normMatch) return normMatch;
-
-  // Strip common API prefixes and retry
-  const stripped = cleanUrl.replace(/^\/api\/v?\d+/, "").replace(/^\/api/, "");
-  if (stripped !== cleanUrl) {
-    const strippedKey = `${method} ${stripped}`;
-    const strippedMatch = routeIndex.get(strippedKey);
-    if (strippedMatch) return strippedMatch;
-  }
-
-  // Wildcard method: some routes registered as ALL or *
-  const wildKey = `* ${cleanUrl}`;
-  return routeIndex.get(wildKey) || null;
-}
-
-/**
- * Build end-to-end HTTP chains for all functions.
- *
- * For each function that makes outbound HTTP calls, resolve each URL to its
- * route handler and produce a chain entry:
- *   { caller, method, url, handler, handlerFile, resolved }
- *
- * Also resolves transitively: if the handler itself calls another route,
- * the chain continues (up to depth 3 to avoid cycles).
- *
- * Returns: Map<callerFnName → ChainStep[]>
- */
-function buildHttpChains(classifiedFunctions, allRoutes, cwd) {
-  const routeIndex = buildRouteIndex(allRoutes);
-
-  // Build a name → { fn, filePath } index for handler lookup
-  const fnByName = new Map();
-  for (const { fn, filePath } of classifiedFunctions) {
-    if (!fnByName.has(fn.name)) fnByName.set(fn.name, { fn, filePath });
-  }
-
-  const chains = new Map(); // callerName → ChainStep[]
-
-  function resolveChain(fnName, depth, visited) {
-    if (depth > 3 || visited.has(fnName)) return [];
-    visited.add(fnName);
-
-    const entry = fnByName.get(fnName);
-    if (!entry) return [];
-
-    const steps = [];
-    for (const { method, url } of entry.fn.httpCallUrls || []) {
-      const route = resolveUrl(method, url, routeIndex);
-      const step = {
-        caller:      fnName,
-        method,
-        url,
-        resolved:    !!route,
-        handler:     route?.handler || null,
-        handlerFile: route ? path.relative(cwd, route.filePath) : null,
-        suggestedName: route ? capNameFromRoute(route.method, route.path) : null,
-      };
-      steps.push(step);
-
-      // Recurse into the handler if found
-      if (route?.handler && !visited.has(route.handler)) {
-        const nested = resolveChain(route.handler, depth + 1, new Set(visited));
-        steps.push(...nested.map(s => ({ ...s, via: fnName })));
-      }
-    }
-    return steps;
-  }
-
-  for (const { fn } of classifiedFunctions) {
-    if ((fn.httpCallUrls || []).length === 0) continue;
-    const steps = resolveChain(fn.name, 0, new Set());
-    if (steps.length) chains.set(fn.name, steps);
-  }
-
-  return chains;
+  return analyzeWithRegex(filePath, code) || [];
 }
 
 // ── capability matcher ────────────────────────────────────────────────────────
@@ -799,17 +399,11 @@ function matchFunctionToCapability(fn, capabilities) {
 
 // ── merge analysis into capability ────────────────────────────────────────────
 
-function mergeAnalysis(existing = {}, fn, filePath, cwd, chainSteps) {
+function mergeAnalysis(existing = {}, fn, filePath, cwd) {
   const rel = path.relative(cwd, filePath);
 
   // merge arrays without duplicates
   const merge = (a = [], b = []) => [...new Set([...a, ...b])];
-
-  // Format chain steps for storage: "callerFn → METHOD /url → handlerFn"
-  const newChains = (chainSteps || []).map(s => {
-    const handler = s.handler ? ` → ${s.handler}` : (s.resolved ? "" : " [unresolved]");
-    return `${s.caller} → ${s.method} ${s.url}${handler}`;
-  });
 
   return {
     functions:    merge(existing.functions,    [fn.name]),
@@ -819,105 +413,13 @@ function mergeAnalysis(existing = {}, fn, filePath, cwd, chainSteps) {
     services:     merge(existing.services,     fn.services),
     dbCalls:      merge(existing.dbCalls,      fn.dbCalls),
     httpCalls:    merge(existing.httpCalls,    fn.httpCalls),
-    httpCallUrls: merge(existing.httpCallUrls || [],
-                        (fn.httpCallUrls || []).map(c => `${c.method} ${c.url}`)),
-    httpChains:   merge(existing.httpChains || [], newChains),
-    isEntryPoint: fn.isEntryPoint || existing.isEntryPoint || false,
     scannedAt:    new Date().toISOString(),
   };
 }
 
-// ── --suggest: show untracked entry points ────────────────────────────────────
-
-function printSuggestions(allFunctions, allRoutes, capabilities, cwd) {
-  const existingIds   = new Set(capabilities.map(c => c.id));
-  const existingNames = new Set(capabilities.map(c => (c.name || c.title || "").toLowerCase()));
-
-  console.log();
-  console.log(bold("  Capability Candidates"));
-  console.log(gray("  Untracked entry points discovered in your codebase:"));
-  console.log(gray("  ─────────────────────────────────────────────────────────────────"));
-
-  const seen = new Set();
-  const candidates = [];
-
-  // Route-based candidates (highest confidence)
-  for (const route of allRoutes) {
-    const suggestedName = capNameFromRoute(route.method, route.path);
-    const suggestedId   = nameToId(suggestedName);
-    if (existingIds.has(suggestedId) || existingNames.has(suggestedName.toLowerCase())) continue;
-    if (seen.has(suggestedId)) continue;
-    seen.add(suggestedId);
-
-    const rel = path.relative(cwd, route.filePath);
-    candidates.push({
-      id:     suggestedId,
-      name:   suggestedName,
-      source: `${route.method} ${route.path}`,
-      file:   rel,
-      confidence: "high",
-    });
-  }
-
-  // Function-based candidates (entry points with service calls, no matching cap)
-  for (const { fn, filePath } of allFunctions) {
-    if (!fn.isEntryPoint) continue;
-    if (fn.name === "<anonymous>" || fn.name.length < 3) continue;
-    const match = matchFunctionToCapability(fn, capabilities);
-    if (match && match.score >= 0.35) continue; // already tracked
-    const id = nameToId(fn.name);
-    if (existingIds.has(id) || seen.has(id)) continue;
-    seen.add(id);
-
-    const rel = path.relative(cwd, filePath);
-    candidates.push({
-      id,
-      name:   fn.name,
-      source: `function in ${rel}:${fn.loc}`,
-      file:   rel,
-      confidence: "medium",
-    });
-  }
-
-  if (!candidates.length) {
-    console.log(gray("  All entry points are already tracked as capabilities. ✓"));
-    console.log();
-    return;
-  }
-
-  const high   = candidates.filter(c => c.confidence === "high");
-  const medium = candidates.filter(c => c.confidence === "medium");
-
-  if (high.length) {
-    console.log();
-    console.log(cyan("  ● High confidence (from route definitions):"));
-    for (const c of high) {
-      console.log(`    ${green(c.id.padEnd(35))} ${gray(c.source)}`);
-    }
-  }
-
-  if (medium.length) {
-    console.log();
-    console.log(cyan("  ● Medium confidence (exported / top-level functions):"));
-    for (const c of medium.slice(0, 10)) {
-      console.log(`    ${yellow(c.id.padEnd(35))} ${gray(c.source)}`);
-    }
-    if (medium.length > 10) {
-      console.log(gray(`    … and ${medium.length - 10} more`));
-    }
-  }
-
-  console.log();
-  console.log(gray("  To add these, run:"));
-  for (const c of [...high, ...medium.slice(0, 3)]) {
-    console.log(gray(`    infernoflow add "${c.id}" "${c.name}"`));
-  }
-  console.log();
-}
-
 // ── reporters ─────────────────────────────────────────────────────────────────
 
-function printReport(enriched, allRoutes, cwd) {
+function printReport(enriched) {
   console.log();
   console.log(bold("  Scan Results"));
   console.log(gray("  ─────────────────────────────────────────────────────────────────"));
@@ -927,44 +429,13 @@ function printReport(enriched, allRoutes, cwd) {
     if (!a) continue;
 
     console.log();
-    const epTag = a.isEntryPoint ? cyan(" [entry]") : "";
-    console.log(`  ${green("●")} ${bold(capId)}${epTag}`);
+    console.log(`  ${green("●")} ${bold(capId)}`);
     if (a.sourceFiles?.length)  console.log(gray(`    files:    `) + a.sourceFiles.join(", "));
     if (a.functions?.length)    console.log(gray(`    funcs:    `) + a.functions.join(", "));
     if (a.services?.length)     console.log(gray(`    services: `) + cyan(a.services.join(", ")));
     if (a.dbCalls?.length)      console.log(gray(`    db:       `) + a.dbCalls.slice(0, 4).join(", "));
-    if (a.httpChains?.length) {
-      console.log(gray(`    chains:   `));
-      for (const chain of a.httpChains.slice(0, 5)) {
-        console.log(gray(`      `) + cyan(chain));
-      }
-    } else if (a.httpCallUrls?.length) {
-      console.log(gray(`    calls:    `) + a.httpCallUrls.slice(0, 4).join(", "));
-    } else if (a.httpCalls?.length) {
-      console.log(gray(`    http:     `) + a.httpCalls.slice(0, 4).join(", "));
-    }
+    if (a.httpCalls?.length)    console.log(gray(`    http:     `) + a.httpCalls.slice(0, 4).join(", "));
     if (a.throws?.length)       console.log(gray(`    throws:   `) + yellow(a.throws.join(", ")));
-  }
-
-  // Show discovered routes summary
-  if (allRoutes.length) {
-    console.log();
-    console.log(bold("  Discovered Routes"));
-    console.log(gray("  ─────────────────────────────────────────────────────────────────"));
-    const byFile = new Map();
-    for (const r of allRoutes) {
-      const rel = path.relative(cwd, r.filePath);
-      if (!byFile.has(rel)) byFile.set(rel, []);
-      byFile.get(rel).push(r);
-    }
-    for (const [file, routes] of byFile) {
-      console.log(gray(`\n  ${file}`));
-      for (const r of routes) {
-        const name = r.method !== "*" ? capNameFromRoute(r.method, r.path) : "";
-        const tag  = name ? gray(` → ${name}`) : "";
-        console.log(`    ${cyan(r.method.padEnd(7))} ${r.path}${tag}`);
-      }
-    }
   }
 
   console.log();
@@ -977,7 +448,6 @@ export async function scanCommand(rawArgs) {
   const args       = rawArgs || [];
   const dryRun     = args.includes("--dry-run");
   const jsonMode   = args.includes("--json");
-  const suggestMode = args.includes("--suggest") || args.includes("-s");
   const dirIdx     = args.indexOf("--dir");
   const extraDirs  = dirIdx !== -1 ? [args[dirIdx + 1]] : [];
   const capFilter  = (() => { const i = args.indexOf("--capability"); return i !== -1 ? args[i + 1] : null; })();
@@ -992,17 +462,12 @@ export async function scanCommand(rawArgs) {
     process.exit(1);
   }
   let capabilities;
-  let capsFileIsObject = false;
-  let capsFileWrapper = null;
   try { capabilities = JSON.parse(fs.readFileSync(capsPath, "utf8")); }
   catch (e) { console.error(red("✗ Failed to parse capabilities.json: " + e.message)); process.exit(1); }
 
   if (!Array.isArray(capabilities)) {
-    if (capabilities.capabilities) {
-      capsFileIsObject = true;
-      capsFileWrapper = capabilities;
-      capabilities = capabilities.capabilities;
-    }
+    // handle object format { capabilities: [...] }
+    if (capabilities.capabilities) capabilities = capabilities.capabilities;
     else { console.error(red("✗ Unexpected capabilities.json format.")); process.exit(1); }
   }
 
@@ -1011,7 +476,7 @@ export async function scanCommand(rawArgs) {
     ? capabilities.filter(c => c.id === capFilter || (c.name || "").toLowerCase() === capFilter.toLowerCase())
     : capabilities;
 
-  if (targetCaps.length === 0 && !suggestMode) {
+  if (targetCaps.length === 0) {
     console.log(yellow(capFilter ? `No capability matched: ${capFilter}` : "No capabilities found."));
     process.exit(0);
   }
@@ -1028,40 +493,16 @@ export async function scanCommand(rawArgs) {
   // Analyze files
   if (!jsonMode) process.stdout.write(gray("  Analyzing…"));
   const allFunctions = []; // { fn, filePath }
-  const allRoutes    = []; // route definitions discovered
   let analyzed = 0;
   for (const filePath of files) {
-    const { functions, routes } = analyzeFile(filePath);
-    for (const fn of functions) allFunctions.push({ fn, filePath });
-    for (const r of routes)     allRoutes.push(r);
+    const fns = analyzeFile(filePath);
+    for (const fn of fns) allFunctions.push({ fn, filePath });
     analyzed++;
     if (!jsonMode && analyzed % 20 === 0) {
       process.stdout.write(`\r  Analyzed ${analyzed}/${files.length} files…`);
     }
   }
-  if (!jsonMode) {
-    process.stdout.write(
-      `\r  Analyzed ${files.length} files · ${allFunctions.length} functions · ${allRoutes.length} routes          \n`
-    );
-  }
-
-  // Classify entry points
-  const classifiedFunctions = classifyEntryPoints(allFunctions, allRoutes);
-
-  // Build end-to-end HTTP chains
-  const httpChains = buildHttpChains(classifiedFunctions, allRoutes, cwd);
-  const resolvedChainCount = [...httpChains.values()].flat().filter(s => s.resolved).length;
-  if (!jsonMode && httpChains.size > 0) {
-    process.stdout.write(
-      gray(`  Resolved ${resolvedChainCount} HTTP chain${resolvedChainCount !== 1 ? "s" : ""} end-to-end\n`)
-    );
-  }
-
-  // --suggest mode: skip capability matching, just show candidates
-  if (suggestMode) {
-    printSuggestions(classifiedFunctions, allRoutes, capabilities, cwd);
-    return;
-  }
+  if (!jsonMode) process.stdout.write(`\r  Analyzed ${files.length} files, found ${allFunctions.length} functions.          \n`);
 
   // Map functions to capabilities
   const enriched = {}; // capId → { ...cap, codeAnalysis: {...} }
@@ -1070,13 +511,12 @@ export async function scanCommand(rawArgs) {
     enriched[cap.id] = { ...cap, codeAnalysis: null };
   }
 
-  for (const { fn, filePath } of classifiedFunctions) {
+  for (const { fn, filePath } of allFunctions) {
     const match = matchFunctionToCapability(fn, targetCaps);
     if (!match) continue;
     const { cap } = match;
     const existing = enriched[cap.id]?.codeAnalysis || {};
-    const chainSteps = httpChains.get(fn.name) || [];
-    enriched[cap.id].codeAnalysis = mergeAnalysis(existing, fn, filePath, cwd, chainSteps);
+    enriched[cap.id].codeAnalysis = mergeAnalysis(existing, fn, filePath, cwd);
   }
 
   // Compute stats
@@ -1085,11 +525,9 @@ export async function scanCommand(rawArgs) {
 
   if (jsonMode) {
     const out = {
-      scannedAt:  new Date().toISOString(),
-      files:      files.length,
-      functions:  allFunctions.length,
-      routes:     allRoutes,
-      httpChains: Object.fromEntries(httpChains),
+      scannedAt: new Date().toISOString(),
+      files:     files.length,
+      functions: allFunctions.length,
       capabilities: Object.entries(enriched).map(([id, data]) => ({
         id,
         name:         data.name || data.title,
@@ -1100,11 +538,8 @@ export async function scanCommand(rawArgs) {
     return;
   }
 
-  printReport(enriched, allRoutes, cwd);
+  printReport(enriched);
   console.log(`  ${green("✔")} Matched ${matched}/${total} capabilities to source functions`);
-  if (allRoutes.length) {
-    console.log(`  ${green("✔")} Discovered ${allRoutes.length} route${allRoutes.length !== 1 ? "s" : ""} — run ${cyan("infernoflow scan --suggest")} to see untracked ones`);
-  }
   console.log();
 
   if (dryRun) {
@@ -1117,8 +552,6 @@ export async function scanCommand(rawArgs) {
     scannedAt:    new Date().toISOString(),
     files:        files.length,
     functions:    allFunctions.length,
-    routes:       allRoutes,
-    httpChains:   Object.fromEntries(httpChains),
     capabilities: Object.entries(enriched).map(([id, data]) => ({
       id,
       name:         data.name || data.title,
@@ -1139,10 +572,7 @@ export async function scanCommand(rawArgs) {
   });
 
   if (changed > 0) {
-    const toWrite = capsFileIsObject
-      ? { ...capsFileWrapper, capabilities: updatedCaps }
-      : updatedCaps;
-    fs.writeFileSync(capsPath, JSON.stringify(toWrite, null, 2));
+    fs.writeFileSync(capsPath, JSON.stringify(updatedCaps, null, 2));
     console.log(gray(`  Updated ${changed} capability entries in capabilities.json`));
   }
 

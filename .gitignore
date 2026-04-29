@@ -1,6 +1,5 @@
-node_modules/
-vscode-extension/node_modules/
-*.tgz
-*.vsix
-*.log
-.DS_Store
+/src/
+
+dist/
+
+dist/

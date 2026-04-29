@@ -6,8 +6,7 @@ import path from "node:path";
 const ROOT = process.cwd();
 const DIST = path.join(ROOT, "dist");
 
-// On Windows-mounted filesystems rmSync can fail with EPERM — skip the clean and let esbuild overwrite in place.
-if (fs.existsSync(DIST)) { try { fs.rmSync(DIST, { recursive: true }); } catch { /* overwrite in place */ } }
+if (fs.existsSync(DIST)) fs.rmSync(DIST, { recursive: true });
 fs.mkdirSync(DIST, { recursive: true });
 
 function collectMjs(dir, results = []) {
