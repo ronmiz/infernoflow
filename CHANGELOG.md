@@ -1,6 +1,6 @@
 # Changelog — infernoflow
 
-## 0.40.2 — 2026-05-02
+## 0.40.3 — 2026-05-02
 
 ### Added
 - **`infernoflow watch` heuristic prompts (Plan Part 4 Level 2)** — the watcher now surfaces "log this?" tips when it spots patterns that usually indicate gotchas, on top of the existing debounced auto-suggest:
