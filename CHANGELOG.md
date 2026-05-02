@@ -1,5 +1,17 @@
 # Changelog — infernoflow
 
+## 0.40.4 — 2026-05-02
+
+### Added
+- **GitHub Action PR-comment v2** — the action now shows the matched file inline next to high-relevance gotchas, surfaces failed-attempts on the same surface as a "don't repeat" section, and adds an `infernoflow impact <cap>` tip when frozen capabilities are touched. Comment header now shows total session-memory size + gotcha/decision counts.
+- **Idempotent comment marker** — the action embeds `<!-- infernoflow-action:pr-memory-check -->` so repeated runs reliably edit the same comment instead of risking duplicates from string-match drift.
+- **`min-type: always`** — opt-in mode that posts the comment even when nothing relevant is in the diff (useful for docs/landing screenshots).
+
+### Changed
+- **`action/dist/index.js` rebuilt** from the new src. Workflow template now references `ronmiz/infernoflow@action-v2`.
+- **Comment marker recovery** — v2 still recognises v1 comments (matches by title), so existing PRs migrate cleanly without leaving orphaned comments.
+- **Action runtime cleanup** — replaced dead `upsertComment` workaround with proper PATCH support; HTTP helpers consolidated into a single `httpsRequest(method, ...)` with `httpsGet/Post/Patch` thin wrappers.
+
 ## 0.40.3 — 2026-05-02
 
 ### Added

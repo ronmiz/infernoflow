@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: infernoflow PR Check
-        uses: ronmiz/infernoflow@action-v1
+        uses: ronmiz/infernoflow@action-v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # sessions-file: inferno/sessions.jsonl   # default
