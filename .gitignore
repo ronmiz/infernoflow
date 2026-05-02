@@ -1,5 +1,49 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Build artifacts that don't belong in git (dist/ IS tracked — see package.json files)
+*.tsbuildinfo
+.cache/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Drafts (per CHANGELOG entry for install-cursor-hooks)
+inferno/CONTEXT.draft.md
+
+# Stray packed tarballs
+*.tgz
+
+# Legacy paths
 /src/
 
-dist/
+# Local-agent / Claude session scratch
+.claude/
 
-dist/
+# Compiled extension output (vscode-extension keeps src/, build during package)
+vscode-extension/out/
+vscode-extension/*.vsix.bak

@@ -1,6 +1,6 @@
 {
   "name": "infernoflow",
-  "version": "0.38.7",
+  "version": "0.38.15",
   "description": "Persistent memory for AI coding sessions — captures what agents can't infer from code alone. Works with Copilot, Cursor, Claude, and Windsurf.",
   "type": "module",
   "bin": {
@@ -22,7 +22,7 @@
     "test": "node scripts/smoke.mjs && node scripts/json-smoke.mjs && node scripts/json-negative-smoke.mjs && node scripts/implement-smoke.mjs && node scripts/adopt-smoke.mjs && node scripts/pr-impact-smoke.mjs && node scripts/sync-smoke.mjs && node scripts/run-smoke.mjs",
     "test:help": "node bin/infernoflow.mjs --help",
     "build": "node build.mjs",
-    "prepublishOnly": "node build.mjs",
+    "prepublishOnly": "echo skipping build",
     "inferno:promote-draft": "node scripts/inferno-promote-draft.mjs",
     "postinstall": "node scripts/postinstall.js"
   },

@@ -1,0 +1,35 @@
+# Normalize all text files to LF in the index.
+# Working tree on Windows can still use CRLF; this just keeps git history clean.
+* text=auto eol=lf
+
+# Windows-specific scripts must keep CRLF
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# Shell scripts must keep LF
+*.sh    text eol=lf
+*.mjs   text eol=lf
+*.cjs   text eol=lf
+*.js    text eol=lf
+*.ts    text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.sql   text eol=lf
+
+# Binary files
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.svg   binary
+*.pdf   binary
+*.docx  binary
+*.xlsx  binary
+*.pptx  binary
+*.vsix  binary
+*.tgz   binary
+*.zip   binary

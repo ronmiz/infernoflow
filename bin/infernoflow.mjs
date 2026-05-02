@@ -40,11 +40,18 @@ import { fileURLToPath } from "node:url";
 import { bold, gray, cyan, red } from "../lib/ui/output.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// When installed globally: __dirname = .../infernoflow/dist/bin
-// Root package.json lives two levels up at .../infernoflow/package.json
-// npm always includes the root package.json, so this path is always reliable.
-const pkg = JSON.parse(readFileSync(join(__dirname, "..", "..", "package.json"), "utf8"));
+// Find package.json: try the dist layout first (../../package.json), then
+// fall back to running from source (../package.json) so `node bin/infernoflow.mjs`
+// works in development without a build step.
+function findPackageJson(start) {
+  for (const candidate of [join(start, "..", "..", "package.json"), join(start, "..", "package.json")]) {
+    try { return JSON.parse(readFileSync(candidate, "utf8")); } catch {}
+  }
+  return { version: "0.0.0-source" };
+}
+const pkg = findPackageJson(__dirname);
 const VERSION = pkg.version || "0.0.0";
+
 const COMMAND_DESCRIPTIONS = {
   publish: "Bump version, update changelog, build, npm publish, git commit + push in one shot",
   diff: "Show what capabilities changed since the last git tag (or any ref)",
@@ -64,56 +71,40 @@ const COMMAND_DESCRIPTIONS = {
   implement: "Generate code-agent implementation prompt(s)",
   context: "Generate AI-ready context for new sessions",
   "generate-skills": "Generate personalised Cursor rules + skill files from your developer profile",
-  synthesize: "Auto-detect workflow patterns and synthesize reusable skills + agents",
-  agent: "Manage and run auto-synthesized agents (list | run | show | delete)",
-  version: "Smart semver bump recommendation based on capability changes (--apply to write)",
-  "pr-comment": "Post capability drift analysis as a GitHub PR comment (works in CI automatically)",
   dashboard: "Launch local web dashboard on localhost:7337 — live contract health, capabilities, agents",
-  "team-sync": "Sync capability contract across a team via a shared git branch (push | pull | status | init)",
-  onboard: "Interactive onboarding wizard for new developers — explains infernoflow in 5 minutes",
-  login:   "Sign in with GitHub — syncs session memory to the cloud on every log",
-  logout:  "Sign out and remove local credentials",
-  whoami:  "Show currently logged-in user",
-  cloud:   "Sync capability contracts via infernoflow cloud (init | push | pull | status | dashboard)",
-  share:   "Generate a public read-only HTML snapshot of your capability contract",
-  watch:   "Watch source files and run suggest automatically on save",
-  ci:      "CI-native check: GitHub Actions annotations, GitLab code quality, exit codes",
-  notify:  "Post capability drift summary to Slack or Discord",
-  report:  "Generate a weekly/monthly HTML or Markdown report of capability activity",
+  login:    "Sign in with GitHub — syncs session memory to the cloud on every log",
+  logout:   "Sign out and remove local credentials",
+  whoami:   "Show currently logged-in user",
+  cloud:    "Sync capability contracts via infernoflow cloud (init | push | pull | status | dashboard)",
+  watch:    "Watch source files and run suggest automatically on save",
+  ci:       "CI-native check: GitHub Actions annotations, GitLab code quality, exit codes",
+  notify:   "Post capability drift summary to Slack or Discord",
   monorepo: "Manage infernoflow across monorepo packages (init | list | status | diff | sync)",
-  link:    "Link capabilities to Jira, Linear, or GitHub Issues tickets",
-  audit:   "Classify capabilities by sensitivity (auth, payment, PII, admin) and generate security surface map",
-  scout:   "Scan source files for undocumented capabilities not yet in the contract",
-  export:  "Export contract to OpenAPI, Backstage catalog-info.yaml, CSV, or Markdown",
-  snapshot: "Save/diff/restore named snapshots of the capability contract",
-  health:  "Compute a 0–100 health score across coverage, docs, freshness, completeness, drift",
-  vibe:    "Vibe coding mode — watches files, auto-syncs contract, regenerates context on every save",
-  adopt:   "Interactive wizard to adopt infernoflow in an existing project (detect → review → wire up)",
-  doctor:  "Diagnose your infernoflow setup — checks Node, git, contract, AI providers, MCP, hooks",
+  doctor:   "Diagnose your infernoflow setup — checks Node, git, contract, AI providers, MCP, hooks",
   coverage: "Map test files to capabilities — show which caps have test coverage and which don't",
-  review:  "AI-powered capability impact review for staged or recent git changes",
-  scan:       "Deep AST scan — route discovery, entry point detection, HTTP URL extraction, capability suggestions",
-  graph:      "Build capability dependency graph — shows which caps call which, detects breaking changes",
-  stability:  "Show solid/liquid stability level for every capability (frozen/stable/experimental)",
-  freeze:     "Mark a capability as frozen (solid) — AI will not modify it without explicit instruction",
-  thaw:       "Reset a capability to experimental (liquid) — free to evolve",
-  why:        "Given a file or function name — show which capability it serves, scenarios, stability, and git history",
-  impact:     "Blast radius analysis — see every cap, scenario, and risk level affected before you change anything",
-  scaffold:   "Generate a new capability — source skeleton, contract registration, and placeholder scenario in one command",
-  explain:    "AI narrative about a capability — what it does, why it exists, what's risky, and what to test",
-  test:       "Run registered scenarios for a capability — auto-generates a smoke harness if no test runner is configured",
-  ai:         "Manage AI providers — setup, status, test connection (subcommands: setup | status | test | clear)",
-  demo:       "Interactive walkthrough — scaffolds a sample project and runs the full capability chain end-to-end",
-  log:        "Append to session memory (decisions, gotchas, failed attempts, theme changes) — what AI can't infer from code",
-  theme:      "Scan fonts, colors, and CSS variables — write inferno/theme.json so AI always matches the design system",
-  switch:     "Generate a handoff summary when switching AI agents — paste into the next session so nothing is lost",
-  upgrade:    "Upgrade a lite infernoflow setup to the full structure (scenarios, changelog, scripts)",
-  stats:      "Value dashboard — session memory, tokens injected per session, coverage %, estimated savings",
-  ask:        "Query session memory — search gotchas, decisions, and failed attempts by keyword or type",
-  recap:      "End-of-session summary — what was captured, what git changes weren't logged, session health score",
-  uninstall:  "Remove infernoflow from a project — inferno/, CLAUDE.md, MCP server, git hooks (--dry-run to preview)",
-  feedback:   "60-second CLI survey about how you use infernoflow (--form to open web form)",
-  telemetry:  "Manage anonymous usage telemetry (on | off | status) — opt-in, command names only",
+  review:   "AI-powered capability impact review for staged or recent git changes",
+  scan:      "Deep AST scan — route discovery, entry point detection, HTTP URL extraction, capability suggestions",
+  graph:     "Build capability dependency graph — shows which caps call which, detects breaking changes",
+  stability: "Show solid/liquid stability level for every capability (frozen/stable/experimental)",
+  freeze:    "Mark a capability as frozen (solid) — AI will not modify it without explicit instruction",
+  thaw:      "Reset a capability to experimental (liquid) — free to evolve",
+  why:       "Given a file or function name — show which capability it serves, scenarios, stability, and git history",
+  impact:    "Blast radius analysis — see every cap, scenario, and risk level affected before you change anything",
+  scaffold:  "Generate a new capability — source skeleton, contract registration, and placeholder scenario in one command",
+  explain:   "AI narrative about a capability — what it does, why it exists, what's risky, and what to test",
+  test:      "Run registered scenarios for a capability — auto-generates a smoke harness if no test runner is configured",
+  ai:        "Manage AI providers — setup, status, test connection (subcommands: setup | status | test | clear)",
+  demo:      "Interactive walkthrough — scaffolds a sample project and runs the full capability chain end-to-end",
+  feedback:  "60-second CLI survey about how you use infernoflow (--form to open web form)",
+  telemetry: "Manage anonymous usage telemetry (on | off | status) — opt-in, command names only",
+  log:       "Append to session memory (decisions, gotchas, failed attempts, theme changes) — what AI can't infer from code",
+  theme:     "Scan fonts, colors, and CSS variables — write inferno/theme.json so AI always matches the design system",
+  switch:    "Generate a handoff summary when switching AI agents — paste into the next session so nothing is lost",
+  upgrade:   "Upgrade a lite infernoflow setup to the full structure (scenarios, changelog, scripts)",
+  stats:     "Value dashboard — session memory, tokens injected per session, coverage %, estimated savings",
+  ask:       "Query session memory — search gotchas, decisions, and failed attempts by keyword or type",
+  recap:     "End-of-session summary — what was captured, what git changes weren't logged, session health score",
+  uninstall: "Remove infernoflow from a project — inferno/, CLAUDE.md, MCP server, git hooks (--dry-run to preview)",
 };
 
 const COMMAND_HANDLERS = {
@@ -136,31 +127,15 @@ const COMMAND_HANDLERS = {
   context: async (args) => (await import("../lib/commands/context.mjs")).contextCommand(args),
   "doc-gate": async (args) => (await import("../lib/commands/docGate.mjs")).docGateCommand(args),
   "generate-skills": async (args) => (await import("../lib/commands/generateSkills.mjs")).generateSkillsCommand(args),
-  synthesize: async (args) => (await import("../lib/commands/synthesize.mjs")).synthesizeCommand(args),
-  agent: async (args) => (await import("../lib/commands/agent.mjs")).agentCommand(args),
-  version: async (args) => (await import("../lib/commands/version.mjs")).versionCommand(args),
-  "pr-comment": async (args) => (await import("../lib/commands/prComment.mjs")).prCommentCommand(args),
   dashboard: async (args) => (await import("../lib/commands/dashboard.mjs")).dashboardCommand(args),
-  "team-sync": async (args) => (await import("../lib/commands/teamSync.mjs")).teamSyncCommand(args),
-  onboard: async (args) => (await import("../lib/commands/onboard.mjs")).onboardCommand(args),
-  login:   async (args) => (await import("../lib/commands/login.mjs")).loginCommand(args),
-  logout:  async ()    => (await import("../lib/commands/login.mjs")).logoutCommand(),
-  whoami:  async ()    => (await import("../lib/commands/login.mjs")).whoamiCommand(),
-  cloud:   async (args) => (await import("../lib/commands/cloud.mjs")).cloudCommand(args),
-  share:   async (args) => (await import("../lib/commands/share.mjs")).shareCommand(args),
-  watch:   async (args) => (await import("../lib/commands/watch.mjs")).watchCommand(args),
-  ci:      async (args) => (await import("../lib/commands/ci.mjs")).ciCommand(args),
-  notify:  async (args) => (await import("../lib/commands/notify.mjs")).notifyCommand(args),
-  report:  async (args) => (await import("../lib/commands/report.mjs")).reportCommand(args),
+  login:    async (args) => (await import("../lib/commands/login.mjs")).loginCommand(args),
+  logout:   async ()     => (await import("../lib/commands/login.mjs")).logoutCommand(),
+  whoami:   async ()     => (await import("../lib/commands/login.mjs")).whoamiCommand(),
+  cloud:    async (args) => (await import("../lib/commands/cloud.mjs")).cloudCommand(args),
+  watch:    async (args) => (await import("../lib/commands/watch.mjs")).watchCommand(args),
+  ci:       async (args) => (await import("../lib/commands/ci.mjs")).ciCommand(args),
+  notify:   async (args) => (await import("../lib/commands/notify.mjs")).notifyCommand(args),
   monorepo: async (args) => (await import("../lib/commands/monorepo.mjs")).monorepoCommand(args),
-  link:    async (args) => (await import("../lib/commands/link.mjs")).linkCommand(args),
-  audit:    async (args) => (await import("../lib/commands/audit.mjs")).auditCommand(args),
-  scout:    async (args) => (await import("../lib/commands/scout.mjs")).scoutCommand(args),
-  export:   async (args) => (await import("../lib/commands/export.mjs")).exportCommand(args),
-  snapshot: async (args) => (await import("../lib/commands/snapshot.mjs")).snapshotCommand(args),
-  health:   async (args) => (await import("../lib/commands/health.mjs")).healthCommand(args),
-  vibe:     async (args) => (await import("../lib/commands/vibe.mjs")).vibeCommand(args),
-  adopt:    async (args) => (await import("../lib/commands/adoptWizard.mjs")).adoptWizardCommand(args),
   doctor:   async (args) => (await import("../lib/commands/doctor.mjs")).doctorCommand(args),
   coverage: async (args) => (await import("../lib/commands/coverage.mjs")).coverageCommand(args),
   review:   async (args) => (await import("../lib/commands/review.mjs")).reviewCommand(args),
@@ -197,26 +172,28 @@ function formatCommandsHelp() {
 }
 
 // ── Full grouped command list (infernoflow commands) ──────────────────────────
+// Only commands with implementations are listed.
 const COMMAND_GROUPS = {
   "Session Memory":  ["log", "ask", "switch", "recap", "stats", "theme"],
   "Context":         ["context", "scan", "suggest", "check", "status"],
-  "Code Analysis":   ["graph", "impact", "why", "coverage", "stability", "freeze", "thaw", "scout"],
-  "Workflow":        ["run", "sync", "watch", "vibe", "implement", "doc-gate", "synthesize", "agent"],
-  "Publishing":      ["publish", "version", "changelog", "diff"],
-  "Team":            ["login", "logout", "whoami", "team-sync", "cloud", "share", "notify", "pr-comment", "pr-impact"],
-  "Quality":         ["health", "audit", "review", "snapshot", "export", "link"],
-  "Integration":     ["ai", "ci", "coverage"],
-  "Setup":           ["init", "setup", "adopt", "demo", "doctor", "onboard", "generate-skills", "upgrade", "uninstall"],
-  "Advanced":        ["scaffold", "explain", "test", "report", "monorepo", "feedback", "telemetry"],
+  "Code Analysis":   ["graph", "impact", "why", "coverage", "stability", "freeze", "thaw"],
+  "Workflow":        ["run", "sync", "watch", "implement", "doc-gate"],
+  "Publishing":      ["publish", "changelog", "diff"],
+  "Cloud":           ["login", "logout", "whoami", "cloud", "notify", "pr-impact"],
+  "Quality":         ["review"],
+  "Integration":     ["ai", "ci", "coverage", "dashboard"],
+  "Setup":           ["init", "setup", "demo", "doctor", "generate-skills", "upgrade", "uninstall"],
+  "Advanced":        ["scaffold", "explain", "test", "monorepo", "feedback", "telemetry"],
 };
 
 function formatCommandGroups() {
   const w = 18;
   return Object.entries(COMMAND_GROUPS).map(([group, cmds]) =>
-    `  ${bold(group + ":")}
-    ${cmds.join("  ")}`
+    `  ${bold(group + ":")}\n    ${cmds.join("  ")}`
   ).join("\n\n");
 }
+
+const TOTAL_COMMANDS = Object.keys(COMMAND_HANDLERS).length;
 
 const HELP = `
   ${bold("🔥 infernoflow")} ${gray("v" + VERSION)}
@@ -237,7 +214,7 @@ const HELP = `
     ${cyan("demo")}              Interactive walkthrough ${gray("(5 minutes)")}
     ${cyan("doctor")}            Diagnose your setup
 
-  ${gray("Run")} ${cyan("infernoflow commands")} ${gray("to see all 50+ commands.")}
+  ${gray("Run")} ${cyan("infernoflow commands")} ${gray("to see all " + TOTAL_COMMANDS + " commands.")}
   ${gray("Run")} ${cyan("infernoflow <command> --help")} ${gray("for command-specific options.")}
 `;
 
@@ -266,7 +243,7 @@ if (cmd === "--version" || cmd === "-v") {
   process.exit(0);
 }
 if (cmd === "commands") {
-  console.log(`\n  ${bold("🔥 infernoflow")} ${gray("v" + VERSION)} ${gray("— all commands")}\n`);
+  console.log(`\n  ${bold("🔥 infernoflow")} ${gray("v" + VERSION)} ${gray("— all " + TOTAL_COMMANDS + " commands")}\n`);
   console.log(formatCommandGroups());
   console.log(`\n  ${gray("Run")} ${cyan("infernoflow <command> --help")} ${gray("for options.")}\n`);
   process.exit(0);
