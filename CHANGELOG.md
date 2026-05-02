@@ -1,5 +1,19 @@
 # Changelog — infernoflow
 
+## 0.40.2 — 2026-05-02
+
+### Added
+- **`infernoflow watch` heuristic prompts (Plan Part 4 Level 2)** — the watcher now surfaces "log this?" tips when it spots patterns that usually indicate gotchas, on top of the existing debounced auto-suggest:
+  - Same file edited 5/12/25 times in a session → "stuck on something?" with a gotcha-log hint
+  - Dependency manifest changed (package.json, Cargo.toml, go.mod, requirements.txt, Pipfile, Gemfile, composer.json, lockfiles, etc. — 18 files total) → suggests logging the decision
+  - Test file deleted (under `tests/`, `test/`, `__tests__/`, `spec/`, or matching `*.test.*` / `*.spec.*`) → suggests logging why
+- **`--no-tips` flag** — disables the heuristic prompts while keeping the auto-suggest behaviour. `--silent` continues to disable all output.
+
+### Changed
+- **`watch` default directories** include `tests`, `test`, `__tests__`, `spec` so test-file removal is detected without manual `infernoflow watch tests` invocations.
+- **Non-recursive project-root watcher** added under the hood so dependency-manifest changes are caught regardless of which subdirectory was passed to `watch`.
+- **Per-file 250ms debounce** on event handling — fs.watch fires multiple events per save on most platforms; the watcher now collapses them so edit-count thresholds and dependency-tip prompts don't double-fire.
+
 ## 0.40.1 — 2026-05-02
 
 ### Fixed
