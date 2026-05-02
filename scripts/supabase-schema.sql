@@ -1,30 +1,38 @@
 -- infernoflow Supabase schema
 -- Paste this into your Supabase project → SQL Editor → Run.
 --
--- This schema matches what is currently deployed to the canonical infernoflow
--- Supabase project. It supports two write paths:
+-- This schema is idempotent — safe to re-run as the schema evolves.
 --
---   1. Anonymous-token writes (current default) — the CLI runs `infernoflow log`,
---      derives a stable `user_token` from the user's GitHub identity, and POSTs
---      with the public anon key. `user_id` stays NULL. RLS is permissive enough
---      to allow this. This is the path used today; it works fine for a solo
---      project but exposes inserts to anyone with the anon key.
+-- ── Auth model (v0.40+) ─────────────────────────────────────────────────
+-- Two coexisting write paths, transparently selected by the CLI:
 --
---   2. Authenticated writes (future) — pass a Supabase JWT instead of the anon
---      key. `user_id` is set from `auth.uid()` and the per-user RLS policy
---      restricts reads/writes. This path is currently dormant; the policy is
---      preserved so flipping the switch later is a CLI-only change.
+--   1. Authenticated (preferred, post `infernoflow login`)
+--      The CLI POSTs with the user's Supabase JWT in Authorization. user_id
+--      is set server-side from the auth.uid() default. The "Users own their
+--      entries" RLS policy is enforced.
 --
--- See lib/cloud/supabase.mjs `pushEntry` for the matching client code.
+--   2. Anon-token (fallback; legacy + `infernoflow login --device-flow`)
+--      The CLI POSTs with the public anon key, sending a `user_token` text
+--      column derived from the user's GitHub identity. Allowed by the
+--      explicit "Anon can insert (dev mode)" policy. Fine for solo dev,
+--      not a security boundary.
+--
+-- To force authenticated-only, drop the dev-mode policy:
+--   drop policy "Anon can insert (dev mode)" on entries;
+--
+-- For setup outside the canonical project: also enable the GitHub auth
+-- provider in Authentication → Providers, and add http://localhost:47655
+-- (and the rest of the PORT_RANGE in lib/commands/login.mjs) to the
+-- Authentication → URL Configuration → Redirect URLs allow-list.
 
--- Enable UUID extension (usually already on)
+-- Enable UUID generation
 create extension if not exists "pgcrypto";
 
 -- ── entries table ─────────────────────────────────────────────────────────────
 create table if not exists entries (
   id          uuid        default gen_random_uuid() primary key,
-  user_id     uuid        references auth.users,                    -- NULL for anon-token writes
-  user_token  text,                                                 -- stable per-user identifier (GitHub id), set by CLI
+  user_id     uuid        references auth.users default auth.uid(),  -- auto-populated for authenticated writes
+  user_token  text,                                                  -- anon-mode identifier (GitHub id), null for authenticated rows
   project_id  text        not null,
   ts          timestamptz not null,
   type        text        not null default 'note',
@@ -36,24 +44,24 @@ create table if not exists entries (
   created_at  timestamptz default now()
 );
 
+-- If running over an older deployment that didn't have auth.uid() as the
+-- column default, add it. (Idempotent.)
+alter table entries alter column user_id set default auth.uid();
+
+-- Make sure user_token exists even on older deployments.
+alter table entries add column if not exists user_token text;
+
 -- ── Row-level security ────────────────────────────────────────────────────────
--- RLS is enabled, but the policy below only matches authenticated writes
--- (auth.uid() = user_id). Anonymous-token writes bypass it because user_id
--- is NULL on insert; this is intentional for the current single-user model.
--- When moving to fully authenticated mode, drop the anon write privilege
--- on this table at the role level (Supabase Studio → Database → Tables →
--- entries → grant settings).
 alter table entries enable row level security;
 
--- Authenticated users can read/write their own entries.
+-- Authenticated path: each user can read/write their own rows.
 drop policy if exists "Users own their entries" on entries;
 create policy "Users own their entries"
   on entries for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- Anyone with the anon key can insert (current dev mode).
--- Remove this policy when switching to authenticated-only writes.
+-- Anon fallback path (dev mode). Drop this when going strict-auth-only.
 drop policy if exists "Anon can insert (dev mode)" on entries;
 create policy "Anon can insert (dev mode)"
   on entries for insert
@@ -61,8 +69,6 @@ create policy "Anon can insert (dev mode)"
   with check (true);
 
 -- ── team_members table (reserved for future team-sync feature) ────────────────
--- Kept as a stub so the schema is forward-compatible. The CLI does not write to
--- this table yet — wiring lives behind a future `infernoflow team-sync` command.
 create table if not exists team_members (
   id          uuid default gen_random_uuid() primary key,
   project_id  text not null,
@@ -80,7 +86,7 @@ create policy "Team members can read their project"
   using (auth.uid() = user_id);
 
 -- ── project_entries view ──────────────────────────────────────────────────────
--- Reserved for Sprint 2 team sharing. Currently just a passthrough.
+-- Reserved for Sprint 2 team sharing. Currently a passthrough.
 create or replace view project_entries as
   select e.*, tm.project_id as team_project_id
   from entries e
@@ -88,15 +94,7 @@ create or replace view project_entries as
     on tm.user_id = e.user_id and tm.project_id = e.project_id;
 
 -- ── indexes ───────────────────────────────────────────────────────────────────
--- Lookup by user_token (anon-mode) and by authenticated user_id.
-create index if not exists entries_user_token_project
-  on entries (user_token, project_id, ts desc);
-
-create index if not exists entries_user_id_project
-  on entries (user_id, project_id, ts desc);
-
-create index if not exists entries_type
-  on entries (type, ts desc);
-
-create index if not exists entries_project_ts
-  on entries (project_id, ts desc);
+create index if not exists entries_user_id_project    on entries (user_id, project_id, ts desc);
+create index if not exists entries_user_token_project on entries (user_token, project_id, ts desc);
+create index if not exists entries_project_ts         on entries (project_id, ts desc);
+create index if not exists entries_type               on entries (type, ts desc);

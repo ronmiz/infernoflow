@@ -1,5 +1,26 @@
 # Changelog — infernoflow
 
+## 0.40.0 — 2026-05-02
+
+### Added
+- **Experimental Supabase JWT auth (`infernoflow login --browser`)** — opens your browser to Supabase's GitHub OAuth, captures the session via a one-shot localhost callback (port range 47655–47659), and stores the JWT + refresh token. After this, cloud writes are authenticated under your `auth.uid()` and the per-user RLS policy `auth.uid() = user_id` becomes enforceable. Opt-in until end-to-end verified against a real Supabase project.
+- **Automatic token refresh** — `pushEntry` calls `refreshSessionIfNeeded()` before each write, hitting `/auth/v1/token?grant_type=refresh_token` within 5 minutes of expiry. Falls back silently to anon-key dev mode if refresh fails so local logging is never blocked.
+- **Tagged credentials schema** — `mode: "supabase" | "device-flow"` with full backward-compatible reads of pre-v0.40 single-`access_token` files. New `getSupabaseAccessToken()` helper for synchronous JWT lookup with expiry awareness.
+- **`doctor` full credential-state recognition** — distinct messages for not-logged-in, supabase-authenticated, identity-only device-flow, and legacy schema (with re-login nudge).
+
+### Changed
+- **Default `infernoflow login` is unchanged** — still GitHub Device Flow, still works exactly as it did in v0.38–0.39. The new browser-OAuth path is opt-in via `--browser` until the Supabase project setup (allow-list URLs, GitHub provider, schema apply) is confirmed working end-to-end.
+- **`scripts/supabase-schema.sql`** — `user_id` now defaults to `auth.uid()` so authenticated writes (when you opt in) auto-populate it. Schema is fully idempotent. Both RLS policies retained: "Users own their entries" enforces the authenticated path; "Anon can insert (dev mode)" keeps the device-flow path working.
+- **`whoami`** prints the auth mode (Supabase JWT vs identity-only) and JWT expiry when present.
+
+### Required setup before `--browser` works
+On your Supabase project, one-time:
+1. Authentication → Providers → enable GitHub.
+2. Authentication → URL Configuration → Redirect URLs: add `http://localhost:47655/callback` through `http://localhost:47659/callback`.
+3. SQL Editor → paste and run `scripts/supabase-schema.sql` (idempotent).
+
+Then: `infernoflow logout && infernoflow login --browser`. If anything misbehaves, plain `infernoflow login` still works.
+
 ## 0.39.0 — 2026-05-02
 
 ### Added
