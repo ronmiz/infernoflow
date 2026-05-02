@@ -1,5 +1,10 @@
 # Changelog — infernoflow
 
+## 0.40.1 — 2026-05-02
+
+### Fixed
+- **`infernoflow login` default reverted to GitHub Device Flow** — 0.40.0 had the experimental Supabase browser-OAuth flow as the default, which hung waiting for the localhost callback when the user's Supabase project didn't have the redirect URLs in its allow-list. Default is now the proven Device Flow (identity + anon-key cloud writes); the browser-OAuth path is opt-in via `infernoflow login --browser`.
+
 ## 0.40.0 — 2026-05-02
 
 ### Added
