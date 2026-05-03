@@ -1,5 +1,17 @@
 # Changelog — infernoflow
 
+## 0.42.0 — 2026-05-03
+
+### Added
+- **AMP-compliant on-disk format** — infernoflow now speaks the [AI Memory Protocol v1.0](docs/protocol/PROTOCOL.md) natively. New projects get `.ai-memory/sessions.jsonl` (the AMP canonical layout) instead of `inferno/sessions.jsonl`. Entries on disk use the AMP wire format: `msg` instead of `summary`, Unix-ms integer `ts`, ULID `id` on every entry, AMP type enum (gotcha/decision/attempt/note/detection/pattern), `meta` for tool-specific extras.
+- **Lossless round-trip for infernoflow-specific fields** — `result`, `agent: "human"`, `auto: true`, and the extra entry types (`preference`, `theme`, `handoff`, `error`) are preserved via `meta.subtype` / `meta.result` / `meta.agent` / `confidence`. Read paths translate AMP shape back to infernoflow's familiar internal shape so the rest of the codebase doesn't need to change.
+- **AMP injection markers** — auto-update of `CLAUDE.md`, `.cursorrules`, and `.github/copilot-instructions.md` now wraps the generated section with `<!-- AMP:START -->` / `<!-- AMP:END -->` so other AMP-compliant tools can edit-in-place without trampling each other.
+- **Backward compat** — projects with the legacy `inferno/sessions.jsonl` keep working unchanged. Both layouts are read transparently; writes always target `.ai-memory/`.
+
+### Internal
+- `lib/amp/io.mjs` is the single source of truth for file paths, entry shape, ULID generation, and translation. ~270 lines, zero external dependencies. Plumbing for the upcoming `@amp/core` npm publish (Phase B) and `amp_*` MCP tool aliasing (Phase C).
+- `infernoflow amp migrate` (coming in next release) will copy legacy `inferno/sessions.jsonl` → `.ai-memory/sessions.jsonl` with shape translation. Until then, projects can stay on the legacy layout indefinitely.
+
 ## 0.41.0 — 2026-05-03
 
 ### Changed
