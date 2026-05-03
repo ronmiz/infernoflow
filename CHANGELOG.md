@@ -1,5 +1,27 @@
 # Changelog — infernoflow
 
+## 0.41.0 — 2026-05-03
+
+### Changed
+- **Command surface culled from 51 visible to 12.** `--help` now shows only the 5-command memory core (log/ask/switch/recap/status), 3 setup commands (init/watch/doctor), and 3 subsystem dispatchers (contract/cloud/dev). All 53 legacy command names remain callable as top-level aliases — backward compatible. K.I.S.S. first-impression for new users; full discoverability via `infernoflow commands`.
+- **New namespace dispatchers** — `infernoflow contract scan` routes to the same handler as `infernoflow scan`. Same for `infernoflow dev publish`, etc. Run `infernoflow contract` or `infernoflow dev` with no verb to see the verbs in that namespace. The existing `cloud` dispatcher (with init/push/pull/status/dashboard subcommands) is untouched.
+- **`infernoflow commands` regrouped** to advertise the new namespace structure: Memory / Watch / Setup at top level, then Contract / Cloud / Dev grouped with their verbs.
+
+### Internal
+- This is the first half of the move toward the AI Memory Protocol (AMP) — see docs/protocol/PROTOCOL.md. Phase A.2 (folder rename to `.ai-memory/`, AMP-compliant entry shape with ULIDs and `meta.subtype` for infernoflow extras) is up next.
+
+## 0.40.6 — 2026-05-02
+
+### Fixed
+- **`infernoflow init` first-gotcha prompt is now bulletproof.** The original prompt accepted whatever you typed verbatim, so a confused user (Ron earlier today, after Ctrl+C'ing a stuck `--browser` login) could paste a multi-line shell command and end up with `node ../infernoflow-pkg/bin/infernoflow.mjs log "..."` saved as their first memory. The first interaction every new user has now:
+  - **Detects shell-command-shaped input** (starts with node/npm/npx/git/cd/python/etc., or contains `&&`/`||`/`>`/`|` operators, or contains a Windows drive path) and re-prompts with a hint.
+  - **Detects multi-line paste** and re-prompts asking for a single short sentence.
+  - **Trims accidental leading prompt characters** (`> `, `$ `, `# `) — common when copy/pasting from terminal output.
+  - **Treats input shorter than 3 chars as too short** (single keystrokes, accidental Enter).
+  - **Handles Ctrl+C cleanly** — exits the prompt without leaving inferno/ in a half-state.
+  - **Two-strike rule** — after two bad inputs we silently skip rather than block the install.
+- Verified via 18-case unit test of the classifier covering all the failure modes.
+
 ## 0.40.5 — 2026-05-02
 
 ### Fixed

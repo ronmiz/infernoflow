@@ -105,6 +105,10 @@ const COMMAND_DESCRIPTIONS = {
   ask:       "Query session memory — search gotchas, decisions, and failed attempts by keyword or type",
   recap:     "End-of-session summary — what was captured, what git changes weren't logged, session health score",
   uninstall: "Remove infernoflow from a project — inferno/, CLAUDE.md, MCP server, git hooks (--dry-run to preview)",
+
+  // ── Namespace dispatchers (route to legacy verbs) ──────────────────────────
+  contract: "Capability contracts — scan, freeze, impact, graph, scaffold, etc. (run: infernoflow contract)",
+  dev:      "Maintenance & integration — publish, changelog, dashboard, ai, ci, sync, etc. (run: infernoflow dev)",
 };
 
 const COMMAND_HANDLERS = {
@@ -161,7 +165,43 @@ const COMMAND_HANDLERS = {
   uninstall: async (args) => (await import("../lib/commands/uninstall.mjs")).uninstallCommand(args),
   feedback:  async (args) => (await import("../lib/commands/feedback.mjs")).feedbackCommand(args),
   telemetry: async (args) => (await import("../lib/telemetry.mjs")).telemetryCommand(args),
+
+  // ── Namespace dispatchers ──────────────────────────────────────────────────
+  // Route `infernoflow <namespace> <verb> [args]` to the underlying verb. The
+  // legacy top-level names above still work, so `infernoflow scan` ===
+  // `infernoflow contract scan`.
+  contract: async (args) => routeNamespace("contract", CONTRACT_VERBS, args),
+  dev:      async (args) => routeNamespace("dev",      DEV_VERBS,      args),
 };
+
+async function routeNamespace(name, verbs, rawArgs) {
+  // rawArgs[0] is the namespace name itself (set by the main dispatcher),
+  // rawArgs[1] is the verb the user typed.
+  const verb = rawArgs[1];
+  if (!verb || verb === "--help" || verb === "-h") {
+    console.log();
+    console.log(`  ${bold("🔥 infernoflow " + name)} ${gray("— available verbs:")}`);
+    console.log();
+    const w = Math.max(...Object.keys(verbs).map(v => v.length)) + 2;
+    for (const v of Object.keys(verbs)) {
+      const desc = COMMAND_DESCRIPTIONS[verbs[v]] || "";
+      console.log(`    ${cyan(v.padEnd(w))} ${gray(desc)}`);
+    }
+    console.log();
+    console.log(`  ${gray("Run")} ${cyan(`infernoflow ${name} <verb> --help`)} ${gray("for verb-specific options.")}`);
+    console.log();
+    return;
+  }
+  const target = verbs[verb];
+  if (!target || !COMMAND_HANDLERS[target]) {
+    console.error(red(`\n  Unknown ${name} verb: ${verb}`));
+    console.error(gray(`  Run: infernoflow ${name}   (see all verbs)\n`));
+    process.exit(1);
+  }
+  // Hand off to the underlying handler with args reshaped to look like a
+  // direct top-level invocation: [verb, ...rest]
+  return COMMAND_HANDLERS[target]([target, ...rawArgs.slice(2)]);
+}
 
 function formatCommandsHelp() {
   const names = Object.keys(COMMAND_DESCRIPTIONS);
@@ -171,19 +211,68 @@ function formatCommandsHelp() {
     .join("\n");
 }
 
+// ── Verb maps for the namespaced dispatchers ──────────────────────────────────
+// `infernoflow contract scan` routes to the same handler as `infernoflow scan`.
+// All legacy top-level names remain callable for backward compatibility.
+const CONTRACT_VERBS = {
+  scan:        "scan",
+  check:       "check",
+  status:      "status",
+  freeze:      "freeze",
+  thaw:        "thaw",
+  why:         "why",
+  impact:      "impact",
+  graph:       "graph",
+  stability:   "stability",
+  scaffold:    "scaffold",
+  explain:     "explain",
+  test:        "test",
+  coverage:    "coverage",
+  suggest:     "suggest",
+  run:         "run",
+  implement:   "implement",
+  "doc-gate":  "doc-gate",
+  "pr-impact": "pr-impact",
+  review:      "review",
+  demo:        "demo",
+  upgrade:     "upgrade",
+  context:     "context",
+  sync:        "sync",
+};
+
+const DEV_VERBS = {
+  publish:                         "publish",
+  changelog:                       "changelog",
+  diff:                            "diff",
+  dashboard:                       "dashboard",
+  monorepo:                        "monorepo",
+  ci:                              "ci",
+  ai:                              "ai",
+  theme:                           "theme",
+  stats:                           "stats",
+  feedback:                        "feedback",
+  telemetry:                       "telemetry",
+  uninstall:                       "uninstall",
+  "generate-skills":               "generate-skills",
+  "install-cursor-hooks":          "install-cursor-hooks",
+  "install-vscode-copilot-hooks":  "install-vscode-copilot-hooks",
+  setup:                           "setup",
+};
+
 // ── Full grouped command list (infernoflow commands) ──────────────────────────
-// Only commands with implementations are listed.
+// Top-level surface advertised in --help is just 12 commands. Everything else
+// stays callable as a top-level alias (back-compat) — the grouping below is
+// what `infernoflow commands` shows for discoverability.
 const COMMAND_GROUPS = {
-  "Session Memory":  ["log", "ask", "switch", "recap", "stats", "theme"],
-  "Context":         ["context", "scan", "suggest", "check", "status"],
-  "Code Analysis":   ["graph", "impact", "why", "coverage", "stability", "freeze", "thaw"],
-  "Workflow":        ["run", "sync", "watch", "implement", "doc-gate"],
-  "Publishing":      ["publish", "changelog", "diff"],
-  "Cloud":           ["login", "logout", "whoami", "cloud", "notify", "pr-impact"],
-  "Quality":         ["review"],
-  "Integration":     ["ai", "ci", "coverage", "dashboard"],
-  "Setup":           ["init", "setup", "demo", "doctor", "generate-skills", "upgrade", "uninstall"],
-  "Advanced":        ["scaffold", "explain", "test", "monorepo", "feedback", "telemetry"],
+  "Memory  (top-level)":          ["log", "ask", "switch", "recap", "status"],
+  "Watch   (top-level)":          ["watch"],
+  "Setup   (top-level)":          ["init", "doctor"],
+  "Contract  (use: infernoflow contract <verb>)":
+    Object.keys(CONTRACT_VERBS),
+  "Cloud     (use: infernoflow cloud <verb>)":
+    ["login", "logout", "whoami", "cloud", "notify"],
+  "Dev       (use: infernoflow dev <verb>)":
+    Object.keys(DEV_VERBS),
 };
 
 function formatCommandGroups() {
@@ -202,19 +291,24 @@ const HELP = `
   ${bold("Usage:")}
     infernoflow [command] [options]
 
-  ${bold("Core Commands:")}
-    ${cyan("log")} ${gray('"..."')}         Add to session memory ${gray("(--type gotcha|decision|attempt|preference)")}
+  ${bold("Memory")} ${gray("— the 5-command core")}
+    ${cyan("log")} ${gray('"..."')}         Add to session memory ${gray("(--type gotcha|decision|attempt)")}
     ${cyan("ask")} ${gray('"..."')}         Search your memory by keyword ${gray("(gotchas surface first)")}
     ${cyan("switch")}            Generate handoff for next AI agent
     ${cyan("recap")}             End-of-session health score + unlogged changes
-    ${cyan("status")}            Contract health at a glance
+    ${cyan("status")}            Quick health check
 
-  ${bold("Getting Started:")}
-    ${cyan("setup")}             One command to get fully operational
-    ${cyan("demo")}              Interactive walkthrough ${gray("(5 minutes)")}
+  ${bold("Setup")}
+    ${cyan("init")}              60-second setup ${gray("(memory mode by default)")}
+    ${cyan("watch")}             Auto-capture mode ${gray("(stuck-loops, dep changes, test removals)")}
     ${cyan("doctor")}            Diagnose your setup
 
-  ${gray("Run")} ${cyan("infernoflow commands")} ${gray("to see all " + TOTAL_COMMANDS + " commands.")}
+  ${bold("Subsystems")} ${gray("— grouped, run for verbs:")}
+    ${cyan("contract")}          Capability contracts ${gray("(scan, freeze, impact, scaffold, …)")}
+    ${cyan("cloud")}              Cloud sync + accounts ${gray("(login, push, pull, status, …)")}
+    ${cyan("dev")}                Publishing, dashboards, AI providers ${gray("(publish, ai, ci, …)")}
+
+  ${gray("Run")} ${cyan("infernoflow commands")} ${gray("to see all " + TOTAL_COMMANDS + " commands grouped.")}
   ${gray("Run")} ${cyan("infernoflow <command> --help")} ${gray("for command-specific options.")}
 `;
 
