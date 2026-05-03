@@ -1,5 +1,19 @@
 # Changelog — infernoflow
 
+## 0.42.1 — 2026-05-03
+
+### Added
+- **`infernoflow amp` subsystem** — first-class verbs for the AI Memory Protocol:
+  - `infernoflow amp` (or `amp status`) — prints AMP conformance level, layout state (.ai-memory/ vs legacy inferno/), and entry breakdown by type.
+  - `infernoflow amp migrate` — copies legacy `inferno/sessions.jsonl` into `.ai-memory/sessions.jsonl` with AMP-shape translation. Idempotent. Leaves the original untouched.
+  - `infernoflow amp validate` — schema-checks every entry in `sessions.jsonl` against AMP v1.0 (type enum, msg ≤ 500 chars, ts as Unix-ms integer, ULID format, tool enum, confidence range). Surfaces parse errors and schema violations with line numbers.
+  - `infernoflow amp version` — prints the AMP spec version (1.0).
+- **README repositioned** — leads with "infernoflow is the reference CLI for AMP". New "AI Memory Protocol" section explaining `.ai-memory/` layout, wire format, and the migration path.
+- **`amp` namespace added to `--help`** — joins contract / cloud / dev as the four subsystem dispatchers.
+
+### Internal
+- Verified end-to-end: legacy `inferno/sessions.jsonl` with `summary` / `agent` / `result` / non-AMP types → `infernoflow amp migrate` → AMP-shape entries on disk → `infernoflow amp validate` reports 3/3 conform → `infernoflow ask` finds them via the normalization layer.
+
 ## 0.42.0 — 2026-05-03
 
 ### Added

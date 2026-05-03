@@ -1,6 +1,8 @@
 # 🔥 infernoflow
 
-> Persistent memory for AI coding sessions. Captures what agents can't infer from code: gotchas, decisions, dead ends. Replays it into your next AI chat so you stop re-derived context every time.
+> Persistent memory for AI coding sessions. Captures what agents can't infer from code: gotchas, decisions, dead ends. Replays it into your next AI chat so you stop re-deriving context every time.
+>
+> infernoflow is the reference CLI for [**AMP — the AI Memory Protocol**](docs/protocol/PROTOCOL.md). Any AMP-compatible tool can read your `.ai-memory/sessions.jsonl` — Cursor, Copilot, Claude, Windsurf, future agents. Vendor-neutral, file-based, zero deps.
 
 [![npm version](https://img.shields.io/npm/v/infernoflow.svg?color=orange)](https://www.npmjs.com/package/infernoflow)
 [![npm downloads](https://img.shields.io/npm/dw/infernoflow.svg?color=orange)](https://www.npmjs.com/package/infernoflow)
@@ -44,6 +46,33 @@ These five cover 90% of usage:
 | `infernoflow status` | Quick session-memory health check. |
 
 Run `infernoflow commands` for the full grouped list (51 commands across Session Memory, Code Analysis, Workflow, Cloud, Setup, Advanced).
+
+## The AI Memory Protocol (AMP)
+
+infernoflow stores memory in the AMP-canonical layout:
+
+```
+.ai-memory/
+├── sessions.jsonl   # one AMP entry per line (gotchas, decisions, attempts, notes…)
+├── amp.json         # project metadata
+└── handoff.md       # generated handoff for AI agents
+```
+
+Each entry on disk is AMP wire format:
+
+```json
+{"type":"gotcha","msg":"API returns 202 not 200","ts":1714704000000,"id":"amp_01HXYZ...","file":"src/api.js","line":42}
+```
+
+The full spec is in [docs/protocol/PROTOCOL.md](docs/protocol/PROTOCOL.md). Any tool that can parse JSONL can read your memory — that's the whole point. infernoflow is currently the **AMP Full** reference implementation: read + write + handoff + injection across CLAUDE.md / .cursorrules / copilot-instructions.md.
+
+If you have a project on the legacy `inferno/sessions.jsonl` layout, migrate with one command:
+
+```bash
+infernoflow amp migrate
+```
+
+The original `inferno/sessions.jsonl` is left in place — nothing is overwritten.
 
 ## Auto-context for AI agents
 

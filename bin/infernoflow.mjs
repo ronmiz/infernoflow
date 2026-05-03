@@ -109,6 +109,7 @@ const COMMAND_DESCRIPTIONS = {
   // ── Namespace dispatchers (route to legacy verbs) ──────────────────────────
   contract: "Capability contracts — scan, freeze, impact, graph, scaffold, etc. (run: infernoflow contract)",
   dev:      "Maintenance & integration — publish, changelog, dashboard, ai, ci, sync, etc. (run: infernoflow dev)",
+  amp:      "AI Memory Protocol — status, migrate from legacy, validate (run: infernoflow amp)",
 };
 
 const COMMAND_HANDLERS = {
@@ -172,6 +173,7 @@ const COMMAND_HANDLERS = {
   // `infernoflow contract scan`.
   contract: async (args) => routeNamespace("contract", CONTRACT_VERBS, args),
   dev:      async (args) => routeNamespace("dev",      DEV_VERBS,      args),
+  amp:      async (args) => (await import("../lib/commands/amp.mjs")).ampCommand(args),
 };
 
 async function routeNamespace(name, verbs, rawArgs) {
@@ -267,6 +269,8 @@ const COMMAND_GROUPS = {
   "Memory  (top-level)":          ["log", "ask", "switch", "recap", "status"],
   "Watch   (top-level)":          ["watch"],
   "Setup   (top-level)":          ["init", "doctor"],
+  "AMP       (use: infernoflow amp <verb>)":
+    ["status", "migrate", "validate", "version"],
   "Contract  (use: infernoflow contract <verb>)":
     Object.keys(CONTRACT_VERBS),
   "Cloud     (use: infernoflow cloud <verb>)":
@@ -304,6 +308,7 @@ const HELP = `
     ${cyan("doctor")}            Diagnose your setup
 
   ${bold("Subsystems")} ${gray("— grouped, run for verbs:")}
+    ${cyan("amp")}                AI Memory Protocol ${gray("(status, migrate, validate)")}
     ${cyan("contract")}          Capability contracts ${gray("(scan, freeze, impact, scaffold, …)")}
     ${cyan("cloud")}              Cloud sync + accounts ${gray("(login, push, pull, status, …)")}
     ${cyan("dev")}                Publishing, dashboards, AI providers ${gray("(publish, ai, ci, …)")}
