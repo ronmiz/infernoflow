@@ -1,5 +1,10 @@
 # Changelog — infernoflow
 
+## 0.40.5 — 2026-05-02
+
+### Fixed
+- **`infernoflow scaffold` ID consistency** — scaffold previously rejected `UserSearch` with "Invalid capability ID — use lowercase kebab-case", but every other contracts command (scan, adopt, freeze, contract.json itself) uses PascalCase IDs like `CreateItem`. Anyone seeing the existing capabilities and trying to scaffold a similar one was blocked. Now scaffold accepts kebab-case, snake_case, camelCase, PascalCase, or space-separated input and normalizes to the canonical PascalCase. Duplicate-detection matches either the canonical or the user-typed form.
+
 ## 0.40.4 — 2026-05-02
 
 ### Added
