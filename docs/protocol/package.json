@@ -1,0 +1,47 @@
+{
+  "name": "ai-memory-protocol",
+  "version": "1.0.0",
+  "description": "AI Memory Protocol (AMP) reference implementation: zero-dep TypeScript library for reading, writing, and generating handoffs from .ai-memory/sessions.jsonl. Vendor-neutral persistent memory across AI coding tools.",
+  "main": "dist/amp.js",
+  "types": "dist/amp.d.ts",
+  "files": [
+    "dist/",
+    "PROTOCOL.md",
+    "README.md",
+    "schemas/"
+  ],
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [
+    "ai",
+    "memory",
+    "protocol",
+    "amp",
+    "session",
+    "context",
+    "copilot",
+    "cursor",
+    "claude",
+    "windsurf",
+    "agent",
+    "jsonl"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ronmiz/infernoflow.git",
+    "directory": "docs/protocol"
+  },
+  "homepage": "https://github.com/ronmiz/infernoflow/blob/main/docs/protocol/PROTOCOL.md",
+  "bugs": {
+    "url": "https://github.com/ronmiz/infernoflow/issues"
+  }
+}

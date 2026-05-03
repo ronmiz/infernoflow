@@ -66,6 +66,12 @@ Each entry on disk is AMP wire format:
 
 The full spec is in [docs/protocol/PROTOCOL.md](docs/protocol/PROTOCOL.md). Any tool that can parse JSONL can read your memory — that's the whole point. infernoflow is currently the **AMP Full** reference implementation: read + write + handoff + injection across CLAUDE.md / .cursorrules / copilot-instructions.md.
 
+Building your own AMP-compatible tool? Use the reference TS library:
+
+```bash
+npm install ai-memory-protocol
+```
+
 If you have a project on the legacy `inferno/sessions.jsonl` layout, migrate with one command:
 
 ```bash
