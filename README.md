@@ -6,6 +6,9 @@
 
 [![npm version](https://img.shields.io/npm/v/infernoflow.svg?color=orange)](https://www.npmjs.com/package/infernoflow)
 [![npm downloads](https://img.shields.io/npm/dw/infernoflow.svg?color=orange)](https://www.npmjs.com/package/infernoflow)
+[![zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](./package.json)
+[![npm audit](https://img.shields.io/badge/npm%20audit-0%20vulnerabilities-brightgreen)](https://docs.npmjs.com/cli/v10/commands/npm-audit)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/infernoflow.infernoflow?label=VS%20Code&color=orange)](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow)
 
 ## The 60-second pitch
 
@@ -89,6 +92,16 @@ When you run `infernoflow log`, infernoflow silently keeps these files up to dat
 - `.github/copilot-instructions.md` — picked up by GitHub Copilot
 
 You don't have to paste anything. Set up once, every future session is better.
+
+## VS Code extension
+
+For the visual experience inside VS Code (sidebar memory panel, gotchas as Problems-panel warnings, status-bar health score, one-click handoff), install the companion extension:
+
+```
+ext install infernoflow.infernoflow
+```
+
+Or browse it on the [Marketplace](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow). Activates automatically on any project containing `.ai-memory/sessions.jsonl` or `inferno/`.
 
 ## Cursor / VS Code MCP integration
 
