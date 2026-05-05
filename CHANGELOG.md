@@ -1,5 +1,23 @@
 # Changelog — infernoflow
 
+## 0.42.2 — 2026-05-03
+
+### Added
+- **AMP MCP tool aliases** — the bundled MCP server (`templates/cursor/inferno-mcp-server.mjs`) now exposes the 5 vendor-neutral AMP tools alongside the existing `infernoflow_*` tools: `amp_read`, `amp_write`, `amp_handoff`, `amp_search`, `amp_health`. AMP-only clients (any tool that follows AMP MCP §7.3) can call infernoflow without knowing the `infernoflow_` prefix. Backward compat preserved — all 9 `infernoflow_*` tools still work.
+- **README MCP table updated** — lists all 14 tools, marks the AMP-spec aliases distinctly with a pointer to the protocol spec.
+
+### Internal
+- New install of `infernoflow install-cursor-hooks` ships the 14-tool MCP server. Existing installs continue to work; re-run `install-cursor-hooks` to pick up the AMP aliases.
+
+## Unreleased
+
+> Changes since v0.42.1
+
+### Changed
+- v0.42.1 — `infernoflow amp` subsystem; protocol package renamed @amp/core → ai-memory-protocol for npm publish
+
+
+
 ## 0.42.1 — 2026-05-03
 
 ### Added
@@ -195,12 +213,4 @@ Then: `infernoflow logout && infernoflow login --browser`. If anything misbehave
 ## 0.10.20 — 2026-04-21
 
 ### Added
-- Release 0.10.20
-
-
-## 0.10.19 — 2026-04-21
-
-## 0.10.12 — 2026-04-12
-
-### Added
-- `infernoflow install-cursor-hooks` — Cursor Agent hooks append assistant replies to `inferno/CON
+- Release 0.

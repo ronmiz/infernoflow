@@ -69,7 +69,7 @@ The full spec is in [docs/protocol/PROTOCOL.md](docs/protocol/PROTOCOL.md). Any 
 Building your own AMP-compatible tool? Use the reference TS library:
 
 ```bash
-npm install ai-memory-protocol
+npm install infernoflow-amp
 ```
 
 If you have a project on the legacy `inferno/sessions.jsonl` layout, migrate with one command:
@@ -113,6 +113,13 @@ After install-cursor-hooks, your AI agent can call infernoflow directly in chat:
 | `infernoflow_review` | Pre-merge capability drift check on the current branch |
 | `infernoflow_git_drift` | Detect capabilities affected by recent commits |
 | `infernoflow_scan_ui` | Detect UI / design-token changes vs contract |
+| `amp_read` | **AMP-spec** alias — read entries with optional filters |
+| `amp_write` | **AMP-spec** alias — log a new entry |
+| `amp_handoff` | **AMP-spec** alias — generate the handoff document |
+| `amp_search` | **AMP-spec** alias — search entries by keyword |
+| `amp_health` | **AMP-spec** alias — session health score |
+
+The `amp_*` tools are vendor-neutral aliases following the [AMP MCP spec §7.3](docs/protocol/PROTOCOL.md#73-mcp-tool-interface). Any AMP-Full client only needs to know these names — the `infernoflow_*` set stays for backward compat.
 
 ## Cloud sync (optional)
 

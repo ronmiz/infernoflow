@@ -22,6 +22,16 @@ const TOOLS = [
   { name: "infernoflow_implement", description: "Generate a structured code implementation prompt for a task. Uses the contract and stack context to produce step-by-step coding instructions for the agent.", inputSchema: { type: "object", properties: { task: { type: "string", description: "What to implement" }, mode: { type: "string", enum: ["cursor", "generic", "both"], description: "Prompt style (default: both)" } }, required: ["task"] } },
   { name: "infernoflow_scan_ui", description: "Scan components and styles for UI changes vs the stored contract. Returns new/changed components, design token changes, and suggested contract updates.", inputSchema: { type: "object", properties: {} } },
   { name: "infernoflow_review", description: "Pre-merge capability drift check. Compares all changed files in the current branch against the capability contract and reports drift risk before you merge.", inputSchema: { type: "object", properties: { branch: { type: "string", description: "Branch to compare against (default: main)" } } } },
+
+  // ── AMP-spec MCP tools (per docs/protocol/PROTOCOL.md §7.3) ────────────────
+  // These are the standard names any AMP-compliant MCP server should expose.
+  // They're thin wrappers around the existing infernoflow_* tools so AMP-only
+  // clients don't need to know the infernoflow_ vendor prefix.
+  { name: "amp_read",    description: "AMP: read session memory entries with optional filters.", inputSchema: { type: "object", properties: { file: { type: "string" }, type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] }, query: { type: "string" }, limit: { type: "number" } } } },
+  { name: "amp_write",   description: "AMP: log a new entry. Required: type + msg. Optional: file, line, tags.", inputSchema: { type: "object", properties: { type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] }, msg: { type: "string" }, file: { type: "string" }, line: { type: "number" }, tags: { type: "array", items: { type: "string" } } }, required: ["type","msg"] } },
+  { name: "amp_handoff", description: "AMP: generate the handoff document for the next AI session. format=markdown|json (default: markdown).", inputSchema: { type: "object", properties: { format: { type: "string", enum: ["markdown","json"] } } } },
+  { name: "amp_search",  description: "AMP: search entries by keyword. Optional type filter.", inputSchema: { type: "object", properties: { query: { type: "string" }, type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] } }, required: ["query"] } },
+  { name: "amp_health",  description: "AMP: get the session health score (0-100, A-F grade).", inputSchema: { type: "object", properties: {} } },
 ];
 
 // ── git drift detection (inline — no external imports in this template file) ─
@@ -454,6 +464,42 @@ function handleTool(id, name, input) {
       text = scanUi();
     } else if (name === "infernoflow_review") {
       text = reviewDrift(input.branch || "main");
+
+    // ── AMP-spec aliases ───────────────────────────────────────────────────
+    } else if (name === "amp_read") {
+      const args = [];
+      if (input.query) args.push(JSON.stringify(input.query));
+      if (input.type)  args.push("--type", input.type);
+      if (input.limit) args.push("--limit", String(input.limit));
+      text = runCmd("ask " + args.join(" "));
+    } else if (name === "amp_write") {
+      const t = (input.type || "note").replace(/[^a-z]/g, "");
+      const m = JSON.stringify(input.msg || "");
+      const extras = [];
+      if (input.file) extras.push("--source", JSON.stringify(input.file));
+      text = runCmd(`log ${m} --type ${t} ${extras.join(" ")}`);
+    } else if (name === "amp_handoff") {
+      // switch writes a file; we read it back to return the content
+      runCmd("switch");
+      try {
+        const ampPath    = path.join(process.cwd(), ".ai-memory", "handoff.md");
+        const legacyPath = path.join(process.cwd(), "inferno",    "HANDOFF.md");
+        const target = fs.existsSync(ampPath) ? ampPath : legacyPath;
+        text = fs.readFileSync(target, "utf8");
+        if (input.format === "json") {
+          // very small markdown-to-json — caller can re-parse if needed
+          text = JSON.stringify({ handoff: text });
+        }
+      } catch (err) {
+        text = "(handoff generated; could not read back: " + err.message + ")";
+      }
+    } else if (name === "amp_search") {
+      const args = [JSON.stringify(input.query || "")];
+      if (input.type) args.push("--type", input.type);
+      text = runCmd("ask " + args.join(" "));
+    } else if (name === "amp_health") {
+      text = runCmd("recap --json").trim() || runCmd("status");
+
     } else { return sendError(id, -32601, `Unknown tool: ${name}`); }
     sendResult(id, { content: [{ type: "text", text: text || "(no output)" }] });
   } catch (err) { sendError(id, -32000, err.message); }
