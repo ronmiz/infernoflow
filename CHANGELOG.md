@@ -1,5 +1,25 @@
 # Changelog — infernoflow
 
+## 0.42.5 — 2026-05-05
+
+### Added
+- **VS Code extension Phase 1 — memory-first MVP rewrite** (`vscode-extension/` source, ships separately to the Marketplace, not via npm). The extension is now built around `.ai-memory/sessions.jsonl` instead of the old contract-system views. Five new TypeScript modules:
+  - `src/amp.ts` — wraps the `infernoflow-amp` npm package, single source of truth for memory I/O. File-watcher over both `.ai-memory/` and legacy `inferno/` so any CLI write triggers a refresh.
+  - `src/treeProvider.ts` — sidebar TreeView with Session Health, Gotchas, Decisions, Failed Attempts, and Quick Actions sections. Click an entry → jump to file:line.
+  - `src/statusBar.ts` — `🔥 B 65 · ⚠3 · ✓2 · ❌1 · 📋 Switch` with click-to-open-sidebar and click-to-copy-handoff. Colour-coded by health grade.
+  - `src/diagnostics.ts` — gotchas surface as Warnings in the Problems panel (Copilot reads them, so AI knows about gotchas before repeating mistakes).
+  - `src/commands.ts` — log gotcha/decision/attempt/note, ask (search), switch, recap, refresh, openPanel, migrateAmp. All with Ctrl+Alt+G/D/A/S/R bindings.
+- **Right-click editor menu** — log gotcha or decision for the current line directly from the editor context menu (file/line auto-captured).
+- **Extension settings** — `cliPath`, `showStatusBar`, `showDiagnostics`, `notifications` (all/important/none).
+- **`vscode-extension/README.md`** rewritten to lead with "AI Session Memory" instead of contract-first framing.
+
+### Changed
+- `vscode-extension/package.json` — replaced contracts views (Capabilities/Scenarios/Changelog) with a single Session Memory view. Replaced the 7 contracts commands with 10 memory-focused ones. Added 5 keybindings + right-click menu items. Added `infernoflow-amp@^1.0.0` as a runtime dependency.
+
+### Internal
+- TypeScript compile clean (~850 lines across 6 files). Phase 2 (gutter icons + CodeLens + auto-capture), Phase 3 (Copilot Chat participant), and Phase 4 (cloud sync UI) deferred per the locked plan in `docs/EXTENSION_PLAN.md`.
+- Marketplace publish itself stays manual: `cd vscode-extension && npm install && npx vsce package && npx vsce publish` after `vsce login infernoflow` is set up. See `vscode-extension/PUBLISH.md`.
+
 ## 0.42.4 — 2026-05-05
 
 ### Added

@@ -56,79 +56,99 @@
     "views": {
       "infernoflow": [
         {
-          "id": "infernoflow.capabilities",
-          "name": "Capabilities",
+          "id": "infernoflow.sessionView",
+          "name": "Session Memory",
           "icon": "media/infernoflow.svg"
-        },
-        {
-          "id": "infernoflow.scenarios",
-          "name": "Scenarios"
-        },
-        {
-          "id": "infernoflow.changelog",
-          "name": "Changelog"
         }
       ]
     },
     "commands": [
       {
+        "command": "infernoflow.logGotcha",
+        "title": "Log Gotcha",
+        "category": "infernoflow",
+        "icon": "$(warning)"
+      },
+      {
+        "command": "infernoflow.logDecision",
+        "title": "Log Decision",
+        "category": "infernoflow",
+        "icon": "$(check)"
+      },
+      {
+        "command": "infernoflow.logAttempt",
+        "title": "Log Failed Attempt",
+        "category": "infernoflow",
+        "icon": "$(error)"
+      },
+      {
+        "command": "infernoflow.logNote",
+        "title": "Log Note",
+        "category": "infernoflow",
+        "icon": "$(note)"
+      },
+      {
+        "command": "infernoflow.ask",
+        "title": "Ask Memory",
+        "category": "infernoflow",
+        "icon": "$(search)"
+      },
+      {
+        "command": "infernoflow.switch",
+        "title": "Generate Handoff",
+        "category": "infernoflow",
+        "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "infernoflow.recap",
+        "title": "Show Recap",
+        "category": "infernoflow",
+        "icon": "$(graph)"
+      },
+      {
         "command": "infernoflow.refresh",
         "title": "Refresh",
-        "icon": "$(refresh)",
-        "category": "infernoflow"
+        "category": "infernoflow",
+        "icon": "$(refresh)"
       },
       {
-        "command": "infernoflow.check",
-        "title": "Run Check",
-        "icon": "$(pass-filled)",
-        "category": "infernoflow"
+        "command": "infernoflow.openPanel",
+        "title": "Open Session Panel",
+        "category": "infernoflow",
+        "icon": "$(flame)"
       },
       {
-        "command": "infernoflow.updateContext",
-        "title": "Update Context",
-        "icon": "$(sync)",
-        "category": "infernoflow"
-      },
-      {
-        "command": "infernoflow.openContext",
-        "title": "Open CONTEXT.md",
-        "icon": "$(file-text)",
-        "category": "infernoflow"
-      },
-      {
-        "command": "infernoflow.openCapabilities",
-        "title": "Open capabilities.json",
-        "icon": "$(file-code)",
-        "category": "infernoflow"
-      },
-      {
-        "command": "infernoflow.changelogUpdate",
-        "title": "Draft Changelog Entry",
-        "icon": "$(edit)",
-        "category": "infernoflow"
-      },
-      {
-        "command": "infernoflow.diff",
-        "title": "Show Capability Diff",
-        "icon": "$(diff)",
-        "category": "infernoflow"
+        "command": "infernoflow.migrateAmp",
+        "title": "Migrate inferno/ \u2192 .ai-memory/",
+        "category": "infernoflow",
+        "icon": "$(file-symlink-directory)"
       }
     ],
     "menus": {
+      "editor/context": [
+        {
+          "command": "infernoflow.logGotcha",
+          "group": "infernoflow@1"
+        },
+        {
+          "command": "infernoflow.logDecision",
+          "group": "infernoflow@2"
+        }
+      ],
       "view/title": [
         {
+          "command": "infernoflow.logGotcha",
+          "when": "view == infernoflow.sessionView",
+          "group": "navigation"
+        },
+        {
+          "command": "infernoflow.switch",
+          "when": "view == infernoflow.sessionView",
+          "group": "navigation"
+        },
+        {
           "command": "infernoflow.refresh",
-          "when": "view == infernoflow.capabilities",
-          "group": "navigation"
-        },
-        {
-          "command": "infernoflow.check",
-          "when": "view == infernoflow.capabilities",
-          "group": "navigation"
-        },
-        {
-          "command": "infernoflow.updateContext",
-          "when": "view == infernoflow.capabilities",
+          "when": "view == infernoflow.sessionView",
           "group": "navigation"
         }
       ]
@@ -139,15 +159,57 @@
         "infernoflow.cliPath": {
           "type": "string",
           "default": "infernoflow",
-          "description": "Path to the infernoflow CLI executable. Defaults to 'infernoflow' (must be on PATH), or set an absolute path."
+          "description": "Path to the infernoflow CLI (used for `switch` and other write-side ops). Default 'infernoflow' must be on PATH."
         },
-        "infernoflow.autoRefreshInterval": {
-          "type": "number",
-          "default": 30,
-          "description": "How often (in seconds) to auto-refresh the status panel. Set to 0 to disable."
+        "infernoflow.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show session-health summary in the status bar."
+        },
+        "infernoflow.showDiagnostics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Surface gotchas as warnings in the Problems panel where files match."
+        },
+        "infernoflow.notifications": {
+          "type": "string",
+          "enum": [
+            "all",
+            "important",
+            "none"
+          ],
+          "default": "important",
+          "description": "Notification level (all = every event, important = gotchas only, none = silent)."
         }
       }
-    }
+    },
+    "keybindings": [
+      {
+        "command": "infernoflow.logGotcha",
+        "key": "ctrl+alt+g",
+        "mac": "cmd+alt+g"
+      },
+      {
+        "command": "infernoflow.logDecision",
+        "key": "ctrl+alt+d",
+        "mac": "cmd+alt+d"
+      },
+      {
+        "command": "infernoflow.ask",
+        "key": "ctrl+alt+a",
+        "mac": "cmd+alt+a"
+      },
+      {
+        "command": "infernoflow.switch",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s"
+      },
+      {
+        "command": "infernoflow.recap",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -169,5 +231,8 @@
   "galleryBanner": {
     "color": "#f97316",
     "theme": "dark"
+  },
+  "dependencies": {
+    "infernoflow-amp": "^1.0.0"
   }
 }
