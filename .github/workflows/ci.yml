@@ -8,13 +8,21 @@ on:
 
 jobs:
   smoke:
-    name: Smoke tests (Node ${{ matrix.node }})
-    runs-on: ubuntu-latest
+    name: Smoke (${{ matrix.os }} · Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         node: [18, 20, 22]
+        # Trim a couple of cells we don't need — Node 18 is fine to verify on
+        # one OS, save the matrix runs.
+        exclude:
+          - os: macos-latest
+            node: 18
+          - os: windows-latest
+            node: 18
 
     steps:
       - name: Checkout
@@ -32,32 +40,13 @@ jobs:
       - name: Build
         run: node build.mjs
 
-      - name: Smoke — core
-        run: node scripts/smoke.mjs
-
-      - name: Smoke — JSON output
-        run: node scripts/json-smoke.mjs
-
-      - name: Smoke — JSON negative cases
-        run: node scripts/json-negative-smoke.mjs
-
-      - name: Smoke — implement
-        run: node scripts/implement-smoke.mjs
-
-      - name: Smoke — adopt
-        run: node scripts/adopt-smoke.mjs
-
-      - name: Smoke — pr-impact
-        run: node scripts/pr-impact-smoke.mjs
-
-      - name: Smoke — sync
-        run: node scripts/sync-smoke.mjs
-
-      - name: Smoke — run
-        run: node scripts/run-smoke.mjs
+      - name: Smoke suite
+        run: npm test
 
   lint:
     name: Syntax check
+    # Stays ubuntu-only — uses `find` which is Unix-specific.
+    # Cross-platform syntax coverage comes from the smoke matrix above.
     runs-on: ubuntu-latest
 
     steps:
@@ -83,6 +72,26 @@ jobs:
           find scripts -name "*.mjs" | while read f; do
             node --input-type=module --check < "$f" || exit 1
           done
+
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      - name: Audit (production deps only)
+        run: npm audit --omit=dev --audit-level=high
 
   publish-dry-run:
     name: Publish dry run

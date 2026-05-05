@@ -1,5 +1,35 @@
 # Changelog — infernoflow
 
+## 0.42.4 — 2026-05-05
+
+### Added
+- **Cross-platform CI matrix** — `.github/workflows/ci.yml` now runs the smoke suite on **ubuntu-latest + windows-latest + macos-latest** across Node 18/20/22 (7 cells total). Catches Windows path / line-ending / shell-quoting bugs at PR time, not after a release.
+- **Production audit job in CI** — `npm audit --omit=dev --audit-level=high` runs on every push so any introduced vulnerability fails the build.
+- **VS Code extension shipped to v0.7.0** — `vscode-extension/package.json` modernised: leads with "Persistent memory for AI coding sessions", expanded keywords (ai-memory, amp, copilot/cursor/claude/windsurf), AI Marketplace category, gallery banner. Activates on the AMP layout (`.ai-memory/sessions.jsonl`) AND on the legacy `inferno/` layout.
+- **`vscode-extension/PUBLISH.md`** — one-time setup walkthrough (Azure DevOps PAT + `vsce login`) and recurring `npx vsce publish` workflow for shipping the extension to the VS Code Marketplace.
+- **`vscode-extension/CHANGELOG.md`** — Marketplace renders it on the listing page.
+
+### Internal
+- Marketplace publish itself is a manual step (needs the maintainer's Azure DevOps PAT). All the prep — version, README, CHANGELOG, manifest fields, gallery banner — is in place; `npx vsce publish` from `vscode-extension/` ships it.
+
+## 0.42.3 — 2026-05-05
+
+### Added
+- **`infernoflow amp` subsystem** — first-class verbs (status / migrate / validate / version) for the AI Memory Protocol. Already surfaced via the `amp` namespace dispatcher.
+- **AMP MCP tool aliases** — `amp_read`, `amp_write`, `amp_handoff`, `amp_search`, `amp_health` exposed alongside the existing `infernoflow_*` tools in the bundled MCP server.
+- **`switch` output redesign** — handoff is now screenshot-worthy:
+  - `## ⚠️ STOP — Read These Before Doing Anything (N gotchas)` banner
+  - Numbered lists for gotchas, decisions, attempts (not bullets)
+  - File paths shown inline next to gotchas (`→ File: src/api.js`)
+  - Session health score in header (`Health: A (90/100)`)
+  - Dropped redundant "Open threads" and "Recent session log" sections
+- **Trust badges in README** — `dependencies-0` and `npm-audit-0-vulnerabilities`. Backed by `npm audit` returning clean.
+- **Demo GIF recording guide** at `docs/DEMO_GIF.md` — 30-second shot list with timings.
+
+### Fixed
+- `switch` health-score computation referenced an undefined `notes` filter; corrected so it builds against the actual gotcha/decision/attempt counts (max 90 instead of 100, since notes don't materialise here).
+- Smoke test's gotcha-section assertion updated to match the new "STOP" header.
+
 ## 0.42.2 — 2026-05-03
 
 ### Added
