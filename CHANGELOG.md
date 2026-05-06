@@ -1,5 +1,18 @@
 # Changelog — infernoflow
 
+## 0.42.6 — 2026-05-06
+
+### Fixed
+- **`infernoflow contract graph` no longer crashes with cryptic "Cannot read properties of undefined (reading 'add')"**. Two issues addressed:
+  1. Friendly error when `inferno/scan.json` is missing — tells the user to run `infernoflow scan` first instead of crashing.
+  2. Defensive guard around the dependency-edge build — stale or duplicate scan entries can no longer trigger the undefined-Set crash.
+- **MCP server: `infernoflow setup` no longer registers a phantom `infernoflow_suggest` tool**. The MCP_TOOLS pre-approval list in `lib/commands/setup.mjs` was out of sync with the actual MCP server (`templates/cursor/inferno-mcp-server.mjs`) — it included one tool that was never implemented and was missing several real ones. Now lists all 14 actual tools: 9 `infernoflow_*` (added `infernoflow_apply`) + 5 `amp_*` aliases (`amp_read`, `amp_write`, `amp_search`, `amp_handoff`, `amp_health`).
+- **MCP server: CLI failures are surfaced as proper JSON-RPC errors**. Previously `runCmd()` swallowed all command failures and returned the raw error text as if it were successful output, so AI agents got garbled stderr mixed into their tool replies. `runCmd()` now returns a structured `{__error, message, stderr, stdout, status}` object on failure; a central check at the dispatcher converts these into `sendError()` calls. `amp_health` and `amp_handoff` defensively handle CLI failures instead of throwing on `.trim()`.
+
+### Notes
+- VS Code extension `infernoflow.infernoflow@0.7.2` shipped on the same day. To get the matching auto-capture popup, CodeLens, bulk-delete, and orphan-handling features, install the extension from the VS Code Marketplace.
+- Existing users running `infernoflow setup` after upgrading to 0.42.6 will see all 14 MCP tools pre-approved correctly. Old `.claude/settings.json` files with the phantom `infernoflow_suggest` entry won't cause harm — that tool just isn't available — but re-running `setup` will clean it up.
+
 ## 0.42.5 — 2026-05-05
 
 ### Added
@@ -67,6 +80,11 @@
 - v0.42.1 — `infernoflow amp` subsystem; protocol package renamed @amp/core → ai-memory-protocol for npm publish
 
 
+
+- VS Code Marketplace badge + extension install section
+
+- extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
+- VS Code Marketplace badge + extension install section
 
 ## 0.42.1 — 2026-05-03
 
