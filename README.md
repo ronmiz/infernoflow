@@ -95,13 +95,24 @@ You don't have to paste anything. Set up once, every future session is better.
 
 ## VS Code extension
 
-For the visual experience inside VS Code (sidebar memory panel, gotchas as Problems-panel warnings, status-bar health score, one-click handoff), install the companion extension:
+The companion extension turns the CLI into a live visual surface inside VS Code. Install it from the Marketplace:
 
 ```
 ext install infernoflow.infernoflow
 ```
 
-Or browse it on the [Marketplace](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow). Activates automatically on any project containing `.ai-memory/sessions.jsonl` or `inferno/`.
+Or browse it [on the Marketplace](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow). Activates automatically on any project containing `.ai-memory/sessions.jsonl` or `inferno/`.
+
+**What you get (v0.7.2):**
+
+- **Auto-capture popup** — when you edit the same file 5+ times in 10 minutes, a popup asks "Stuck on something?" with [Log Gotcha] [Log Attempt] [Dismiss] buttons. Click once → entry is auto-written with timestamp, file:line, the enclosing function name, a 5-line code-context window, and any nearby TypeScript/ESLint diagnostics. Zero typing.
+- **Sidebar memory panel** — Session Health (A–F grade), Gotchas, Decisions, Failed Attempts, Quick Actions, and a CLI Tools section with one-click access to 11 CLI commands (status, check, doctor, scan, init --adopt, setup, ai setup, install-cursor-hooks, watch, cloud status, show context).
+- **Inline CodeLens** — `🔥 ⚠ 2 gotchas · 1 failed · 1 decision` above any file with logged entries. Per-line annotations at gotcha locations. Click for full entry detail.
+- **Editor diagnostics** — gotchas as yellow Warnings, failed attempts as blue Information squiggles. Visible in the Problems panel and as inline squiggles. Copilot reads them too.
+- **Status bar** — `🔥 B 65 · ⚠3 · ✓2 · ❌1 · 📋 Switch` with grade-based color coding. Click to open the panel; click "Switch" to copy a handoff.
+- **Bulk delete + orphan cleanup** — "Manage entries…" picker grouped by date for cleaning up old entries. "Cleanup orphaned entries…" finds entries whose source files were deleted (e.g., after a refactor) and lets you bulk-remove them.
+- **Help tooltips on everything** — hover any sidebar item or section header for a description of what it does, when to use it, and what happens when clicked.
+- **Keyboard shortcuts** — `Ctrl+Alt+G/D/A/S/R` for log gotcha / log decision / ask memory / generate handoff / show recap.
 
 ## Cursor / VS Code MCP integration
 

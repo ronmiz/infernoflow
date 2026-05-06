@@ -1,5 +1,10 @@
 # Changelog — infernoflow
 
+## 0.42.7 — 2026-05-06
+
+### Fixed
+Same content as 0.42.6 — that version got registered on npm during a flaky publish attempt but the dist contents were stale. 0.42.7 is the actual usable build with these fixes:
+
 ## 0.42.6 — 2026-05-06
 
 ### Fixed
@@ -83,6 +88,10 @@
 
 - VS Code Marketplace badge + extension install section
 
+- extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
+- VS Code Marketplace badge + extension install section
+
+- infernoflow CLI v0.42.6: graph crash fix + MCP setup/error-handling hotfixes
 - extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
 - VS Code Marketplace badge + extension install section
 
