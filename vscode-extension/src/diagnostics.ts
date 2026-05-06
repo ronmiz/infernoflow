@@ -59,7 +59,9 @@ export class InfernoDiagnostics {
 
   private refreshDocument(doc: vscode.TextDocument): void {
     if (doc.uri.scheme !== "file") return;
-    const entries = ampIO.forFile(doc.uri.fsPath).filter(e => e.type === "gotcha");
+    const entries = ampIO.forFile(doc.uri.fsPath).filter(
+      e => e.type === "gotcha" || e.type === "attempt",
+    );
     if (entries.length === 0) {
       this.collection.delete(doc.uri);
       return;
@@ -69,13 +71,15 @@ export class InfernoDiagnostics {
         ? Math.min(entry.line - 1, Math.max(0, doc.lineCount - 1))
         : 0;
       const range = doc.lineAt(targetLine).range;
-      const diag = new vscode.Diagnostic(
-        range,
-        `🔥 gotcha: ${entry.msg}`,
-        vscode.DiagnosticSeverity.Warning,
-      );
+      // Gotchas → Warning (yellow squiggle), Failed Attempts → Information (blue squiggle)
+      const isGotcha = entry.type === "gotcha";
+      const severity = isGotcha
+        ? vscode.DiagnosticSeverity.Warning
+        : vscode.DiagnosticSeverity.Information;
+      const prefix = isGotcha ? "🔥 gotcha" : "❌ failed attempt";
+      const diag = new vscode.Diagnostic(range, `${prefix}: ${entry.msg}`, severity);
       diag.source = SOURCE;
-      diag.code = "gotcha";
+      diag.code = entry.type;
       return diag;
     });
     this.collection.set(doc.uri, diags);

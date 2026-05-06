@@ -7,9 +7,33 @@ function send(obj) { process.stdout.write(JSON.stringify(obj) + "\n"); }
 function sendResult(id, result) { send({ jsonrpc: "2.0", id, result }); }
 function sendError(id, code, message) { send({ jsonrpc: "2.0", id, error: { code, message } }); }
 
+/**
+ * Run the infernoflow CLI. Returns either the stdout string OR a structured
+ * error object so call sites can decide whether to surface it via JSON-RPC
+ * sendError() instead of returning gibberish text to the agent.
+ */
 function runCmd(args, env = {}) {
-  try { return execSync(`npx infernoflow ${args}`, { encoding: "utf8", cwd: process.cwd(), timeout: 30000, env: { ...process.env, ...env } }); }
-  catch (err) { return err.stdout || err.message; }
+  try {
+    return execSync(`npx infernoflow ${args}`, {
+      encoding: "utf8",
+      cwd: process.cwd(),
+      timeout: 30000,
+      env: { ...process.env, ...env },
+    });
+  } catch (err) {
+    return {
+      __error: true,
+      message: err.message || "command failed",
+      stderr: err.stderr || "",
+      stdout: err.stdout || "",
+      status: err.status ?? 1,
+    };
+  }
+}
+
+/** True if a runCmd() result is actually a structured error. */
+function isCmdError(result) {
+  return typeof result === "object" && result !== null && result.__error === true;
 }
 
 const TOOLS = [
@@ -480,7 +504,10 @@ function handleTool(id, name, input) {
       text = runCmd(`log ${m} --type ${t} ${extras.join(" ")}`);
     } else if (name === "amp_handoff") {
       // switch writes a file; we read it back to return the content
-      runCmd("switch");
+      const switchResult = runCmd("switch");
+      if (isCmdError(switchResult)) {
+        return sendError(id, -32000, `infernoflow switch failed: ${switchResult.message}\n${switchResult.stderr || switchResult.stdout || ""}`.trim());
+      }
       try {
         const ampPath    = path.join(process.cwd(), ".ai-memory", "handoff.md");
         const legacyPath = path.join(process.cwd(), "inferno",    "HANDOFF.md");
@@ -498,9 +525,25 @@ function handleTool(id, name, input) {
       if (input.type) args.push("--type", input.type);
       text = runCmd("ask " + args.join(" "));
     } else if (name === "amp_health") {
-      text = runCmd("recap --json").trim() || runCmd("status");
+      const recap = runCmd("recap --json");
+      if (isCmdError(recap)) {
+        text = runCmd("status");
+      } else {
+        text = recap.trim() || runCmd("status");
+      }
 
     } else { return sendError(id, -32601, `Unknown tool: ${name}`); }
+
+    // Central error check — if any runCmd() call produced a structured error,
+    // surface it as a real JSON-RPC error so the calling AI sees a proper
+    // failure instead of garbled stderr text mixed into a "successful" reply.
+    if (isCmdError(text)) {
+      const detail = (text.stderr || text.stdout || "").trim();
+      const fullMsg = detail
+        ? `infernoflow CLI failed: ${text.message}\n${detail}`
+        : `infernoflow CLI failed: ${text.message}`;
+      return sendError(id, -32000, fullMsg);
+    }
     sendResult(id, { content: [{ type: "text", text: text || "(no output)" }] });
   } catch (err) { sendError(id, -32000, err.message); }
 }

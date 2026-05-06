@@ -1,6 +1,10 @@
 .vscode/**
 src/**
-node_modules/**
 tsconfig.json
 .gitignore
 *.map
+
+# Keep production dependencies — they must be inside the .vsix because
+# VS Code does not run `npm install` after extension install.
+# vsce automatically prunes devDependencies from node_modules during packaging,
+# so only `dependencies` (runtime) ship in the final .vsix.

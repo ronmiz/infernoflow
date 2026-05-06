@@ -106,6 +106,57 @@ class AmpIO {
     }
   }
 
+  /**
+   * Delete an entry by id. Reads all entries, filters out the one with the
+   * matching id, and rewrites the JSONL file. AMP is conceptually
+   * append-only, so this is a hard delete — there's no tombstone left
+   * behind. Returns true if an entry was removed, false if not found or on
+   * error.
+   */
+  deleteEntry(id: string): boolean {
+    return this.deleteEntries([id]) > 0;
+  }
+
+  /**
+   * Bulk-delete entries by id. Single read + single write, so it scales
+   * linearly with file size regardless of how many ids are removed.
+   * Returns the number of entries actually deleted.
+   */
+  deleteEntries(ids: string[]): number {
+    if (!this.root || ids.length === 0) return 0;
+    const sessionsPath = this.sessionsPath();
+    if (!sessionsPath || !fs.existsSync(sessionsPath)) return 0;
+    const idSet = new Set(ids);
+
+    try {
+      const lines = fs.readFileSync(sessionsPath, "utf8").split("\n");
+      let removed = 0;
+      const kept: string[] = [];
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const entry = JSON.parse(line);
+          if (entry.id && idSet.has(entry.id)) {
+            removed++;
+            continue;
+          }
+          kept.push(line);
+        } catch {
+          // Preserve malformed lines verbatim
+          kept.push(line);
+        }
+      }
+      if (removed === 0) return 0;
+      fs.writeFileSync(sessionsPath, kept.length ? kept.join("\n") + "\n" : "", "utf8");
+      this.listeners.forEach(l => { try { l(); } catch { /* ignore */ } });
+      return removed;
+    } catch (err: unknown) {
+      const m = err instanceof Error ? err.message : String(err);
+      vscode.window.showErrorMessage(`infernoflow: failed to delete entries — ${m}`);
+      return 0;
+    }
+  }
+
   /** Aggregate counts + health score for the status bar / sidebar header. */
   summary(): MemorySummary {
     const entries = this.readEntries();

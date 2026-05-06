@@ -2,7 +2,7 @@
   "name": "infernoflow",
   "displayName": "infernoflow",
   "description": "Persistent memory for AI coding sessions \u2014 live sidebar over .ai-memory/ (AMP). Captures gotchas, decisions, dead ends and replays them into Cursor / Copilot / Claude / Windsurf.",
-  "version": "0.7.0",
+  "version": "0.7.2",
   "publisher": "infernoflow",
   "license": "MIT",
   "repository": {
@@ -122,6 +122,95 @@
         "title": "Migrate inferno/ \u2192 .ai-memory/",
         "category": "infernoflow",
         "icon": "$(file-symlink-directory)"
+      },
+      {
+        "command": "infernoflow.cliStatus",
+        "title": "Status",
+        "category": "infernoflow",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "infernoflow.cliCheck",
+        "title": "Check (validate contract + memory)",
+        "category": "infernoflow",
+        "icon": "$(verified)"
+      },
+      {
+        "command": "infernoflow.cliDoctor",
+        "title": "Doctor (diagnose setup)",
+        "category": "infernoflow",
+        "icon": "$(stethoscope)"
+      },
+      {
+        "command": "infernoflow.cliScan",
+        "title": "Scan codebase (deep AST)",
+        "category": "infernoflow",
+        "icon": "$(search-fuzzy)"
+      },
+      {
+        "command": "infernoflow.cliInitAdopt",
+        "title": "Init project with adopt scan",
+        "category": "infernoflow",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "infernoflow.cliSetup",
+        "title": "Setup MCP integration",
+        "category": "infernoflow",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "infernoflow.cliAiSetup",
+        "title": "AI setup (configure provider)",
+        "category": "infernoflow",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "infernoflow.cliInstallCursor",
+        "title": "Install Cursor hooks",
+        "category": "infernoflow",
+        "icon": "$(extensions)"
+      },
+      {
+        "command": "infernoflow.cliWatch",
+        "title": "Watch (auto-capture mode)",
+        "category": "infernoflow",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "infernoflow.cliCloudStatus",
+        "title": "Cloud status",
+        "category": "infernoflow",
+        "icon": "$(cloud)"
+      },
+      {
+        "command": "infernoflow.cliContext",
+        "title": "Show context",
+        "category": "infernoflow",
+        "icon": "$(book)"
+      },
+      {
+        "command": "infernoflow.deleteEntry",
+        "title": "Delete this entry",
+        "category": "infernoflow",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "infernoflow.manageEntries",
+        "title": "Manage entries (bulk select & delete)",
+        "category": "infernoflow",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "infernoflow.cleanupOrphaned",
+        "title": "Cleanup orphaned entries (file deleted)",
+        "category": "infernoflow",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "infernoflow.handleOrphaned",
+        "title": "Handle orphaned entry",
+        "category": "infernoflow"
       }
     ],
     "menus": {
@@ -151,11 +240,33 @@
           "when": "view == infernoflow.sessionView",
           "group": "navigation"
         }
+      ],
+      "view/item/context": [
+        {
+          "command": "infernoflow.deleteEntry",
+          "when": "view == infernoflow.sessionView && viewItem == entry",
+          "group": "modify@1"
+        },
+        {
+          "command": "infernoflow.deleteEntry",
+          "when": "view == infernoflow.sessionView && viewItem == entry-orphaned",
+          "group": "modify@1"
+        },
+        {
+          "command": "infernoflow.handleOrphaned",
+          "when": "view == infernoflow.sessionView && viewItem == entry-orphaned",
+          "group": "modify@2"
+        }
       ]
     },
     "configuration": {
       "title": "infernoflow",
       "properties": {
+        "infernoflow.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Master switch for the extension. Set to false to fully disable infernoflow without uninstalling."
+        },
         "infernoflow.cliPath": {
           "type": "string",
           "default": "infernoflow",
@@ -169,7 +280,24 @@
         "infernoflow.showDiagnostics": {
           "type": "boolean",
           "default": true,
-          "description": "Surface gotchas as warnings in the Problems panel where files match."
+          "description": "Surface gotchas as warnings (and failed attempts as info) in the Problems panel where files match."
+        },
+        "infernoflow.showCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline memory annotations above files with logged entries (gotcha/decision/attempt counts + per-line indicators)."
+        },
+        "infernoflow.autoCapture.repeatedEdits": {
+          "type": "boolean",
+          "default": true,
+          "description": "Detect when you edit the same file repeatedly in a short window and prompt to log a gotcha or failed attempt."
+        },
+        "infernoflow.autoCapture.repeatedEditsThreshold": {
+          "type": "number",
+          "default": 5,
+          "minimum": 2,
+          "maximum": 50,
+          "description": "Number of edits in a 10-minute window that triggers the 'Stuck on something?' prompt."
         },
         "infernoflow.notifications": {
           "type": "string",
