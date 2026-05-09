@@ -1,5 +1,14 @@
 # Changelog — infernoflow
 
+## 0.43.3 — 2026-05-06
+
+### Internal
+- **Slimmer npm package** — drops ~30 KB from the unpacked install:
+  - `CHANGELOG.md` no longer ships in the npm tarball (still in the GitHub repo). npm doesn't render it separately, so this is pure waste removed. Saves ~25 KB.
+  - Build now uses `legalComments: "none"` in esbuild — strips license header comments from minified output. Saves a few KB across 49 modules.
+  - Removed redundant `dist/lib/templates` entry from the `files` array (already shipped via `dist/templates`).
+- **No functionality changes** — all 49 commands work identically. Pure size cut.
+
 ## 0.43.2 — 2026-05-06
 
 ### Added
@@ -147,6 +156,13 @@ Same content as 0.42.6 — that version got registered on npm during a flaky pub
 - extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
 - VS Code Marketplace badge + extension install section
 
+- extension v0.7.3 + CLI v0.43.2: AI context injection loop (auto-sync rule files, file-ranked memory), agent conversation harvesting, visual graph w/ component+entry+UI layers, doctor Windows fix
+- infernoflow CLI v0.42.7: graph crash fix + MCP setup/error-handling hotfixes; README v0.7.2 extension features
+- infernoflow CLI v0.42.6: graph crash fix + MCP setup/error-handling hotfixes
+- extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
+- VS Code Marketplace badge + extension install section
+
+- v0.7.3 + CLI v0.43.x: AI injection loop closed (auto-sync rules, recent commits, ranked memory), AI session summarize, success-signal harvesting, MCP fixes, visual graph w/ component+UI tiers, doctor Windows fix
 - extension v0.7.3 + CLI v0.43.2: AI context injection loop (auto-sync rule files, file-ranked memory), agent conversation harvesting, visual graph w/ component+entry+UI layers, doctor Windows fix
 - infernoflow CLI v0.42.7: graph crash fix + MCP setup/error-handling hotfixes; README v0.7.2 extension features
 - infernoflow CLI v0.42.6: graph crash fix + MCP setup/error-handling hotfixes

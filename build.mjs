@@ -32,6 +32,7 @@ await build({
   target: "node18",
   minify: true,
   bundle: false,
+  legalComments: "none",   // strip license header comments from minified output
   outExtension: { ".js": ".mjs" },
   logLevel: "warning",
 });
