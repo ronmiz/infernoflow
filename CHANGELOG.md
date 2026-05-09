@@ -2,7 +2,7 @@
 
 ## 0.43.4 — 2026-05-09
 
-Same content as 0.43.3 — that version got registered on npm during a flaky publish but the tarball didn't get published. 0.43.4 is the actual usable build.
+Promoted to "latest" via `npm dist-tag add` after the publish API errored despite tarballs landing on the CDN. Same content as 0.43.3 — slim package + updated README.
 
 ## 0.43.3 — 2026-05-06
 
@@ -166,6 +166,14 @@ Same content as 0.42.6 — that version got registered on npm during a flaky pub
 - extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
 - VS Code Marketplace badge + extension install section
 
+- v0.7.3 + CLI v0.43.x: AI injection loop closed (auto-sync rules, recent commits, ranked memory), AI session summarize, success-signal harvesting, MCP fixes, visual graph w/ component+UI tiers, doctor Windows fix
+- extension v0.7.3 + CLI v0.43.2: AI context injection loop (auto-sync rule files, file-ranked memory), agent conversation harvesting, visual graph w/ component+entry+UI layers, doctor Windows fix
+- infernoflow CLI v0.42.7: graph crash fix + MCP setup/error-handling hotfixes; README v0.7.2 extension features
+- infernoflow CLI v0.42.6: graph crash fix + MCP setup/error-handling hotfixes
+- extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
+- VS Code Marketplace badge + extension install section
+
+- v0.7.3 extension + CLI v0.43.3: AI context loop, summarize, agent harvest, new icon, slimmer npm package
 - v0.7.3 + CLI v0.43.x: AI injection loop closed (auto-sync rules, recent commits, ranked memory), AI session summarize, success-signal harvesting, MCP fixes, visual graph w/ component+UI tiers, doctor Windows fix
 - extension v0.7.3 + CLI v0.43.2: AI context injection loop (auto-sync rule files, file-ranked memory), agent conversation harvesting, visual graph w/ component+entry+UI layers, doctor Windows fix
 - infernoflow CLI v0.42.7: graph crash fix + MCP setup/error-handling hotfixes; README v0.7.2 extension features

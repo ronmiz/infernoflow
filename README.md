@@ -103,15 +103,29 @@ ext install infernoflow.infernoflow
 
 Or browse it [on the Marketplace](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow). Activates automatically on any project containing `.ai-memory/sessions.jsonl` or `inferno/`.
 
-**What you get (v0.7.2):**
+**What you get (v0.7.3):**
 
-- **Auto-capture popup** — when you edit the same file 5+ times in 10 minutes, a popup asks "Stuck on something?" with [Log Gotcha] [Log Attempt] [Dismiss] buttons. Click once → entry is auto-written with timestamp, file:line, the enclosing function name, a 5-line code-context window, and any nearby TypeScript/ESLint diagnostics. Zero typing.
-- **Sidebar memory panel** — Session Health (A–F grade), Gotchas, Decisions, Failed Attempts, Quick Actions, and a CLI Tools section with one-click access to 11 CLI commands (status, check, doctor, scan, init --adopt, setup, ai setup, install-cursor-hooks, watch, cloud status, show context).
+The extension closes a real loop: **capture** the right thing → **rank** it for the file you're editing → **inject** it into the AI's context automatically.
+
+#### Capture (zero-typing memory)
+
+- **Auto-capture popup** — when you edit the same file 5+ times in 10 minutes, a popup asks "Stuck on something?" with [Log Gotcha] [Log Attempt] [Dismiss] buttons. Click once → entry is auto-written with timestamp, file:line, the enclosing function name, a 5-line code-context window, nearby TypeScript/ESLint diagnostics, AND failure/success-keyword excerpts from the recent agent conversation.
+- **Agent conversation harvest** — if you've installed Cursor / Copilot hooks (`infernoflow install-cursor-hooks`), every agent exchange writes to `CONTEXT.draft.md`. Auto-capture pulls failure-signal lines (`error`, `cannot`, `still failing`) AND resolution-signal lines (`got it`, `the fix was`, `turns out`) so the gotcha tells the full arc — breakdown and breakthrough.
+- **AI session summarize** — new "Summarize session with AI" action runs the recent conversation through Copilot (via VS Code LM API) or your configured AI provider, proposes 1–6 structured memory entries, shows them in a multi-select picker. Tick which to keep.
+- **Bulk delete + orphan cleanup** — "Manage entries…" picker grouped by date for cleanups. "Cleanup orphaned entries…" finds entries whose source files were deleted (e.g., after refactor) for bulk removal.
+
+#### Inject (closing the loop)
+
+- **AI Context for [current file]** sidebar section — shows top 5 most-relevant entries for whatever file you're editing, scored by: same file (+100), same directory (+40), same extension (+10), recent (+20), type-weighted. Updates as you switch editors.
+- **Auto-sync rule files** (default on, debounced 1.5s) — on every memory change OR editor switch, the extension rewrites `.cursorrules` / `CLAUDE.md` / `.github/copilot-instructions.md` with the current ranking. Recent git commits go at the top, top-5 most-relevant memory entries next, older context collapsed under `<details>`. Idempotent — uses delimiter comments, doesn't trample your manual edits. **Result: when you open a NEW AI chat in the same VS Code session, the AI tool reads the updated rule files at chat start and sees the right gotchas first — no manual "rebuild" step required.**
 - **Inline CodeLens** — `🔥 ⚠ 2 gotchas · 1 failed · 1 decision` above any file with logged entries. Per-line annotations at gotcha locations. Click for full entry detail.
-- **Editor diagnostics** — gotchas as yellow Warnings, failed attempts as blue Information squiggles. Visible in the Problems panel and as inline squiggles. Copilot reads them too.
-- **Status bar** — `🔥 B 65 · ⚠3 · ✓2 · ❌1 · 📋 Switch` with grade-based color coding. Click to open the panel; click "Switch" to copy a handoff.
-- **Bulk delete + orphan cleanup** — "Manage entries…" picker grouped by date for cleaning up old entries. "Cleanup orphaned entries…" finds entries whose source files were deleted (e.g., after a refactor) and lets you bulk-remove them.
-- **Help tooltips on everything** — hover any sidebar item or section header for a description of what it does, when to use it, and what happens when clicked.
+- **Editor diagnostics** — gotchas as yellow Warnings, failed attempts as blue Information squiggles. Copilot reads them.
+
+#### Surface
+
+- **Sidebar memory panel** — Session Health (A–F), AI Context for [current file], Gotchas, Decisions, Failed Attempts, Quick Actions, CLI Tools (one-click access to 11 CLI commands).
+- **Status bar** — `🔥 B 65 · ⚠3 · ✓2 · ❌1 · 📋 Switch` with grade-based color coding.
+- **Help tooltips everywhere** — hover any sidebar item for a description of what it does, when to use it, what happens when clicked.
 - **Keyboard shortcuts** — `Ctrl+Alt+G/D/A/S/R` for log gotcha / log decision / ask memory / generate handoff / show recap.
 
 ## Cursor / VS Code MCP integration
