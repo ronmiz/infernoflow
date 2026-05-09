@@ -22,6 +22,19 @@ Before this release, capturing memory was strong but injecting it into the AI's 
 - **What this fixes:** when a developer opens a NEW AI chat in the SAME VS Code session, the AI tool reads the rule files at chat start. Before this, the files reflected only the last manual "Rebuild" click — any gotchas logged since were missing. Now, every new chat gets the current memory ranked for the file in focus, no manual step required.
 - Disable via Settings → search `infernoflow.autoSyncRules` → uncheck. Manual rebuild still available via the sidebar action or command palette.
 
+### Added — recent git commits in AI context
+- **`.cursorrules` / `CLAUDE.md` / `copilot-instructions.md` now include the last 10 git commits** at the top of the infernoflow-managed section. Format: `\`<hash>\` _<date>_ <subject>` plus the changed files (capped at 5 files for the 5 most recent commits to keep cost bounded).
+- **Why:** when you open a new AI chat, the agent now sees "what was just done" alongside "what to avoid." Example — you commit `fix: handle empty arrays in parser` 30 min ago, open Claude, ask "help me debug parser." Claude already knows that commit happened. No more wasted re-discovery.
+- Failsafe: if the workspace isn't a git repo or git isn't on PATH, the commits section is silently skipped — no error, no noise.
+
+### Added — agent conversation captures successes too
+- **Resolution-keyword harvesting**. The auto-capture popup's draft-tail scan now matches success/breakthrough phrases (`got it`, `fixed`, `working now`, `the issue was`, `the trick is`, `turns out`, `ah, of course`, `the fix was`, etc.) in addition to failure keywords. So future-you sees both the breakdown AND the breakthrough — the gotcha tells the full arc, not just where things went wrong. Toggle: `infernoflow.captureSuccessSignals` (default true).
+
+### Added — AI-summarized session sweep
+- **"Summarize session with AI" action** in Quick Actions (also `Ctrl+Shift+P → infernoflow: Summarize session`). Reads `CONTEXT.draft.md`, asks an AI provider to extract 1–6 structured memory entries (gotchas / decisions / attempts / notes), shows them in a multi-select picker pre-checked to "keep all," lets you uncheck the ones you don't want, saves the rest. Captures conceptual learnings the keyword-based harvest misses — architectural decisions, "we agreed to do X because Y," etc.
+- **Provider: VS Code LM API first** (zero config — uses your Copilot subscription if signed in), falls back to the CLI's configured AI provider (`infernoflow ai setup`). If neither is available, points the user at `infernoflow ai setup`.
+- **Privacy note**: this sends the recent agent transcript to whichever provider is active. Disable by not invoking the command — there's no auto-trigger.
+
 ### Added
 - **Auto-capture now harvests the AI agent conversation**. When the popup fires and you click "Log Gotcha" / "Log Attempt", the auto-message now includes recent failure-signal lines from `.ai-memory/CONTEXT.draft.md` (or legacy `inferno/CONTEXT.draft.md`) — the file that the Cursor/Copilot hooks write after every agent exchange. So when you and the AI have been going back and forth on the same problem without success, the actual transcript of that struggle gets captured into the gotcha. No more "Stuck on X — 5 edits" with no idea WHY you were stuck. You see the actual error messages the AI was hitting.
 - **Failure-keyword detection** — looks for lines containing `error`, `Error:`, `fail`, `doesn't work`, `still`, `again`, `TypeError`, `cannot`, `broke`, etc. Pulls the last 5 such lines from the recent (≤30-min-old) draft.

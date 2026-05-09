@@ -5,19 +5,24 @@
  * reads the right gotchas at the right time. After 50+ entries, dumping
  * everything into CLAUDE.md / .cursorrules makes the AI ignore most of it.
  *
- * This module ranks entries by relevance to the file the user is currently
- * editing, and exposes:
+ * This module:
+ *   1. Ranks memory entries by relevance to the file the user is currently
+ *      editing.
+ *   2. Pulls the last N git commits (with file lists for the most recent 5).
+ *   3. Stitches both into the infernoflow-managed sections of
+ *      .cursorrules / CLAUDE.md / .github/copilot-instructions.md so the
+ *      next AI session sees: recent commits → relevant memory → older context.
+ *
+ * Public API:
  *
  *   - rankedForFile(activeFile)
- *       Returns entries sorted by relevance score, newest as tiebreaker.
+ *       Returns memory entries sorted by relevance score (newest as tiebreaker).
  *
  *   - rebuildAiRuleFiles(activeFile?)
- *       Rewrites the infernoflow-managed sections of CLAUDE.md /
- *       .cursorrules / .github/copilot-instructions.md with the most
- *       relevant gotchas at the top, less relevant collapsed below. Idempotent
- *       — uses delimiter comments to find and replace its own section.
+ *       Rebuilds all three rule files. Idempotent — uses delimiter comments
+ *       to find and replace its own section, preserves the rest.
  *
- * Relevance scoring:
+ * Relevance scoring (for memory entries):
  *   - Same file               +100
  *   - Same directory          + 40
  *   - Same file extension     + 10
@@ -28,6 +33,7 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
+import { execSync } from "child_process";
 import { ampIO } from "./amp";
 import type { AMPEntry } from "infernoflow-amp";
 
@@ -88,6 +94,63 @@ export function rankedForFile(activeFile: string | undefined): ScoredEntry[] {
   return scored;
 }
 
+// ── Recent git commits (cheap snapshot for AI context) ──────────────────────
+
+interface GitCommit {
+  hash:    string;
+  date:    string;     // ISO short, e.g. "2026-05-06 22:15"
+  author:  string;
+  subject: string;
+  files:   string[];   // empty for older commits to keep this fast
+}
+
+/**
+ * Read the last N git commits with their changed files. Returns an empty
+ * array if the workspace isn't a git repo, git isn't on PATH, or anything
+ * else goes wrong — this is informational, never blocking.
+ *
+ * Format used:
+ *   --pretty=format:"%H|%ad|%an|%s" --date=short
+ * Then a second call per commit for the file list (cap at 5 commits to keep
+ * cheap — older commits get just the subject line).
+ */
+function getRecentCommits(root: string, limit = 10): GitCommit[] {
+  try {
+    const log = execSync(
+      `git log -n ${limit} --pretty=format:"%H|%ad|%an|%s" --date=format:"%Y-%m-%d %H:%M"`,
+      { cwd: root, encoding: "utf8", timeout: 3000, stdio: ["ignore", "pipe", "ignore"] },
+    ).trim();
+    if (!log) return [];
+
+    const commits: GitCommit[] = log.split("\n").map((line, i) => {
+      const [hash, date, author, ...subjectParts] = line.split("|");
+      const subject = subjectParts.join("|").trim();
+      let files: string[] = [];
+      // Pull file list for the 5 most recent commits only (cost-bounded)
+      if (i < 5 && hash) {
+        try {
+          const f = execSync(
+            `git show --pretty="" --name-only ${hash}`,
+            { cwd: root, encoding: "utf8", timeout: 2000, stdio: ["ignore", "pipe", "ignore"] },
+          ).trim();
+          files = f.split("\n").filter(Boolean).slice(0, 5);
+        } catch { /* ignore — fall through with empty files */ }
+      }
+      return {
+        hash:    (hash || "").slice(0, 7),
+        date:    date || "",
+        author:  author || "",
+        subject: subject || "",
+        files,
+      };
+    }).filter(c => c.subject); // drop empty rows
+
+    return commits;
+  } catch {
+    return [];
+  }
+}
+
 // ── Rule-file rebuilder ──────────────────────────────────────────────────────
 
 /**
@@ -95,8 +158,11 @@ export function rankedForFile(activeFile: string | undefined): ScoredEntry[] {
  * Top 5 entries are listed in full; everything else is collapsed under a
  * "Older context" detail block so AI tools don't get noisy after 50+ entries.
  */
-function buildSection(scored: ScoredEntry[], activeFile: string | undefined): string {
-  if (scored.length === 0) {
+function buildSection(scored: ScoredEntry[], activeFile: string | undefined, commits: GitCommit[]): string {
+  const haveMemory  = scored.length > 0;
+  const haveCommits = commits.length > 0;
+
+  if (!haveMemory && !haveCommits) {
     return [
       SECTION_START,
       "<!-- Auto-managed by infernoflow. Don't edit between these markers. -->",
@@ -111,43 +177,60 @@ function buildSection(scored: ScoredEntry[], activeFile: string | undefined): st
   lines.push("<!-- Auto-managed by infernoflow. Don't edit between these markers. -->");
   lines.push("## Project memory (infernoflow)");
   lines.push("");
-  lines.push("_Sorted by relevance to the file you're currently editing._");
+  if (haveMemory) {
+    lines.push("_Memory entries sorted by relevance to the file you're currently editing._");
+  }
   if (activeFile) lines.push(`_Active file: \`${activeFile}\`._`);
   lines.push("");
 
-  const ICON: Record<string, string> = {
-    gotcha:    "⚠",
-    decision:  "✓",
-    attempt:   "✗",
-    note:      "·",
-    detection: "○",
-    pattern:   "◇",
-  };
-
-  // Top 5 in full
-  const top = scored.slice(0, 5);
-  if (top.length > 0) {
-    lines.push("### Most relevant");
-    for (const { entry: e } of top) {
-      const fileRef = e.file ? ` (\`${e.file}${e.line ? ":" + e.line : ""}\`)` : "";
-      lines.push(`- ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${e.msg.replace(/\n/g, " ")}`);
+  // Recent commits FIRST — they're the highest-signal "what just happened" context
+  if (haveCommits) {
+    lines.push("### Recent commits");
+    for (let i = 0; i < commits.length; i++) {
+      const c = commits[i];
+      const filesNote = c.files.length > 0
+        ? `\n  &nbsp;&nbsp;changed: ${c.files.map(f => `\`${f}\``).join(", ")}`
+        : "";
+      lines.push(`- \`${c.hash}\` _${c.date}_ ${c.subject}${filesNote}`);
     }
     lines.push("");
   }
 
-  // Rest collapsed in <details>
-  const rest = scored.slice(5);
-  if (rest.length > 0) {
-    lines.push(`<details>`);
-    lines.push(`<summary>Older context (${rest.length} more)</summary>`);
-    lines.push("");
-    for (const { entry: e } of rest) {
-      const fileRef = e.file ? ` (\`${e.file}${e.line ? ":" + e.line : ""}\`)` : "";
-      lines.push(`- ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${e.msg.replace(/\n/g, " ").slice(0, 140)}${e.msg.length > 140 ? "…" : ""}`);
+  if (haveMemory) {
+    const ICON: Record<string, string> = {
+      gotcha:    "⚠",
+      decision:  "✓",
+      attempt:   "✗",
+      note:      "·",
+      detection: "○",
+      pattern:   "◇",
+    };
+
+    // Top 5 in full
+    const top = scored.slice(0, 5);
+    if (top.length > 0) {
+      lines.push("### Most relevant memory");
+      for (const { entry: e } of top) {
+        const fileRef = e.file ? ` (\`${e.file}${e.line ? ":" + e.line : ""}\`)` : "";
+        lines.push(`- ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${e.msg.replace(/\n/g, " ")}`);
+      }
+      lines.push("");
     }
-    lines.push("");
-    lines.push(`</details>`);
-    lines.push("");
+
+    // Rest collapsed in <details>
+    const rest = scored.slice(5);
+    if (rest.length > 0) {
+      lines.push(`<details>`);
+      lines.push(`<summary>Older context (${rest.length} more)</summary>`);
+      lines.push("");
+      for (const { entry: e } of rest) {
+        const fileRef = e.file ? ` (\`${e.file}${e.line ? ":" + e.line : ""}\`)` : "";
+        lines.push(`- ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${e.msg.replace(/\n/g, " ").slice(0, 140)}${e.msg.length > 140 ? "…" : ""}`);
+      }
+      lines.push("");
+      lines.push(`</details>`);
+      lines.push("");
+    }
   }
 
   lines.push(SECTION_END);
@@ -193,7 +276,8 @@ export function rebuildAiRuleFiles(activeFile?: string): { updated: number; tota
   if (!root) return { updated: 0, total: 0 };
 
   const scored    = rankedForFile(activeFile);
-  const sectionMd = buildSection(scored, activeFile);
+  const commits   = getRecentCommits(root, 10);
+  const sectionMd = buildSection(scored, activeFile, commits);
 
   let updated = 0;
   for (const rel of RULE_FILES) {

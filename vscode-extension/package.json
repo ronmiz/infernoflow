@@ -217,6 +217,12 @@
         "title": "Rebuild AI rule files (file-prioritized)",
         "category": "infernoflow",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "infernoflow.summarizeSession",
+        "title": "Summarize session with AI (preview & save)",
+        "category": "infernoflow",
+        "icon": "$(sparkle)"
       }
     ],
     "menus": {
@@ -304,6 +310,11 @@
           "minimum": 2,
           "maximum": 50,
           "description": "Number of edits in a 10-minute window that triggers the 'Stuck on something?' prompt."
+        },
+        "infernoflow.captureSuccessSignals": {
+          "type": "boolean",
+          "default": true,
+          "description": "When auto-capture harvests recent agent conversation, also pull lines containing resolution keywords (got it, fixed, the trick is, etc.). Captures the breakthrough alongside the breakdown. Disable if you find these add noise."
         },
         "infernoflow.autoSyncRules": {
           "type": "boolean",

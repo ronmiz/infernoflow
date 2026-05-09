@@ -35,11 +35,23 @@ import * as path from "path";
 
 const TIME_WINDOW_MS = 10 * 60 * 1000;   // 10 minutes
 const COOLDOWN_MS    = 60 * 1000;        // 60s mute after a popup fires
+// Lines containing any of these phrases get pulled from CONTEXT.draft.md
+// into the auto-captured gotcha. We split into "failures" (the struggle)
+// and "resolutions" (the eventual fix) — both signal the same story arc:
+// "we hit X, and Y is what worked / didn't work" — so future-you sees both
+// the landmine AND the path that actually got past it. Without resolution
+// keywords, the gotcha would only contain the breakdown, not the breakthrough.
 const FAILURE_KEYWORDS = [
+  // Direct failure signals
   "error", "Error:", "fail", "doesn't work", "still", "again",
   "TypeError", "ReferenceError", "SyntaxError", "undefined is not",
   "cannot", "broke", "broken", "doesn't", "didn't", "won't",
   "stuck", "no luck", "same issue", "same problem",
+  // Resolution / breakthrough signals — ALSO worth capturing
+  "got it", "fixed", "working now", "resolved", "solved",
+  "that worked", "the fix was", "found it", "turns out",
+  "ah,", "of course", "the issue was", "the trick is",
+  "now it works", "should work", "this fixes",
 ];
 
 /**
@@ -161,7 +173,16 @@ function collectAgentContext(): string {
     return "";
   }
 
-  // Find lines that look like failure signals
+  // Decide which keyword set to scan for. The "failure" half is always on.
+  // The "resolution" half is gated by infernoflow.captureSuccessSignals so
+  // users can opt out if they find those phrases noisy.
+  const captureSuccess = vscode.workspace
+    .getConfiguration("infernoflow")
+    .get<boolean>("captureSuccessSignals", true);
+  const FAILURE_ONLY = FAILURE_KEYWORDS.slice(0, FAILURE_KEYWORDS.findIndex(k => k === "got it"));
+  const keywords = captureSuccess ? FAILURE_KEYWORDS : FAILURE_ONLY;
+
+  // Find lines that match
   const lines = content.split("\n");
   const failureLines: string[] = [];
   for (const raw of lines) {
@@ -170,7 +191,7 @@ function collectAgentContext(): string {
     // Skip pure markdown structure
     if (/^[#=>-]+\s*$/.test(line)) continue;
     const lower = line.toLowerCase();
-    if (FAILURE_KEYWORDS.some(k => lower.includes(k.toLowerCase()))) {
+    if (keywords.some(k => lower.includes(k.toLowerCase()))) {
       failureLines.push(line);
     }
   }

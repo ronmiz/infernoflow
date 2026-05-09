@@ -339,6 +339,12 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
         "What happens: opens a markdown view in a side editor.\n" +
         "Shortcut: Ctrl+Alt+R"),
       this.action(
+        "Summarize session with AI…", "sparkle", "infernoflow.summarizeSession",
+        "Use AI to extract structured memory entries from the agent conversation.\n\n" +
+        "When to use: end of a session, to capture conceptual learnings (architecture decisions, why X over Y) that the keyword-based auto-capture misses.\n" +
+        "What happens: reads CONTEXT.draft.md (written by hooks), asks the AI to propose 1-6 entries, shows them in a multi-select picker. You tick the ones to keep, hit Enter, they're saved.\n\n" +
+        "Provider: tries Copilot via VS Code LM API first (zero config), falls back to whatever 'infernoflow ai setup' configured."),
+      this.action(
         "Manage entries…", "checklist", "infernoflow.manageEntries",
         "Bulk select and delete entries.\n\n" +
         "When to use: cleanup. Especially when you have 10+ entries and want to remove old/irrelevant ones.\n" +

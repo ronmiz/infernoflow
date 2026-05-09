@@ -13,6 +13,7 @@ import * as fs from "fs";
 import { spawnSync } from "child_process";
 import { ampIO } from "./amp";
 import { rebuildAiRuleFiles } from "./contextSync";
+import { summarizeSessionCommand } from "./summarize";
 import type { EntryType } from "infernoflow-amp";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -576,6 +577,7 @@ export function registerCommands(context: vscode.ExtensionContext, refresh: () =
   reg("infernoflow.manageEntries", async () => { await manageEntriesCommand(); refresh(); });
   reg("infernoflow.cleanupOrphaned", async () => { await cleanupOrphanedCommand(); refresh(); });
   reg("infernoflow.handleOrphaned",  async (entry: unknown) => { await handleOrphanedCommand(entry); refresh(); });
+  reg("infernoflow.summarizeSession", async () => { await summarizeSessionCommand(); refresh(); });
   reg("infernoflow.rebuildAiRules",  async () => {
     const editor = vscode.window.activeTextEditor;
     const root   = workspaceRoot();
