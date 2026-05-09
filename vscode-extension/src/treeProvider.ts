@@ -15,7 +15,25 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import { ampIO } from "./amp";
+import { rankedForFile } from "./contextSync";
 import type { AMPEntry, EntryType } from "infernoflow-amp";
+
+/** Active editor's path relative to workspace root, or undefined. */
+function activeRelativeFile(): string | undefined {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) return undefined;
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!root) return undefined;
+  if (editor.document.uri.scheme !== "file") return undefined;
+  return path.relative(root, editor.document.uri.fsPath).replace(/\\/g, "/");
+}
+
+/** Trim "src/components/longish/path.tsx" → "components/path.tsx" for sidebar labels. */
+function shortFile(p: string): string {
+  const parts = p.split("/");
+  if (parts.length <= 2) return p;
+  return parts.slice(-2).join("/");
+}
 
 /**
  * True iff the entry references a file that no longer exists on disk.
@@ -164,11 +182,17 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
 
       if (!element) {
         const s = ampIO.summary();
+        const activeFile = activeRelativeFile();
+        const aiContextLabel = activeFile
+          ? `AI Context for ${shortFile(activeFile)}`
+          : "AI Context (no active file)";
         return [
           this.section(
             `Session Health · ${s.health.grade} (${s.health.score}/100)`,
             "graph", true,
             "Overall health grade (A-F) computed from logged entries: gotchas weight most, then decisions, attempts, notes. Click to expand for details."),
+          this.section(aiContextLabel, "rocket", true,
+            "What the next AI session will see for the file you're currently editing. Sorted by relevance — same file first, then same directory, then same extension. Top 5 are folded into CLAUDE.md / .cursorrules / .github/copilot-instructions.md when you click 'Rebuild AI rule files'."),
           this.section(`Gotchas (${s.gotchas})`, "warning", s.gotchas > 0,
             "Things to watch out for. Each one becomes a yellow warning in the Problems panel and a yellow squiggle at its file:line."),
           this.section(`Decisions (${s.decisions})`, "check", false,
@@ -188,6 +212,7 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
       if (label.startsWith("Gotchas"))           return this.entriesByType("gotcha",   "warning");
       if (label.startsWith("Decisions"))         return this.entriesByType("decision", "check");
       if (label.startsWith("Failed Attempts"))   return this.entriesByType("attempt",  "error");
+      if (label.startsWith("AI Context"))        return this.aiContextRows();
       if (label === "Quick Actions")             return this.quickActions();
       if (label === "CLI Tools")                 return this.cliTools();
       return [];
@@ -243,6 +268,37 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
     }
     // Newest first
     return filtered.slice().sort((a, b) => b.ts - a.ts).map(e => makeEntryItem(e, icon));
+  }
+
+  /**
+   * Rows for the "AI Context for [current file]" section.
+   * Top 5 most-relevant entries for the active file + a "Rebuild AI rule files"
+   * action that propagates the current ranking to .cursorrules / CLAUDE.md.
+   */
+  private aiContextRows(): InfernoItem[] {
+    const activeFile = activeRelativeFile();
+    const top = rankedForFile(activeFile).slice(0, 5);
+
+    const rows: InfernoItem[] = [];
+    if (top.length === 0) {
+      rows.push(this.infoRow("No relevant entries for this file yet", "circle-outline"));
+    } else {
+      for (const { entry } of top) {
+        const icon = entry.type === "gotcha"   ? "warning"
+                   : entry.type === "decision" ? "check"
+                   : entry.type === "attempt"  ? "error"
+                   :                              "note";
+        rows.push(makeEntryItem(entry, icon));
+      }
+    }
+    rows.push(this.action(
+      "🔄 Rebuild AI rule files now", "refresh", "infernoflow.rebuildAiRules",
+      "Rewrite .cursorrules / CLAUDE.md / .github/copilot-instructions.md " +
+      "with this file's ranking applied. Top 5 most-relevant entries get full text; " +
+      "the rest collapse under a 'Older context' detail block. AI tools read these " +
+      "files at session start, so the next AI conversation will see the right gotchas first.",
+    ));
+    return rows;
   }
 
   private quickActions(): InfernoItem[] {

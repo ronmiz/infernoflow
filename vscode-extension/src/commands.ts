@@ -12,6 +12,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { spawnSync } from "child_process";
 import { ampIO } from "./amp";
+import { rebuildAiRuleFiles } from "./contextSync";
 import type { EntryType } from "infernoflow-amp";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -575,6 +576,21 @@ export function registerCommands(context: vscode.ExtensionContext, refresh: () =
   reg("infernoflow.manageEntries", async () => { await manageEntriesCommand(); refresh(); });
   reg("infernoflow.cleanupOrphaned", async () => { await cleanupOrphanedCommand(); refresh(); });
   reg("infernoflow.handleOrphaned",  async (entry: unknown) => { await handleOrphanedCommand(entry); refresh(); });
+  reg("infernoflow.rebuildAiRules",  async () => {
+    const editor = vscode.window.activeTextEditor;
+    const root   = workspaceRoot();
+    let activeFile: string | undefined;
+    if (editor && root && editor.document.uri.scheme === "file") {
+      activeFile = path.relative(root, editor.document.uri.fsPath).replace(/\\/g, "/");
+    }
+    const result = rebuildAiRuleFiles(activeFile);
+    if (result.updated === 0) {
+      notifyImportant("AI rule files already up to date.");
+    } else {
+      notifyImportant(`🔄 Rebuilt ${result.updated}/${result.total} AI rule files (.cursorrules · CLAUDE.md · copilot-instructions.md).`);
+    }
+    refresh();
+  });
 
   // Auto-log (no input box) — invoked by AutoCapture. Args carry pre-built msg.
   reg("infernoflow.logGotchaAuto",  async (args: unknown) => { await logEntryAuto("gotcha",  args as AutoLogArgs); refresh(); });

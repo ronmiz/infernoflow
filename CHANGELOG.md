@@ -1,5 +1,52 @@
 # Changelog — infernoflow
 
+## 0.43.2 — 2026-05-06
+
+### Added
+- **Component composition tree** — graph now shows parent → child component relationships. When `App.jsx` renders `<TaskList>` and `<TaskList>` renders `<TaskRow>`, those edges appear in the graph. The diagram reads like the actual JSX tree of your app, not just an unconnected list of components. Detection uses regex matching of `<CapitalizedTagName` patterns inside each component's JSX.
+- **Entry-point detection** — components living in `src/App.{jsx,tsx,js,ts,vue,svelte}`, `src/main.*`, `src/index.*`, `pages/_app.*`, or `app/layout.*` are flagged as the entry. Rendered larger (radius 18 vs 11 for normal components), with a distinct pink color (`#e91e63`) and "🚪 entry" label in Mermaid output. Lets you see the root of the tree at a glance.
+
+### Effect on the visual
+Now rooted at the entry component. Before this change, the graph showed disconnected tiers (UI / Component / Capability) with no narrative flow. After: **App (entry) → child components → their UI elements → their capabilities**. The diagram tells the story of how the app is composed.
+
+## 0.43.1 — 2026-05-06
+
+### Fixed
+- **UI element regex broke on multi-line JSX attributes**. `<button\n  onClick={handler}\n>` was being missed because `[^>]*` doesn't span newlines. Switched to `[\s\S]*?` so multi-line attributes work. UI elements should now actually appear in the graph.
+
+### Added
+- **Component layer in scan + graph**. `infernoflow scan` now also detects React/Vue/Svelte function components by Capitalized-name pattern (`function ComponentName`, `export default function`, `const Component = (...) =>`, etc.). Each component becomes a hexagon-shaped node in Mermaid output and an orange circle in HTML output, sitting **between** UI elements and capabilities. Three-tier visual: UI → Component → Capability.
+- **Component-aware UI wiring**. UI elements now prefer wiring through their containing component's hexagon (so you see "Add Task button → TaskComposer component → CreateTask capability") instead of jumping directly to capabilities.
+- **Better legend** in HTML output covering all 4 node kinds (capability / component / UI / frozen).
+
+## 0.43.0 — 2026-05-06
+
+### Added
+- **`infernoflow contract graph` auto-runs scan first** if `inferno/scan.json` is missing or older than 5 minutes. No more two-step "scan then graph" — one command does both.
+- **UI layer in scan + graph** — `infernoflow scan` now also walks JSX/TSX/Vue/Svelte files for interactive elements: `<button onClick={...}>`, `<input onChange={...}>`, `<form onSubmit={...}>`, `<a onClick={...}>`, `<select onChange={...}>`. Each element's handler is mapped back to the capability that owns it. The graph shows a separate UI tier so you can see "click 'Add Task' button → CreateTask capability → API call" as a visual flow.
+  - In Mermaid output: UI nodes appear as round-cornered nodes with a tag emoji (🔘 button, ⌨️ input, 📝 form, 🔗 link, ▾ select).
+  - In HTML output: UI nodes are smaller green dashed circles, distinct from the capability circles. Tooltip shows the element type.
+- **Combined workflow** — for the "show me how the app works" view, run:
+  ```
+  infernoflow contract graph --html
+  ```
+  Auto-scans, builds the dep tree, attaches UI elements, generates the interactive D3 page. One command.
+
+## 0.42.9 — 2026-05-06
+
+### Added
+- **Visual graph output** for `infernoflow contract graph` — two new flags:
+  - `--mermaid` prints Mermaid syntax to stdout. Color-coded by stability (frozen=red, stable=yellow, experimental=blue). Renders directly in GitHub markdown, VS Code preview (with the Mermaid extension), or paste into https://mermaid.live for instant browser rendering. Pipe to a file: `infernoflow contract graph --mermaid > graph.md`.
+  - `--html` generates a self-contained `inferno/graph.html` with an interactive D3 force-directed graph: drag nodes, scroll to zoom, hover for details. Open it in any browser. No external runtime needed beyond a one-time D3 fetch from cdnjs.
+
+### Notes
+- The default ASCII output is unchanged. `--mermaid` and `--html` are opt-in alternatives for when you want a real diagram.
+
+## 0.42.8 — 2026-05-06
+
+### Fixed
+- **`infernoflow doctor` no longer reports a false-positive "CLI not found on PATH" on Windows**. `npm install -g` creates an `infernoflow.cmd` shim on Windows, not an `.exe`, and `spawnSync` won't resolve `.cmd` files without `shell: true`. The PATH-check now passes the right flag on Windows. Belt-and-suspenders: if doctor is running, the CLI is by definition reachable, so the check now defaults to pass even if the spawn probe fails on exotic shells.
+
 ## 0.42.7 — 2026-05-06
 
 ### Fixed
@@ -91,6 +138,11 @@ Same content as 0.42.6 — that version got registered on npm during a flaky pub
 - extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
 - VS Code Marketplace badge + extension install section
 
+- infernoflow CLI v0.42.6: graph crash fix + MCP setup/error-handling hotfixes
+- extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
+- VS Code Marketplace badge + extension install section
+
+- infernoflow CLI v0.42.7: graph crash fix + MCP setup/error-handling hotfixes; README v0.7.2 extension features
 - infernoflow CLI v0.42.6: graph crash fix + MCP setup/error-handling hotfixes
 - extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
 - VS Code Marketplace badge + extension install section

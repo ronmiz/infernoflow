@@ -2,7 +2,7 @@
   "name": "infernoflow",
   "displayName": "infernoflow",
   "description": "Persistent memory for AI coding sessions \u2014 live sidebar over .ai-memory/ (AMP). Captures gotchas, decisions, dead ends and replays them into Cursor / Copilot / Claude / Windsurf.",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "publisher": "infernoflow",
   "license": "MIT",
   "repository": {
@@ -211,6 +211,12 @@
         "command": "infernoflow.handleOrphaned",
         "title": "Handle orphaned entry",
         "category": "infernoflow"
+      },
+      {
+        "command": "infernoflow.rebuildAiRules",
+        "title": "Rebuild AI rule files (file-prioritized)",
+        "category": "infernoflow",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -298,6 +304,11 @@
           "minimum": 2,
           "maximum": 50,
           "description": "Number of edits in a 10-minute window that triggers the 'Stuck on something?' prompt."
+        },
+        "infernoflow.autoSyncRules": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically rebuild .cursorrules / CLAUDE.md / .github/copilot-instructions.md whenever memory changes or you switch files. Closes the injection loop so any new AI chat in the same session sees the latest gotchas ranked for the active file. Disable if you prefer to manually click 'Rebuild AI rule files'."
         },
         "infernoflow.notifications": {
           "type": "string",

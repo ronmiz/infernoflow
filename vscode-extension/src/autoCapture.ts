@@ -1,5 +1,5 @@
 /**
- * AutoCapture — repeated-edit detector.
+ * AutoCapture — repeated-edit detector + AI conversation harvester.
  *
  * Watches text-document changes. When the same file accumulates N edits within
  * a sliding time window, prompts the user with:
@@ -7,12 +7,19 @@
  *   🔥 You've edited <file> 5 times in 10 minutes. Stuck on something?
  *   [Log Gotcha] [Log Attempt] [Dismiss]
  *
- * Clicking a button **auto-logs** an entry with a smart, context-aware default
- * message (no typing required). The message includes the file, the active
- * cursor line, the edit count, and any nearby diagnostics (TypeScript /
- * ESLint errors at or near the cursor line). After auto-logging, a follow-up
- * notification offers a "Refine" button so the user can replace the
- * default message if they want — but the friction is opt-in, not default.
+ * Clicking a button **auto-logs** an entry with a context-aware default
+ * message (no typing required). The message includes:
+ *   1. Timestamp prefix and file:line + enclosing function
+ *   2. Edit count + 5-line code-context window (with cursor marker)
+ *   3. Full diagnostic messages from VS Code (TypeScript, ESLint, etc.)
+ *   4. RECENT AI AGENT CONVERSATION — if the user has installed Cursor or
+ *      Copilot hooks (via `infernoflow install-cursor-hooks`), the agent
+ *      writes every exchange to `.ai-memory/CONTEXT.draft.md` (or the legacy
+ *      `inferno/CONTEXT.draft.md`). When auto-capture fires, we tail that
+ *      file looking for failure-keyword lines (error / fail / still / cannot
+ *      / etc.) and include the last 5 in the gotcha message. So when the AI
+ *      and user are going back and forth without success, the *actual
+ *      transcript* of that struggle gets captured into the gotcha.
  *
  * After a popup fires for a file, that file is muted for `cooldownMs` so we
  * don't spam the same warning every keystroke.
@@ -23,9 +30,17 @@
  */
 
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
 
 const TIME_WINDOW_MS = 10 * 60 * 1000;   // 10 minutes
 const COOLDOWN_MS    = 60 * 1000;        // 60s mute after a popup fires
+const FAILURE_KEYWORDS = [
+  "error", "Error:", "fail", "doesn't work", "still", "again",
+  "TypeError", "ReferenceError", "SyntaxError", "undefined is not",
+  "cannot", "broke", "broken", "doesn't", "didn't", "won't",
+  "stuck", "no luck", "same issue", "same problem",
+];
 
 /**
  * Build a contextual default message so the user doesn't have to type.
@@ -91,11 +106,79 @@ function buildAutoMessage(file: string, edits: number): { text: string; line?: n
   if (snippet)  parts.push(`\nContext:\n${snippet}`);
   if (diagText) parts.push(`\nDiagnostics: ${diagText}`);
 
-  // Cap total length so AMP entries stay readable but we allow more room now
+  // Pull recent agent conversation if the Cursor/Copilot hooks have been
+  // capturing it to inferno/CONTEXT.draft.md. This is a real failure-loop
+  // signal that file edits + diagnostics alone can't capture.
+  const agentExcerpt = collectAgentContext();
+  if (agentExcerpt) parts.push(`\nAgent conversation (recent failures):\n${agentExcerpt}`);
+
+  // Cap total length so AMP entries stay readable
   let text = parts.join(" ").trim();
-  if (text.length > 1200) text = text.slice(0, 1197) + "…";
+  if (text.length > 2000) text = text.slice(0, 1997) + "…";
 
   return { text, line };
+}
+
+/**
+ * Read the tail of inferno/CONTEXT.draft.md if it exists. Filter to recent
+ * lines that look like failure signals (error keywords, stack traces, "still
+ * doesn't work" phrases). Returns up to ~5 short lines or empty string.
+ *
+ * The CLI's Cursor/Copilot hooks (installed via `infernoflow install-cursor-hooks`
+ * or `install-vscode-copilot-hooks`) write agent exchanges to this file after
+ * every response. So if the user has hooks set up, we get the real conversation.
+ * If they don't, this returns nothing — no harm.
+ */
+function collectAgentContext(): string {
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!root) return "";
+
+  // Try AMP layout first, then legacy
+  const candidates = [
+    path.join(root, ".ai-memory", "CONTEXT.draft.md"),
+    path.join(root, "inferno",    "CONTEXT.draft.md"),
+  ];
+  let draftPath: string | undefined;
+  for (const p of candidates) {
+    if (fs.existsSync(p)) { draftPath = p; break; }
+  }
+  if (!draftPath) return "";
+
+  let content: string;
+  try {
+    const stat = fs.statSync(draftPath);
+    // Skip if older than 30 minutes — stale draft probably isn't relevant
+    if (Date.now() - stat.mtimeMs > 30 * 60 * 1000) return "";
+    // Only read the tail (last ~8KB) to keep this cheap
+    const fd  = fs.openSync(draftPath, "r");
+    const len = stat.size;
+    const start = Math.max(0, len - 8192);
+    const buf = Buffer.alloc(len - start);
+    fs.readSync(fd, buf, 0, buf.length, start);
+    fs.closeSync(fd);
+    content = buf.toString("utf8");
+  } catch {
+    return "";
+  }
+
+  // Find lines that look like failure signals
+  const lines = content.split("\n");
+  const failureLines: string[] = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || line.length < 8 || line.length > 200) continue;
+    // Skip pure markdown structure
+    if (/^[#=>-]+\s*$/.test(line)) continue;
+    const lower = line.toLowerCase();
+    if (FAILURE_KEYWORDS.some(k => lower.includes(k.toLowerCase()))) {
+      failureLines.push(line);
+    }
+  }
+
+  // Take the last 5 (most recent) — this is what the user was just thrashing on
+  const tail = failureLines.slice(-5);
+  if (tail.length === 0) return "";
+  return tail.map(l => `  • ${l}`).join("\n");
 }
 
 /**

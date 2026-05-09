@@ -1,0 +1,30 @@
+name: infernoflow-check
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  inferno:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts || npm install --ignore-scripts
+
+      - name: Inferno one-command run (headless prompt mode)
+        run: npx infernoflow run "sync check" --provider prompt --json
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
