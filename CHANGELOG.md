@@ -1,5 +1,19 @@
 # Changelog — infernoflow
 
+## 0.43.5 — 2026-05-09 — trust pass
+
+### Removed
+- **`postinstall` script removed entirely.** Was previously a 2-line no-op (no network, no side effects), but its existence trips npm security audits. Now the package has no install-time code execution at all.
+
+### Added
+- **`SECURITY.md` at repo root** — honest disclosure of what the CLI writes to disk, what (if anything) it sends over the network, what the cloud-sync auth model actually is, and how to report security issues.
+- **`.gitignore` updated** to keep build artifacts (`vscode-extension/*.vsix`) out of git.
+- **README** — added alpha-status badge + security disclosure callout at the top so visitors know what they're getting before installing. Fixed stale references (51 commands → 12 visible, v0.38.x → v0.43.x).
+
+### Notes
+- This is a **trust-focused release**, not a feature release. Going forward, daily/experimental builds will publish to `npm install infernoflow@next` and only stable cuts get promoted to `latest`.
+- Cloud sync auth model is still anonymous-key-based — disclosed openly in SECURITY.md. Run local-only for sensitive projects until proper authenticated mode ships.
+
 ## 0.43.4 — 2026-05-09
 
 Promoted to "latest" via `npm dist-tag add` after the publish API errored despite tarballs landing on the CDN. Same content as 0.43.3 — slim package + updated README.
@@ -181,6 +195,15 @@ Same content as 0.42.6 — that version got registered on npm during a flaky pub
 - extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
 - VS Code Marketplace badge + extension install section
 
+- v0.7.3 extension + CLI v0.43.3: AI context loop, summarize, agent harvest, new icon, slimmer npm package
+- v0.7.3 + CLI v0.43.x: AI injection loop closed (auto-sync rules, recent commits, ranked memory), AI session summarize, success-signal harvesting, MCP fixes, visual graph w/ component+UI tiers, doctor Windows fix
+- extension v0.7.3 + CLI v0.43.2: AI context injection loop (auto-sync rule files, file-ranked memory), agent conversation harvesting, visual graph w/ component+entry+UI layers, doctor Windows fix
+- infernoflow CLI v0.42.7: graph crash fix + MCP setup/error-handling hotfixes; README v0.7.2 extension features
+- infernoflow CLI v0.42.6: graph crash fix + MCP setup/error-handling hotfixes
+- extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
+- VS Code Marketplace badge + extension install section
+
+- v0.7.3 extension + CLI v0.43.4: AI context loop, summarize, agent harvest, new icon, slimmer npm package, README updated
 - v0.7.3 extension + CLI v0.43.3: AI context loop, summarize, agent harvest, new icon, slimmer npm package
 - v0.7.3 + CLI v0.43.x: AI injection loop closed (auto-sync rules, recent commits, ranked memory), AI session summarize, success-signal harvesting, MCP fixes, visual graph w/ component+UI tiers, doctor Windows fix
 - extension v0.7.3 + CLI v0.43.2: AI context injection loop (auto-sync rule files, file-ranked memory), agent conversation harvesting, visual graph w/ component+entry+UI layers, doctor Windows fix

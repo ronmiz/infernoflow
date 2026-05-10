@@ -9,6 +9,10 @@
 [![zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](./package.json)
 [![npm audit](https://img.shields.io/badge/npm%20audit-0%20vulnerabilities-brightgreen)](https://docs.npmjs.com/cli/v10/commands/npm-audit)
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/infernoflow.infernoflow?label=VS%20Code&color=orange)](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow)
+[![status: alpha](https://img.shields.io/badge/status-alpha-yellow)](#)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+
+> **⚠ Alpha — actively iterating.** Local memory operations (logging, search, handoff) are stable. Cloud sync is opt-in and uses an anonymous-key model — fine for solo dev experimentation, not yet for sensitive projects. See [SECURITY.md](./SECURITY.md) for full disclosure of what runs on disk and what (if anything) goes over the network.
 
 ## The 60-second pitch
 
@@ -48,7 +52,7 @@ These five cover 90% of usage:
 | `infernoflow recap` | End-of-session summary with health score and unlogged-change detection. |
 | `infernoflow status` | Quick session-memory health check. |
 
-Run `infernoflow commands` for the full grouped list (51 commands across Session Memory, Code Analysis, Workflow, Cloud, Setup, Advanced).
+Run `infernoflow commands` for the full grouped list (12 visible commands across Session Memory, Code Analysis, Workflow, Cloud, Setup; ~40 more available as aliases for backward compat).
 
 ## The AI Memory Protocol (AMP)
 
@@ -103,7 +107,7 @@ ext install infernoflow.infernoflow
 
 Or browse it [on the Marketplace](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow). Activates automatically on any project containing `.ai-memory/sessions.jsonl` or `inferno/`.
 
-**What you get (v0.7.3):**
+**What you get (v0.7.4):**
 
 The extension closes a real loop: **capture** the right thing → **rank** it for the file you're editing → **inject** it into the AI's context automatically.
 
@@ -168,7 +172,7 @@ infernoflow whoami
 
 Once logged in, every `infernoflow log` quietly mirrors the entry to a Supabase project so your memory survives across machines. Push is fire-and-forget; local always succeeds even if cloud is down.
 
-> **Auth model (v0.38.x):** the cloud currently uses anonymous-key writes with a per-user `user_token` column. Anyone with the public anon key can write rows — fine for solo dev, not yet a security boundary. The schema is forward-compatible with authenticated mode; see `scripts/supabase-schema.sql` for the migration path.
+> **⚠ Auth model — alpha:** cloud sync currently uses anonymous-key writes with a per-user `user_token` column. Anyone with the public anon key can write rows — fine for solo dev experimentation, **not yet a security boundary**. For sensitive projects, run local-only (don't `infernoflow login`). Proper authenticated mode (OAuth/JWT scoped per user) is on the roadmap; the schema is forward-compatible — see `scripts/supabase-schema.sql`. Full disclosure in [SECURITY.md](./SECURITY.md).
 
 ## Capability contracts (advanced)
 

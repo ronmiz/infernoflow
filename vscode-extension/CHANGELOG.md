@@ -1,5 +1,13 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.4 — 2026-05-09
+
+### Added
+- **New icon set** — swapped the activity-bar SVG and Marketplace PNG to a cleaner dual-path flame (outlined outer + solid inner core). Theme-adaptive via `currentColor`. Visible in both light and dark themes.
+
+### Notes
+- Same feature set as 0.7.3 (which was built but never uploaded to Marketplace). 0.7.4 ships everything 0.7.3 had — AI Context section, auto-sync rule files, recent git commits in injection, AI session summarize, agent conversation harvest with success/failure keywords, bulk delete + orphan cleanup, CodeLens, 11 CLI passthroughs — plus the new icon.
+
 ## 0.7.3 — 2026-05-06
 
 ### Added — closing the injection loop

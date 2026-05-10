@@ -47,3 +47,5 @@ inferno/CONTEXT.draft.md
 # Compiled extension output (vscode-extension keeps src/, build during package)
 vscode-extension/out/
 vscode-extension/*.vsix.bak
+# Built .vsix packages — Marketplace artifacts only, don't bloat git
+vscode-extension/*.vsix
