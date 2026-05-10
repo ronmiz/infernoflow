@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ai-memory-protocol.dev/schemas/entry.json",
+  "title": "AMP Entry",
+  "description": "A single AI Memory Protocol entry (one line in sessions.jsonl)",
+  "type": "object",
+  "required": ["type", "msg", "ts"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["gotcha", "decision", "attempt", "note", "detection", "pattern"],
+      "description": "The semantic type of this memory entry"
+    },
+    "msg": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "Human-readable description of the entry"
+    },
+    "ts": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp in milliseconds when this entry was created"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^amp_[0-9A-Z]{26}$",
+      "description": "Unique entry ID (ULID format with amp_ prefix)"
+    },
+    "file": {
+      "type": "string",
+      "description": "Relative file path from workspace root"
+    },
+    "line": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Line number (1-indexed)"
+    },
+    "function": {
+      "type": "string",
+      "description": "Function or method name where this applies"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "description": "Freeform tags for grouping and search"
+    },
+    "source": {
+      "type": "string",
+      "description": "Tool or method that created this entry (e.g., 'vscode-extension', 'cli', 'git-hook')"
+    },
+    "tool": {
+      "type": "string",
+      "enum": ["copilot", "cursor", "claude", "windsurf", "other"],
+      "description": "Which AI tool was active when this was logged"
+    },
+    "session": {
+      "type": "string",
+      "description": "Session identifier (e.g., date or UUID)"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence score for auto-captured entries (0 = uncertain, 1 = certain)"
+    },
+    "related": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^amp_[0-9A-Z]{26}$" },
+      "description": "IDs of related entries"
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Arbitrary metadata for tool-specific extensions"
+    }
+  },
+  "additionalProperties": false
+}

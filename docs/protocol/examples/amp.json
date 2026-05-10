@@ -1,0 +1,19 @@
+{
+  "amp": "1.0",
+  "project": "phone-remover",
+  "stack": {
+    "language": "javascript",
+    "framework": "react",
+    "runtime": "node"
+  },
+  "config": {
+    "autoCapture": true,
+    "maxEntries": 1000,
+    "rotationStrategy": "archive",
+    "inject": ["copilot", "cursor", "claude"],
+    "handoff": {
+      "maxEntries": 20,
+      "includeOlderGotchas": true
+    }
+  }
+}

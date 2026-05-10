@@ -1,7 +1,7 @@
 {
-  "name": "ai-memory-protocol",
+  "name": "infernoflow-amp",
   "version": "1.0.0",
-  "description": "AI Memory Protocol (AMP) reference implementation: zero-dep TypeScript library for reading, writing, and generating handoffs from .ai-memory/sessions.jsonl. Vendor-neutral persistent memory across AI coding tools.",
+  "description": "AI Memory Protocol (AMP) \u2014 open spec + zero-dep TypeScript reference implementation. Vendor-neutral persistent memory across AI coding tools. Companion to the infernoflow CLI.",
   "main": "dist/amp.js",
   "types": "dist/amp.d.ts",
   "files": [

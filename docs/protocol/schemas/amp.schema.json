@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ai-memory-protocol.dev/schemas/amp.json",
+  "title": "AMP Project Configuration",
+  "description": "Project-level configuration for AI Memory Protocol (.ai-memory/amp.json)",
+  "type": "object",
+  "required": ["amp"],
+  "properties": {
+    "amp": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$",
+      "description": "Protocol version (SemVer major.minor)"
+    },
+    "project": {
+      "type": "string",
+      "description": "Project identifier"
+    },
+    "stack": {
+      "type": "object",
+      "properties": {
+        "language": { "type": "string" },
+        "framework": { "type": "string" },
+        "runtime": { "type": "string" }
+      },
+      "additionalProperties": true,
+      "description": "Technology stack information"
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "autoCapture": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable passive capture (watch mode, git hooks)"
+        },
+        "maxEntries": {
+          "type": "integer",
+          "minimum": 10,
+          "default": 1000,
+          "description": "Maximum entries in sessions.jsonl before rotation"
+        },
+        "rotationStrategy": {
+          "type": "string",
+          "enum": ["archive", "prune-old", "none"],
+          "default": "archive",
+          "description": "What to do when maxEntries is exceeded"
+        },
+        "inject": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["copilot", "cursor", "claude", "windsurf", "all"]
+          },
+          "default": ["all"],
+          "description": "Which platform files to inject handoff into"
+        },
+        "handoff": {
+          "type": "object",
+          "properties": {
+            "maxEntries": {
+              "type": "integer",
+              "default": 20,
+              "description": "Max entries included in generated handoff"
+            },
+            "includeOlderGotchas": {
+              "type": "boolean",
+              "default": true,
+              "description": "Always include gotchas regardless of age"
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

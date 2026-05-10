@@ -1,9 +1,9 @@
-# ai-memory-protocol
+# infernoflow-amp
 
 > The **AI Memory Protocol (AMP)** — open, vendor-neutral spec for cross-tool AI session memory.
 > Any AMP-compatible tool (CLI, IDE extension, AI agent) can read and write `.ai-memory/sessions.jsonl`.
 
-[![npm version](https://img.shields.io/npm/v/ai-memory-protocol.svg?color=orange)](https://www.npmjs.com/package/ai-memory-protocol)
+[![npm version](https://img.shields.io/npm/v/infernoflow-amp.svg?color=orange)](https://www.npmjs.com/package/infernoflow-amp)
 [![spec v1.0](https://img.shields.io/badge/AMP-v1.0-orange)](./PROTOCOL.md)
 
 ## What this is
@@ -17,13 +17,13 @@ This package contains:
 ## Install
 
 ```bash
-npm install ai-memory-protocol
+npm install infernoflow-amp
 ```
 
 ## Quick use
 
 ```ts
-import { AMP } from 'ai-memory-protocol';
+import { AMP } from 'infernoflow-amp';
 
 const amp = new AMP(process.cwd());
 amp.init();
