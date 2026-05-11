@@ -1,5 +1,24 @@
 # Changelog — infernoflow
 
+## 0.43.6 — 2026-05-11 — focus pivot ("ONE thing")
+
+### Strategic decision
+infernoflow now does ONE thing: **persistent project memory that any AI tool can read.** Cloud sync, dashboard, pricing tiers, and vestigial init prompts have been moved out of the way (preserved in `legacy/`) so users see a focused, coherent product.
+
+### Removed (preserved in `legacy/`)
+- `cloud` command + sub-verbs — anonymous-key auth was alpha-quality
+- `login` / `logout` / `whoami` — cloud-only, no purpose without sync
+- `dashboard` (local web UI on :7337) — duplicated the VS Code sidebar
+- Silent cloud-push from `infernoflow log` — memory is fully local now
+- The capability comma-prompt in `init --adopt` — friction users can't answer at init time. Inferred capabilities auto-accept now; refine `inferno/capabilities.json` later
+
+### Effect
+- Help output shorter — no more cloud/dashboard groups
+- ~46 visible commands (was 51)
+- 100% local-first — zero network calls in default command paths
+- Tag `v0.43.5-pre-cleanup` preserves the last pre-pivot state
+- `legacy/commands/` + `legacy/cloud/` contain full source for revival
+
 ## 0.43.5 — 2026-05-09 — trust pass
 
 ### Removed
@@ -222,6 +241,27 @@ Same content as 0.42.6 — that version got registered on npm during a flaky pub
 - extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
 - VS Code Marketplace badge + extension install section
 
+- v0.43.5 trust pass — remove postinstall, add SECURITY.md, README accuracy + alpha badge, repo cleanup, blog/PR drafts queued
+- v0.7.3 extension + CLI v0.43.4: AI context loop, summarize, agent harvest, new icon, slimmer npm package, README updated
+- v0.7.3 extension + CLI v0.43.3: AI context loop, summarize, agent harvest, new icon, slimmer npm package
+- v0.7.3 + CLI v0.43.x: AI injection loop closed (auto-sync rules, recent commits, ranked memory), AI session summarize, success-signal harvesting, MCP fixes, visual graph w/ component+UI tiers, doctor Windows fix
+- extension v0.7.3 + CLI v0.43.2: AI context injection loop (auto-sync rule files, file-ranked memory), agent conversation harvesting, visual graph w/ component+entry+UI layers, doctor Windows fix
+- infernoflow CLI v0.42.7: graph crash fix + MCP setup/error-handling hotfixes; README v0.7.2 extension features
+- infernoflow CLI v0.42.6: graph crash fix + MCP setup/error-handling hotfixes
+- extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
+- VS Code Marketplace badge + extension install section
+
+- Publish AMP — AI Memory Protocol v1.0 spec + TypeScript reference implementation
+- v0.43.5 trust pass — remove postinstall, add SECURITY.md, README accuracy + alpha badge, repo cleanup, blog/PR drafts queued
+- v0.7.3 extension + CLI v0.43.4: AI context loop, summarize, agent harvest, new icon, slimmer npm package, README updated
+- v0.7.3 extension + CLI v0.43.3: AI context loop, summarize, agent harvest, new icon, slimmer npm package
+- v0.7.3 + CLI v0.43.x: AI injection loop closed (auto-sync rules, recent commits, ranked memory), AI session summarize, success-signal harvesting, MCP fixes, visual graph w/ component+UI tiers, doctor Windows fix
+- extension v0.7.3 + CLI v0.43.2: AI context injection loop (auto-sync rule files, file-ranked memory), agent conversation harvesting, visual graph w/ component+entry+UI layers, doctor Windows fix
+- infernoflow CLI v0.42.7: graph crash fix + MCP setup/error-handling hotfixes; README v0.7.2 extension features
+- infernoflow CLI v0.42.6: graph crash fix + MCP setup/error-handling hotfixes
+- extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
+- VS Code Marketplace badge + extension install section
+
 ## 0.42.1 — 2026-05-03
 
 ### Added
@@ -351,70 +391,4 @@ Then: `infernoflow logout && infernoflow login --browser`. If anything misbehave
 - **Restored 16 missing command modules** that had been deleted in `ba537ba` (Polar.sh checkout work) and never added back: `ai`, `ask`, `ci`, `cloud`, `demo`, `explain`, `feedback`, `monorepo`, `notify`, `scaffold`, `stats`, `test`, `theme`, `uninstall`, `upgrade`, `watch`. Plus `lib/telemetry.mjs` and `lib/theme/scanner.mjs`. Recovered from `v0.35.9` (commit `a5a648f`).
 - **Removed 16 vapor command entries** from the CLI router that pointed at module files that have never existed (`agent`, `audit`, `export`, `health`, `link`, `onboard`, `pr-comment`, `report`, `scout`, `share`, `snapshot`, `synthesize`, `team-sync`, `version`, `vibe`, `adoptWizard`). Previously `infernoflow share` etc. crashed with "Cannot find module"; now `--help` lists 51 commands and every one resolves to an actual file.
 - **Re-applied the v0.38.9 await fix** in `lib/commands/log.mjs` — `pushEntry` is now properly awaited so short-lived `log` invocations don't exit before the cloud push completes.
-- **`log` and `ask` arg parsing** — both commands were including the command name itself in their text input (e.g. `Logged: log API returns ...`). Now skip `args[0]` when collecting positional tokens.
-- **`init.mjs` missing imports** — `bold`, `green`, `red` were referenced but not imported, causing `ReferenceError: bold is not defined` at the end of `init --adopt --yes`.
-- **`bin/infernoflow.mjs` package.json lookup** — assumed the installed `dist/bin/` layout, so `node bin/infernoflow.mjs` from source crashed. Now falls back to `../package.json` for development.
-
-### Changed
-- **`scripts/supabase-schema.sql`** rewritten to match production: `user_id` nullable, `user_token` text column added, dual policies (authenticated path preserved + explicit anon-insert policy reflecting current dev-mode auth), expanded indexes. Top-of-file doc explains the two write paths and how to switch from anon to authenticated mode later.
-- **`.gitattributes`** added — normalizes line endings so the index stores LF and Windows working trees can use CRLF without polluting diffs.
-- **`.gitignore`** rewritten — properly excludes `node_modules/` and `**/node_modules/` (was missing, leading to 5,200+ tracked dependency files), plus standard Node/editor/OS artifacts.
-
-### Internal
-- Smoke suite updated (`scripts/smoke.mjs`) to match the progressive-disclosure `--help` model. Now exercises init → log → ask → switch → recap end-to-end in a tempdir, asserts the gotcha-first HANDOFF format, and catches the args[0] regression that just bit `log` and `ask`.
-- Added a `backup-broken-v0.38.9` git tag pointing at the wipe commit.
-
-
-## 0.38.16 — 2026-05-02
-
-### Fixed
-- **Catastrophic recovery** — v0.38.9 was an accidental wipe commit that removed 5,349 files (1.1M lines) from git tracking. Soft-reset to v0.38.7 to restore the working tree to git, then re-applied the original "await cloud push" fix the v0.38.9 commit was supposed to make.
-- **Restored 16 missing command modules** that had been deleted in `ba537ba` (Polar.sh checkout work) and never added back: `ai`, `ask`, `ci`, `cloud`, `demo`, `explain`, `feedback`, `monorepo`, `notify`, `scaffold`, `stats`, `test`, `theme`, `uninstall`, `upgrade`, `watch`. Plus `lib/telemetry.mjs` and `lib/theme/scanner.mjs`. Recovered from `v0.35.9` (commit `a5a648f`).
-- **Removed 16 vapor command entries** from the CLI router that pointed at module files that have never existed (`agent`, `audit`, `export`, `health`, `link`, `onboard`, `pr-comment`, `report`, `scout`, `share`, `snapshot`, `synthesize`, `team-sync`, `version`, `vibe`, `adoptWizard`). Previously `infernoflow share` etc. crashed with "Cannot find module"; now `--help` lists 51 commands and every one resolves to an actual file.
-- **`log` and `ask` arg parsing** — both commands were including the command name itself in their text input (e.g. `Logged: log API returns ...`). Now skip `args[0]` when collecting positional tokens.
-- **`init.mjs` missing imports** — `bold`, `green`, `red` were referenced but not imported, causing `ReferenceError: bold is not defined` at the end of `init --adopt --yes`.
-- **`bin/infernoflow.mjs` package.json lookup** — assumed the installed `dist/bin/` layout, so `node bin/infernoflow.mjs` from source crashed. Now falls back to `../package.json` for development.
-
-### Changed
-- **`scripts/supabase-schema.sql`** rewritten to match production: `user_id` nullable, `user_token` text column added, dual policies (authenticated path preserved + explicit anon-insert policy reflecting current dev-mode auth), expanded indexes. Top-of-file doc explains the two write paths and how to switch from anon to authenticated mode later.
-- **`.gitattributes`** added — normalizes line endings so the index stores LF and Windows working trees can use CRLF without polluting diffs.
-- **`.gitignore`** rewritten — properly excludes `node_modules/` (was missing, leading to 5,200+ tracked dependency files), plus standard Node/editor/OS artifacts.
-
-### Internal
-- Smoke suite updated (`scripts/smoke.mjs`) to match the progressive-disclosure `--help` model. Now exercises init → log → ask → switch → recap end-to-end in a tempdir, asserts the gotcha-first HANDOFF format, and catches the args[0] regression that just bit `log` and `ask`.
-- Added a `backup-broken-v0.38.9` git tag pointing at the wipe commit, in case any of the deleted-then-restored content needs cross-referencing.
-
-## 0.10.25 — 2026-04-22
-
-### Added
-- Release 0.10.25
-
-
-## 0.10.24 — 2026-04-21
-
-### Added
-- Release 0.10.24
-
-
-## 0.10.23 — 2026-04-21
-
-### Added
-- Release 0.10.23
-
-
-## 0.10.22 — 2026-04-21
-
-### Added
-- Release 0.10.22
-
-
-## 0.10.21 — 2026-04-21
-
-### Added
-- Release 0.10.21
-
-
-## 0.10.20 — 2026-04-21
-
-### Added
-- Release 0.
+- **`log` and `ask` arg parsing** — both commands were including the command name itself in their text input (e.g. `Logged: log API returns ...`). No

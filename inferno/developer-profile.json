@@ -1,21 +1,18 @@
 {
   "schemaVersion": 1,
-  "createdAt": "2026-04-21T16:33:36.990Z",
-  "updatedAt": "2026-05-01T16:13:38.295Z",
-  "sessionCount": 4,
+  "createdAt": "2026-05-05T17:46:02.885Z",
+  "updatedAt": "2026-05-10T17:22:40.808Z",
+  "sessionCount": 6,
   "namingStyle": "unknown",
   "preferredVerbs": [],
   "commandUsage": {
-    "changelog": 4,
-    "publish": 4,
-    "unknown-command": 4,
-    "sync": 10,
-    "pr-impact": 5,
-    "check": 5,
-    "review": 10,
-    "login": 1,
-    "commands": 3,
-    "definitely-not-a-real-command": 3
+    "commands": 1,
+    "definitely-not-a-real-command": 1,
+    "sync": 2,
+    "pr-impact": 1,
+    "check": 14,
+    "review": 14,
+    "changelog": 12
   },
   "featureClusters": [],
   "avgSessionLength": 0,
@@ -26,5 +23,5 @@
     "framework": "unknown",
     "projectType": "unknown"
   },
-  "_lastCommandTs": 1777652018295
+  "_lastCommandTs": 1778433760808
 }

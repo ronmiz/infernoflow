@@ -13,16 +13,14 @@
     "dist/bin",
     "dist/lib",
     "dist/templates",
-    "README.md",
-    "scripts/postinstall.js"
+    "README.md"
   ],
   "scripts": {
     "test": "node scripts/smoke.mjs && node scripts/json-smoke.mjs && node scripts/json-negative-smoke.mjs && node scripts/implement-smoke.mjs && node scripts/adopt-smoke.mjs && node scripts/pr-impact-smoke.mjs && node scripts/sync-smoke.mjs && node scripts/run-smoke.mjs",
     "test:help": "node bin/infernoflow.mjs --help",
     "build": "node build.mjs",
     "prepublishOnly": "echo skipping build",
-    "inferno:promote-draft": "node scripts/inferno-promote-draft.mjs",
-    "postinstall": "node scripts/postinstall.js"
+    "inferno:promote-draft": "node scripts/inferno-promote-draft.mjs"
   },
   "dependencies": {},
   "keywords": [

@@ -1,0 +1,229 @@
+{
+  "name": "infernoflow-vscode",
+  "displayName": "infernoflow - AI Session Memory",
+  "description": "Persistent memory for AI coding sessions. Gotchas, decisions, and failed attempts - visible in your editor, injected into your AI.",
+  "version": "0.2.1",
+  "publisher": "ronmiz",
+  "license": "MIT",
+  "icon": "icons/infernoflow-128.png",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ronmiz/infernoflow-vscode.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "memory",
+    "copilot",
+    "cursor",
+    "session",
+    "context",
+    "gotcha",
+    "mcp",
+    "agent",
+    "infernoflow"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "infernoflow",
+          "title": "infernoflow",
+          "icon": "icons/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "infernoflow": [
+        {
+          "id": "infernoflow.sessionView",
+          "name": "Session Memory"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "infernoflow.logGotcha",
+        "title": "Log Gotcha",
+        "category": "infernoflow",
+        "icon": "$(warning)"
+      },
+      {
+        "command": "infernoflow.logDecision",
+        "title": "Log Decision",
+        "category": "infernoflow",
+        "icon": "$(check)"
+      },
+      {
+        "command": "infernoflow.logAttempt",
+        "title": "Log Failed Attempt",
+        "category": "infernoflow",
+        "icon": "$(error)"
+      },
+      {
+        "command": "infernoflow.logNote",
+        "title": "Log Note",
+        "category": "infernoflow",
+        "icon": "$(note)"
+      },
+      {
+        "command": "infernoflow.ask",
+        "title": "Ask Memory",
+        "category": "infernoflow",
+        "icon": "$(search)"
+      },
+      {
+        "command": "infernoflow.switch",
+        "title": "Generate Handoff",
+        "category": "infernoflow",
+        "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "infernoflow.recap",
+        "title": "Show Recap",
+        "category": "infernoflow",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "infernoflow.openPanel",
+        "title": "Open Session Panel",
+        "category": "infernoflow",
+        "icon": "$(flame)"
+      },
+      {
+        "command": "infernoflow.refresh",
+        "title": "Refresh",
+        "category": "infernoflow",
+        "icon": "$(refresh)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "infernoflow.logGotcha",
+        "key": "ctrl+alt+g",
+        "mac": "cmd+alt+g"
+      },
+      {
+        "command": "infernoflow.logDecision",
+        "key": "ctrl+alt+d",
+        "mac": "cmd+alt+d"
+      },
+      {
+        "command": "infernoflow.ask",
+        "key": "ctrl+alt+a",
+        "mac": "cmd+alt+a"
+      },
+      {
+        "command": "infernoflow.switch",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s"
+      },
+      {
+        "command": "infernoflow.recap",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "infernoflow.logGotcha",
+          "group": "infernoflow@1"
+        },
+        {
+          "command": "infernoflow.logDecision",
+          "group": "infernoflow@2"
+        },
+        {
+          "command": "infernoflow.logAttempt",
+          "group": "infernoflow@3"
+        },
+        {
+          "command": "infernoflow.logNote",
+          "group": "infernoflow@4"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "infernoflow.refresh",
+          "when": "view == infernoflow.sessionView",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "infernoflow",
+      "properties": {
+        "infernoflow.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable infernoflow extension"
+        },
+        "infernoflow.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show session health in status bar"
+        },
+        "infernoflow.showDiagnostics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show gotcha warnings as diagnostics in editor"
+        },
+        "infernoflow.showCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show memory count above functions"
+        },
+        "infernoflow.autoCapture.repeatedEdits": {
+          "type": "boolean",
+          "default": true,
+          "description": "Prompt when same file is edited 5+ times in 10 minutes"
+        },
+        "infernoflow.autoCapture.repeatedEditsThreshold": {
+          "type": "number",
+          "default": 5,
+          "description": "Number of saves to trigger repeated edit prompt"
+        },
+        "infernoflow.notifications": {
+          "type": "string",
+          "default": "important",
+          "enum": [
+            "all",
+            "important",
+            "none"
+          ],
+          "description": "Notification level"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.22.0",
+    "typescript": "^5.9.3"
+  },
+  "author": "",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ronmiz/infernoflow-vscode/issues"
+  },
+  "homepage": "https://github.com/ronmiz/infernoflow-vscode#readme"
+}

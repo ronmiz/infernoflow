@@ -182,27 +182,25 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
 
       if (!element) {
         const s = ampIO.summary();
-        const activeFile = activeRelativeFile();
-        const aiContextLabel = activeFile
-          ? `AI Context for ${shortFile(activeFile)}`
-          : "AI Context (no active file)";
+        // v0.43.6 focus pivot: removed AI Context section (CodeLens shows the same
+        // data inline at file:line, better placement) and CLI Tools section (one-time
+        // setup commands belong in the command palette, not in the daily-use sidebar).
+        // Result: 5 daily-use sections + 1 collapsed Code Map for the visual map.
         return [
           this.section(
             `Session Health · ${s.health.grade} (${s.health.score}/100)`,
             "graph", true,
-            "Overall health grade (A-F) computed from logged entries: gotchas weight most, then decisions, attempts, notes. Click to expand for details."),
-          this.section(aiContextLabel, "rocket", true,
-            "What the next AI session will see for the file you're currently editing. Sorted by relevance — same file first, then same directory, then same extension. Top 5 are folded into CLAUDE.md / .cursorrules / .github/copilot-instructions.md when you click 'Rebuild AI rule files'."),
+            "Overall health grade (A-F) from logged entries: gotchas weight most, then decisions, attempts, notes."),
           this.section(`Gotchas (${s.gotchas})`, "warning", s.gotchas > 0,
-            "Things to watch out for. Each one becomes a yellow warning in the Problems panel and a yellow squiggle at its file:line."),
+            "Things to watch out for. Each becomes a yellow Problems-panel warning + a squiggle in the editor."),
           this.section(`Decisions (${s.decisions})`, "check", false,
             "Architectural choices recorded so future sessions know why X was picked over Y."),
           this.section(`Failed Attempts (${s.attempts})`, "error", false,
-            "Approaches that didn't work. Surfaced as blue Information squiggles in the editor — visible without being noisy."),
-          this.section("Quick Actions", "zap", true,
-            "The core memory loop: log entries (gotcha/decision/attempt), search, generate handoff for the next AI."),
-          this.section("CLI Tools", "terminal", false,
-            "Run infernoflow CLI commands in a single reusable terminal. Same actions are also in the command palette under 'infernoflow:'."),
+            "Approaches that didn't work — surfaced as blue Information squiggles in the editor."),
+          this.section("Memory Actions", "zap", true,
+            "The core memory loop: log entries, search memory, generate handoff for the next AI."),
+          this.section("Code Map", "map", false,
+            "Visual scan of components → capabilities. Run scan to refresh; Show map opens the interactive flow chart."),
         ];
       }
 
@@ -212,9 +210,8 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
       if (label.startsWith("Gotchas"))           return this.entriesByType("gotcha",   "warning");
       if (label.startsWith("Decisions"))         return this.entriesByType("decision", "check");
       if (label.startsWith("Failed Attempts"))   return this.entriesByType("attempt",  "error");
-      if (label.startsWith("AI Context"))        return this.aiContextRows();
-      if (label === "Quick Actions")             return this.quickActions();
-      if (label === "CLI Tools")                 return this.cliTools();
+      if (label === "Memory Actions")            return this.memoryActions();
+      if (label === "Code Map")                  return this.codeMapActions();
       return [];
     } catch (err) {
       // Last-resort fallback: never let the panel render fully blank.
@@ -275,150 +272,59 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
    * Top 5 most-relevant entries for the active file + a "Rebuild AI rule files"
    * action that propagates the current ranking to .cursorrules / CLAUDE.md.
    */
-  private aiContextRows(): InfernoItem[] {
-    const activeFile = activeRelativeFile();
-    const top = rankedForFile(activeFile).slice(0, 5);
-
-    const rows: InfernoItem[] = [];
-    if (top.length === 0) {
-      rows.push(this.infoRow("No relevant entries for this file yet", "circle-outline"));
-    } else {
-      for (const { entry } of top) {
-        const icon = entry.type === "gotcha"   ? "warning"
-                   : entry.type === "decision" ? "check"
-                   : entry.type === "attempt"  ? "error"
-                   :                              "note";
-        rows.push(makeEntryItem(entry, icon));
-      }
-    }
-    rows.push(this.action(
-      "🔄 Rebuild AI rule files now", "refresh", "infernoflow.rebuildAiRules",
-      "Rewrite .cursorrules / CLAUDE.md / .github/copilot-instructions.md " +
-      "with this file's ranking applied. Top 5 most-relevant entries get full text; " +
-      "the rest collapse under a 'Older context' detail block. AI tools read these " +
-      "files at session start, so the next AI conversation will see the right gotchas first.",
-    ));
-    return rows;
-  }
-
-  private quickActions(): InfernoItem[] {
+  private memoryActions(): InfernoItem[] {
     return [
       this.action(
         "Log a Gotcha…", "warning", "infernoflow.logGotcha",
         "Save a 'don't fall in this hole again' note.\n\n" +
-        "When to use: you hit a non-obvious bug, edge case, or surprising behavior.\n" +
-        "What happens: opens an input box; the entry is saved with the current file and line.\n" +
+        "When: you hit a non-obvious bug or surprising behavior.\n" +
         "Shortcut: Ctrl+Alt+G"),
       this.action(
         "Log a Decision…", "check", "infernoflow.logDecision",
-        "Record an architectural choice you just made.\n\n" +
-        "When to use: you pick X over Y and want future-you (or the next AI) to know why.\n" +
-        "What happens: opens an input box; saved with file/line context.\n" +
+        "Record an architectural choice with the reason.\n\n" +
+        "When: you pick X over Y and want future-you to know why.\n" +
         "Shortcut: Ctrl+Alt+D"),
       this.action(
         "Log a Failed Attempt…", "error", "infernoflow.logAttempt",
         "Note something you tried that didn't work.\n\n" +
-        "When to use: an approach failed so it isn't re-attempted by you or the next AI.\n" +
-        "What happens: shows as a blue squiggle in the editor and in the Problems panel."),
+        "When: an approach failed so it isn't re-tried by you or the next AI.\n" +
+        "Shows as a blue squiggle at file:line and in the Problems panel."),
       this.action(
         "Generate Handoff", "arrow-swap", "infernoflow.switch",
-        "Build a markdown summary of all gotchas, decisions, and attempts.\n\n" +
-        "When to use: end of a session, before switching to a different AI tool.\n" +
-        "What happens: writes inferno/handoff.md, copies to clipboard, opens in side editor.\n" +
+        "Build a markdown summary of all memory entries.\n\n" +
+        "When: end of a session, before switching AI tools.\n" +
+        "Writes inferno/handoff.md and copies to clipboard.\n" +
         "Shortcut: Ctrl+Alt+S"),
       this.action(
         "Ask Memory…", "search", "infernoflow.ask",
-        "Search session memory by keyword, file path, or error fragment.\n\n" +
-        "When to use: you remember 'we had something about X' but don't know where.\n" +
-        "What happens: opens a quick-pick of matches; click one to jump to that file:line.\n" +
+        "Search memory by keyword, file, or error fragment.\n\n" +
+        "Click a match to jump to its file:line.\n" +
         "Shortcut: Ctrl+Alt+A"),
       this.action(
-        "Show Recap", "graph", "infernoflow.recap",
-        "Display all logged entries grouped by type, with timestamps.\n\n" +
-        "When to use: at-a-glance view of what's been captured this session.\n" +
-        "What happens: opens a markdown view in a side editor.\n" +
-        "Shortcut: Ctrl+Alt+R"),
-      this.action(
-        "Summarize session with AI…", "sparkle", "infernoflow.summarizeSession",
-        "Use AI to extract structured memory entries from the agent conversation.\n\n" +
-        "When to use: end of a session, to capture conceptual learnings (architecture decisions, why X over Y) that the keyword-based auto-capture misses.\n" +
-        "What happens: reads CONTEXT.draft.md (written by hooks), asks the AI to propose 1-6 entries, shows them in a multi-select picker. You tick the ones to keep, hit Enter, they're saved.\n\n" +
-        "Provider: tries Copilot via VS Code LM API first (zero config), falls back to whatever 'infernoflow ai setup' configured."),
-      this.action(
         "Manage entries…", "checklist", "infernoflow.manageEntries",
-        "Bulk select and delete entries.\n\n" +
-        "When to use: cleanup. Especially when you have 10+ entries and want to remove old/irrelevant ones.\n" +
-        "What happens: opens a multi-select picker grouped by date (Today / Yesterday / Last 7 days / Older). Tick the entries you want gone, hit Enter, confirm. All deleted in one shot."),
-      this.action(
-        "Cleanup orphaned entries…", "circle-slash", "infernoflow.cleanupOrphaned",
-        "Find and bulk-delete entries whose file no longer exists.\n\n" +
-        "When to use: after a refactor that deleted/renamed source files. Orphaned entries clutter the sidebar and confuse handoffs.\n" +
-        "What happens: opens a multi-select picker showing only entries whose file path can't be found. Tick them all and confirm to clean up in one go."),
+        "Bulk select and delete entries (orphaned + manual).\n\n" +
+        "When: cleanup. Picker is grouped by date so you can scan and tick noise away."),
     ];
   }
 
   /**
-   * CLI passthrough rows. Each runs a CLI command in the reusable
-   * "infernoflow" terminal so users can see streaming output. Same set is
-   * mirrored in the command palette under the "infernoflow:" category.
+   * Code Map section — the visual companion to memory. `scan` runs the AST
+   * scan and updates inferno/scan.json + graph.json. `Show code map` opens
+   * the interactive HTML flow chart (entry → components → capabilities → UI).
    */
-  private cliTools(): InfernoItem[] {
+  private codeMapActions(): InfernoItem[] {
     return [
       this.action(
-        "Status", "pulse", "infernoflow.cliStatus",
-        "Run `infernoflow status`.\n\n" +
-        "Shows project health at a glance: capability count, scenario coverage %, last contract change.\n" +
-        "When to use: quick 'is everything OK?' check."),
-      this.action(
-        "Check", "verified", "infernoflow.cliCheck",
-        "Run `infernoflow check`.\n\n" +
-        "Validates contract.json, capabilities.json, scenarios, and CHANGELOG.\n" +
-        "When to use: before a commit, to catch drift between code and contract."),
-      this.action(
-        "Doctor", "stethoscope", "infernoflow.cliDoctor",
-        "Run `infernoflow doctor`.\n\n" +
-        "Diagnoses your setup: Node version, git, contract files, AI provider config, MCP server, hooks.\n" +
-        "When to use: something's broken and you don't know what."),
-      this.action(
-        "Scan codebase", "search-fuzzy", "infernoflow.cliScan",
+        "🔄 Scan codebase", "search-fuzzy", "infernoflow.cliScan",
         "Run `infernoflow scan`.\n\n" +
-        "Deep AST scan of source files. Maps function names to capabilities, detects DB/HTTP calls.\n" +
-        "When to use: before running graph/review/drift — those commands need scan.json data."),
+        "Deep AST scan — maps function names to capabilities, detects components/UI elements/DB+HTTP calls. Required before 'Show code map' has data.\n\n" +
+        "When to re-run: after meaningful structural changes."),
       this.action(
-        "Init (adopt)", "rocket", "infernoflow.cliInitAdopt",
-        "Run `infernoflow init --adopt`.\n\n" +
-        "Bootstraps inferno/ on an existing codebase. Auto-detects capabilities from your code.\n" +
-        "When to use: first-time setup on a project that already has code."),
-      this.action(
-        "Setup MCP", "plug", "infernoflow.cliSetup",
-        "Run `infernoflow setup`.\n\n" +
-        "Installs the MCP server in .cursor/, registers it in Claude/Cursor config, pre-approves tools.\n" +
-        "When to use: once per project, to let AI agents call infernoflow tools directly."),
-      this.action(
-        "AI setup", "sparkle", "infernoflow.cliAiSetup",
-        "Run `infernoflow ai setup`.\n\n" +
-        "Configures an AI provider (Anthropic/OpenAI/Gemini/Ollama) for explain/why/review/changelog AI.\n" +
-        "When to use: first-time, to enable AI-powered CLI commands."),
-      this.action(
-        "Install Cursor hooks", "extensions", "infernoflow.cliInstallCursor",
-        "Run `infernoflow install-cursor-hooks`.\n\n" +
-        "Adds hooks that auto-capture context after every Cursor agent response into inferno/CONTEXT.draft.md.\n" +
-        "When to use: only if you're using Cursor as your primary AI editor."),
-      this.action(
-        "Watch (auto-capture)", "eye", "infernoflow.cliWatch",
-        "Run `infernoflow watch`.\n\n" +
-        "Long-running CLI mode that watches files for changes and prompts to log gotchas.\n" +
-        "When to use: alternative to the in-extension auto-capture popup, for terminal-only setups."),
-      this.action(
-        "Cloud status", "cloud", "infernoflow.cliCloudStatus",
-        "Run `infernoflow cloud status`.\n\n" +
-        "Shows cloud sync state: signed in?, last push, last pull.\n" +
-        "When to use: debug contract sync across teammates."),
-      this.action(
-        "Show context", "book", "infernoflow.cliContext",
-        "Run `infernoflow context`.\n\n" +
-        "Generates AI-ready markdown summarizing capabilities, recent changes, and open gotchas.\n" +
-        "When to use: paste this into a fresh AI session for full project context."),
+        "🗺  Show code map", "graph", "infernoflow.cliCodeMap",
+        "Open the interactive flow chart in your browser.\n\n" +
+        "Hierarchical layout: entry component → child components → capabilities → UI elements. " +
+        "Shows how the app is composed alongside the memory you've captured.\n\n" +
+        "If the map is empty or stale, run 'Scan codebase' first."),
     ];
   }
 

@@ -71,11 +71,6 @@ const COMMAND_DESCRIPTIONS = {
   implement: "Generate code-agent implementation prompt(s)",
   context: "Generate AI-ready context for new sessions",
   "generate-skills": "Generate personalised Cursor rules + skill files from your developer profile",
-  dashboard: "Launch local web dashboard on localhost:7337 — live contract health, capabilities, agents",
-  login:    "Sign in with GitHub — syncs session memory to the cloud on every log",
-  logout:   "Sign out and remove local credentials",
-  whoami:   "Show currently logged-in user",
-  cloud:    "Sync capability contracts via infernoflow cloud (init | push | pull | status | dashboard)",
   watch:    "Watch source files and run suggest automatically on save",
   ci:       "CI-native check: GitHub Actions annotations, GitLab code quality, exit codes",
   notify:   "Post capability drift summary to Slack or Discord",
@@ -132,11 +127,7 @@ const COMMAND_HANDLERS = {
   context: async (args) => (await import("../lib/commands/context.mjs")).contextCommand(args),
   "doc-gate": async (args) => (await import("../lib/commands/docGate.mjs")).docGateCommand(args),
   "generate-skills": async (args) => (await import("../lib/commands/generateSkills.mjs")).generateSkillsCommand(args),
-  dashboard: async (args) => (await import("../lib/commands/dashboard.mjs")).dashboardCommand(args),
-  login:    async (args) => (await import("../lib/commands/login.mjs")).loginCommand(args),
-  logout:   async ()     => (await import("../lib/commands/login.mjs")).logoutCommand(),
-  whoami:   async ()     => (await import("../lib/commands/login.mjs")).whoamiCommand(),
-  cloud:    async (args) => (await import("../lib/commands/cloud.mjs")).cloudCommand(args),
+  // dashboard / login / logout / whoami / cloud — moved to legacy/ (v0.43.6 focus pivot, see legacy/README.md)
   watch:    async (args) => (await import("../lib/commands/watch.mjs")).watchCommand(args),
   ci:       async (args) => (await import("../lib/commands/ci.mjs")).ciCommand(args),
   notify:   async (args) => (await import("../lib/commands/notify.mjs")).notifyCommand(args),
@@ -246,7 +237,6 @@ const DEV_VERBS = {
   publish:                         "publish",
   changelog:                       "changelog",
   diff:                            "diff",
-  dashboard:                       "dashboard",
   monorepo:                        "monorepo",
   ci:                              "ci",
   ai:                              "ai",
@@ -273,8 +263,6 @@ const COMMAND_GROUPS = {
     ["status", "migrate", "validate", "version"],
   "Contract  (use: infernoflow contract <verb>)":
     Object.keys(CONTRACT_VERBS),
-  "Cloud     (use: infernoflow cloud <verb>)":
-    ["login", "logout", "whoami", "cloud", "notify"],
   "Dev       (use: infernoflow dev <verb>)":
     Object.keys(DEV_VERBS),
 };
@@ -310,8 +298,7 @@ const HELP = `
   ${bold("Subsystems")} ${gray("— grouped, run for verbs:")}
     ${cyan("amp")}                AI Memory Protocol ${gray("(status, migrate, validate)")}
     ${cyan("contract")}          Capability contracts ${gray("(scan, freeze, impact, scaffold, …)")}
-    ${cyan("cloud")}              Cloud sync + accounts ${gray("(login, push, pull, status, …)")}
-    ${cyan("dev")}                Publishing, dashboards, AI providers ${gray("(publish, ai, ci, …)")}
+    ${cyan("dev")}                Publishing, AI providers, hooks ${gray("(publish, ai, ci, …)")}
 
   ${gray("Run")} ${cyan("infernoflow commands")} ${gray("to see all " + TOTAL_COMMANDS + " commands grouped.")}
   ${gray("Run")} ${cyan("infernoflow <command> --help")} ${gray("for command-specific options.")}

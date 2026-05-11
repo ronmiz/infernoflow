@@ -1,5 +1,28 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.5 — 2026-05-11 — focus pivot (sidebar cull)
+
+### Removed
+- **AI Context for [file]** section — CodeLens already shows the same data inline at file:line, where you actually need it. Sidebar duplication was visual noise.
+- **CLI Tools** section (11 items) — all the one-time-setup buttons (Init, Setup MCP, AI setup, Install hooks, etc.) move to the command palette only. Sidebar = daily-use actions only.
+- **Cloud status** action — cloud sync removed entirely from infernoflow (see CLI v0.43.6 notes)
+- **"Rebuild AI rule files now"** button — auto-sync already runs the rebuild on every memory change; the button was theater.
+- Reduced Quick Actions from 9 → 6 (folded "Cleanup orphaned" into "Manage entries", moved "Show Recap" and "Summarize session with AI" to command palette only)
+
+### Added
+- **Code Map** section (collapsed by default) with two actions: "Scan codebase" and "Show code map" — the visual companion to memory, opens the interactive flow chart in your browser
+
+### Sidebar now has 6 focused sections (was 7 noisy ones)
+1. Session Health · grade + entry counts
+2. Gotchas · click any → jump to file:line
+3. Decisions
+4. Failed Attempts
+5. Memory Actions (6 items: Log Gotcha, Log Decision, Log Failed Attempt, Generate Handoff, Ask Memory, Manage entries)
+6. Code Map (collapsed: Scan + Show map)
+
+### Click-to-jump behavior preserved
+Click any gotcha/decision/attempt → editor opens at its file:line. Unchanged. Locked UX.
+
 ## 0.7.4 — 2026-05-09
 
 ### Added
@@ -63,25 +86,4 @@ Before this release, capturing memory was strong but injecting it into the AI's 
 - **Cleanup orphaned entries** — new action that opens a bulk picker pre-filtered to only orphaned entries. After a big refactor, run this once to clean up stale references in your memory.
 - **Help tooltips** on every sidebar item — hover any action or section header and a tooltip explains what it does, when to use it, what happens when clicked, and the keyboard shortcut (if any).
 - **Auto-capture writes meaningful content** — instead of asking you to type, the popup auto-logs an entry with: timestamp prefix `[YYYY-MM-DD HH:MM]`, file:line + enclosing function, 5-line code context window with cursor marker, full diagnostic messages from the Problems panel. Click "Log Gotcha" once → entry is written, no typing.
-- **Activity-bar icon now uses `currentColor`** so it's visible in both light and dark themes (was hardcoded black, invisible on dark themes).
-
-### Restored
-These features existed in the prototype `docs/infernoflow-vscode/` (v0.2.1) but were dropped in the v0.7.0 memory-first rewrite. Restoring them in v0.7.2 brings the published version back to parity with the auto-capture UX users had asked about.
-
-## 0.7.1 — 2026-05-05
-
-### Fixed
-- **Activation hung on "Activating…"** — `.vscodeignore` was excluding `node_modules/**`, so the published `.vsix` shipped without the `infernoflow-amp` runtime dependency. Sidebar never rendered. Now bundled correctly.
-- **Sidebar could appear blank** if `getChildren()` threw silently. Wrapped in defensive try/catch so the panel always renders something — a guidance row, a workspace prompt, or a readable error — never a fully blank tree.
-
-## 0.7.0 — 2026-05-05
-
-### Added
-- **AMP layout support** — extension now activates on `.ai-memory/sessions.jsonl` (AMP) in addition to the legacy `inferno/` layout.
-- **Marketplace metadata** — `bugs`, `homepage`, `galleryBanner`, AI category, expanded keywords (ai-memory, amp, copilot, cursor, claude, windsurf).
-
-### Changed
-- Description leads with "Persistent memory for AI coding sessions" instead of contract-first framing — matches the rest of the project's repositioning.
-
-### Internal
-- First version published to the VS Code Marketplace. Prior versions (0.1.0–0.6.0) shipped only as .vsix artifacts in the repo.
+- **Activity-bar icon now uses `currentColor`** so

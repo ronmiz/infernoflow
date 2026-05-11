@@ -12,7 +12,7 @@
 [![status: alpha](https://img.shields.io/badge/status-alpha-yellow)](#)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
-> **⚠ Alpha — actively iterating.** Local memory operations (logging, search, handoff) are stable. Cloud sync is opt-in and uses an anonymous-key model — fine for solo dev experimentation, not yet for sensitive projects. See [SECURITY.md](./SECURITY.md) for full disclosure of what runs on disk and what (if anything) goes over the network.
+> **⚠ Alpha — actively iterating.** Local memory operations (logging, search, handoff, AI rule-file injection) are stable. The product does ONE thing: persistent memory that any AI tool can read. No network calls in default command paths. See [SECURITY.md](./SECURITY.md) for the full data-flow disclosure.
 
 ## The 60-second pitch
 
@@ -162,17 +162,6 @@ After install-cursor-hooks, your AI agent can call infernoflow directly in chat:
 | `amp_health` | **AMP-spec** alias — session health score |
 
 The `amp_*` tools are vendor-neutral aliases following the [AMP MCP spec §7.3](docs/protocol/PROTOCOL.md#73-mcp-tool-interface). Any AMP-Full client only needs to know these names — the `infernoflow_*` set stays for backward compat.
-
-## Cloud sync (optional)
-
-```bash
-infernoflow login          # GitHub Device Flow — no PKCE, no callback server
-infernoflow whoami
-```
-
-Once logged in, every `infernoflow log` quietly mirrors the entry to a Supabase project so your memory survives across machines. Push is fire-and-forget; local always succeeds even if cloud is down.
-
-> **⚠ Auth model — alpha:** cloud sync currently uses anonymous-key writes with a per-user `user_token` column. Anyone with the public anon key can write rows — fine for solo dev experimentation, **not yet a security boundary**. For sensitive projects, run local-only (don't `infernoflow login`). Proper authenticated mode (OAuth/JWT scoped per user) is on the roadmap; the schema is forward-compatible — see `scripts/supabase-schema.sql`. Full disclosure in [SECURITY.md](./SECURITY.md).
 
 ## Capability contracts (advanced)
 

@@ -609,6 +609,6 @@ export function registerCommands(context: vscode.ExtensionContext, refresh: () =
   reg("infernoflow.cliAiSetup",       () => runInTerminal("ai setup"));
   reg("infernoflow.cliInstallCursor", () => runInTerminal("install-cursor-hooks"));
   reg("infernoflow.cliWatch",         () => runInTerminal("watch"));
-  reg("infernoflow.cliCloudStatus",   () => runInTerminal("cloud status"));
+  reg("infernoflow.cliCodeMap",       () => runInTerminal("contract graph --html"));
   reg("infernoflow.cliContext",       () => runInTerminal("context"));
 }

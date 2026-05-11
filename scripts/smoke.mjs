@@ -68,7 +68,9 @@ try {
   const handoffPath   = existsSync(ampHandoff) ? ampHandoff : legacyHandoff;
   assert(existsSync(handoffPath), "switch did not write a handoff file (.ai-memory/handoff.md or inferno/HANDOFF.md)");
   const handoff = readFileSync(handoffPath, "utf8");
-  assert(handoff.includes("Gotchas"), "handoff missing Gotchas section");
+  // The handoff header is "STOP — Read These Before Doing Anything (N gotchas)"
+  // (post-v0.42.x switch polish). Tolerate older capitalised "Gotchas" too.
+  assert(/STOP|gotchas/i.test(handoff), "handoff missing gotcha section");
   assert(handoff.includes("API returns 202"), "handoff missing the logged gotcha");
 
   const recap = run(["recap"], { cwd: tmp });
