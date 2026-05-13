@@ -49,3 +49,15 @@ vscode-extension/out/
 vscode-extension/*.vsix.bak
 # Built .vsix packages — Marketplace artifacts only, don't bloat git
 vscode-extension/*.vsix
+
+# Internal planning docs — NEVER commit
+# These are private working docs (analysis scorecards, roadmaps, design drafts).
+# They got accidentally swept into commit 88c78d5 once — this block prevents recurrence.
+docs/ANALYSIS.md
+docs/INFERNOFLOW_EXTENSION_DESIGN.md
+docs/INFERNOFLOW_READINESS_PLAN.md
+docs/INFERNOFLOW_*_PLAN.md
+docs/INFERNOFLOW_*_DESIGN.md
+docs/INFERNOFLOW_*.md
+infernoflow-roadmap.docx
+*.docx
