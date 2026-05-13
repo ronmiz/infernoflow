@@ -177,8 +177,32 @@ function buildSection(scored: ScoredEntry[], activeFile: string | undefined, com
   lines.push("<!-- Auto-managed by infernoflow. Don't edit between these markers. -->");
   lines.push("## Project memory (infernoflow)");
   lines.push("");
+
+  // ── Skill: "Memory protocol" ─────────────────────────────────────────────
+  // This block teaches whatever AI is reading the rule file to PROACTIVELY
+  // call the amp_write MCP tool when it detects worth-remembering moments.
+  // Replaces the keyword-based auto-capture watcher with AI-judged capture.
+  // The AI itself becomes the loop detector — works across Cursor, Claude Code,
+  // Copilot Chat, Windsurf, and any future AMP-compatible tool.
+  lines.push("### Memory protocol — capture as you go");
+  lines.push("");
+  lines.push("You have the `amp_write` MCP tool. **Use it proactively** (without the user asking) whenever you detect any of these moments. Capture the lesson in one sentence so the next AI session inherits it.");
+  lines.push("");
+  lines.push("| When you see… | Call `amp_write` with… |");
+  lines.push("|---|---|");
+  lines.push("| User types `!!!`, `not working`, `still broken`, `no change`, `same error`, repeated frustration | `{type: 'attempt', msg: '<one-line: what was tried and how it failed>', file: '<active file>'}` |");
+  lines.push("| You generate a plan, numbered steps, or `Plan:` / `Approach:` block | `{type: 'note', msg: 'Plan: <one-line summary>', file: '<focus file>'}` |");
+  lines.push("| User picks X over Y, decides an architectural approach, or you both agree on a direction | `{type: 'decision', msg: '<X> chosen over <Y> because <reason>', file: '<file>'}` |");
+  lines.push("| Discovered non-obvious behavior, API quirk, or `aha — turns out…` moment | `{type: 'gotcha', msg: '<one-line>', file: '<file>', line: <line if known>}` |");
+  lines.push("| User says `switching` / `back to X`, or ~30 min passed without logging | `{type: 'note', msg: 'Session snapshot — worked on: <X>. Open threads: <Y>.'}` |");
+  lines.push("");
+  lines.push("**Do NOT log:** typos, syntax errors, obvious bugs visible in the code, anything the next AI can infer by re-reading the file.");
+  lines.push("**Do log:** anything that taught you something non-derivable from code.");
+  lines.push("**Be concise:** entries should be one sentence. Future-you will skim them.");
+  lines.push("");
+
   if (haveMemory) {
-    lines.push("_Memory entries sorted by relevance to the file you're currently editing._");
+    lines.push("_Memory entries below are sorted by relevance to the file you're currently editing._");
   }
   if (activeFile) lines.push(`_Active file: \`${activeFile}\`._`);
   lines.push("");

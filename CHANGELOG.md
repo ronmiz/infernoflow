@@ -19,6 +19,20 @@ infernoflow now does ONE thing: **persistent project memory that any AI tool can
 - Tag `v0.43.5-pre-cleanup` preserves the last pre-pivot state
 - `legacy/commands/` + `legacy/cloud/` contain full source for revival
 
+
+### Added — Memory protocol skill (auto-capture via AI, not regex)
+Rule-file injection (`.cursorrules` / `CLAUDE.md` / `copilot-instructions.md`) now includes a "Memory protocol — capture as you go" block. Instructs the reading AI to proactively call `amp_write` MCP tool when it detects:
+- User frustration (`!!!`, `not working`, `still broken`)
+- Plan/numbered-steps generation
+- Decisions ("use X over Y because Y")
+- Non-obvious gotchas discovered mid-session
+- Branch / context switches → session snapshot
+
+Replaces the noisy 5-edits-in-10-min auto-capture trigger with AI-judged capture. Works across any AMP-compatible tool (Cursor, Claude Code, Copilot, Windsurf) — no extension code changes needed per tool.
+
+### Added — `infernoflow contract graph --html` flow-chart redesign
+Replaced D3 force-directed "floating circles" with hierarchical Mermaid layout. Entry component → child components → capabilities → UI elements reads left-to-right with orthogonal lines. Drag-to-pan via the scroll wrapper. Native browser zoom (Ctrl+wheel / pinch). Dark theme tuned for code-architecture diagrams.
+
 ## 0.43.5 — 2026-05-09 — trust pass
 
 ### Removed
@@ -261,6 +275,11 @@ Same content as 0.42.6 — that version got registered on npm during a flaky pub
 - infernoflow CLI v0.42.6: graph crash fix + MCP setup/error-handling hotfixes
 - extension v0.7.2 + CLI hotfixes: auto-capture, CodeLens, bulk + orphan delete, MCP setup tools fix, graph crash guard
 - VS Code Marketplace badge + extension install section
+
+- v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
+
+- v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
+- remove internal planning docs from public repo
 
 ## 0.42.1 — 2026-05-03
 

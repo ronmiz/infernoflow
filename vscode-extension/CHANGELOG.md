@@ -23,6 +23,17 @@
 ### Click-to-jump behavior preserved
 Click any gotcha/decision/attempt → editor opens at its file:line. Unchanged. Locked UX.
 
+
+### Added — Memory protocol skill (auto-sync injects it)
+Auto-synced rule files (`.cursorrules` / `CLAUDE.md` / `copilot-instructions.md`) now include a "Memory protocol" block at the top instructing the reading AI to proactively call the `amp_write` MCP tool on:
+- User frustration markers (`!!!`, `not working`, `still broken`)
+- Plan / numbered-steps generation
+- Decision moments
+- Non-obvious discoveries
+- Branch or context switches (session snapshot)
+
+This replaces the 5-edits-in-10-min auto-capture popup (deprecated for noise). The AI itself becomes the capture intelligence. Cross-tool by design — works wherever AMP/MCP is wired up.
+
 ## 0.7.4 — 2026-05-09
 
 ### Added
