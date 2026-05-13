@@ -1,5 +1,23 @@
 # Changelog — infernoflow
 
+## 0.43.8 — 2026-05-13 — branch-switch fix
+
+### Added — memory is developer-local, not branch-attached
+`infernoflow init` now writes a managed block into your project's `.gitignore`:
+
+```
+# --- infernoflow (developer-local AI memory; do not commit) ---
+.ai-memory/
+.cursorrules
+CLAUDE.md
+.github/copilot-instructions.md
+# --- /infernoflow ---
+```
+
+**Why:** before this, checking out another branch swapped in *that* branch's memory (or wiped it entirely). The AI would suddenly read stale gotchas from a feature you abandoned three branches ago. Memory belongs to *you*, not to a branch — same model as `.env.local`.
+
+**Idempotent:** re-running `infernoflow init` on an existing project backfills the block without duplicating anything. Safe to run on projects that already had the patterns added manually.
+
 ## 0.43.6 — 2026-05-11 — focus pivot ("ONE thing")
 
 ### Strategic decision
@@ -285,6 +303,19 @@ Same content as 0.42.6 — that version got registered on npm during a flaky pub
 - v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
 - remove internal planning docs from public repo
 
+- bump 0.43.6 → 0.43.7 (phantom-publish workaround)
+- v0.43.6 + ext v0.7.5: Memory protocol skill (AI proactively logs via amp_write) + Mermaid flow-chart for --html graph
+- v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
+- remove internal planning docs from public repo
+
+- v0.43.7 dist rebuild + remove lib/cloud + lib/commands/{cloud,dashboard,login} (moved to legacy/)
+- bump 0.43.6 → 0.43.7 (phantom-publish workaround)
+- v0.43.6 + ext v0.7.5: Memory protocol skill (AI proactively logs via amp_write) + Mermaid flow-chart for --html graph
+- v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
+- remove internal planning docs from public repo
+
+- block internal planning docs from git
+- v0.43.7 dist rebuild + remove lib/cloud + lib/commands/{cloud,dashboard,login} (moved to legacy/)
 - bump 0.43.6 → 0.43.7 (phantom-publish workaround)
 - v0.43.6 + ext v0.7.5: Memory protocol skill (AI proactively logs via amp_write) + Mermaid flow-chart for --html graph
 - v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
