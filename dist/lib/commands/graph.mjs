@@ -1,115 +1,76 @@
-import*as I from"node:fs";import*as v from"node:path";import{bold as w,cyan as X,gray as p,green as j,yellow as T,red as S}from"../ui/output.mjs";function D(i){try{return JSON.parse(I.readFileSync(i,"utf8"))}catch{return null}}function se(i){return i?.stability||"experimental"}const C={frozen:"\u{1F9CA}",stable:"\u3030\uFE0F ",experimental:"\u{1F30A}"},F={frozen:S,stable:T,experimental:j};function Z(i,o){const l={},c={},s={},n={};for(const t of i){const g=o.find(d=>d.id===t.id)||{};l[t.id]={id:t.id,name:t.name||g.name||g.title||t.id,stability:g.stability||"experimental",functions:t.codeAnalysis?.functions||[],calls:t.codeAnalysis?.calls||[],services:t.codeAnalysis?.services||[],dbCalls:t.codeAnalysis?.dbCalls||[],httpCalls:t.codeAnalysis?.httpCalls||[]},c[t.id]=new Set,s[t.id]=new Set;for(const d of t.codeAnalysis?.functions||[]){const f=d.replace(/\(\)$/,"");n[f]=t.id,n[f.toLowerCase()]=t.id}}for(const[t,g]of Object.entries(l))for(const d of g.calls){const f=d.replace(/\(\)$/,""),u=n[f]||n[f.toLowerCase()];u&&u!==t&&c[t]&&s[u]&&(c[t].add(u),s[u].add(t))}const y={},h={};for(const t of Object.keys(l))y[t]=[...c[t]],h[t]=[...s[t]];return{nodes:l,edges:y,reverse:h}}function q(i){const{nodes:o,edges:l,reverse:c}=i,s=Object.keys(o).sort();console.log(),console.log(w("  Capability Dependency Graph")),console.log(p("  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")),console.log();let n=!1;for(const h of s){const t=o[h],g=l[h]||[],d=c[h]||[],f=C[t.stability]||"\u{1F30A}",u=F[t.stability]||j;if(!(g.length===0&&d.length===0)){if(n=!0,console.log(`  ${f} ${w(u(h))}`),g.length>0){console.log(p("    calls \u2192"));for(const $ of g){const b=o[$],H=C[b?.stability]||"\u{1F30A}";console.log(p(`       ${H} ${$}`))}}if(d.length>0){console.log(p("    called by \u2190"));for(const $ of d){const b=C[o[$]?.stability]||"\u{1F30A}";console.log(p(`       ${b} ${$}`))}}console.log()}}n||(console.log(p("  No inter-capability dependencies detected.")),console.log(p("  Run `infernoflow scan` first to populate call data.")),console.log());const y=Object.values(i.edges).reduce((h,t)=>h+t.length,0);console.log(p("  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")),console.log(p(`  ${s.length} capabilities \xB7 ${y} dependency edge(s)`)),console.log()}function K(i,o){const{nodes:l,edges:c,reverse:s}=o,n=l[i];n||(console.error(S(`\u2717 Capability "${i}" not found in graph.`)),process.exit(1));const y=C[n.stability]||"\u{1F30A}",h=F[n.stability]||j;console.log(),console.log(w(`  ${y} ${h(i)}`)+p(`  (${n.stability})`)),n.services?.length&&console.log(p("  external: ")+X(n.services.join(", "))),console.log();const t=c[i]||[],g=s[i]||[];if(t.length>0){console.log(w("  Calls (downstream dependencies):"));for(const d of t){const f=l[d],u=F[f?.stability]||j,$=C[f?.stability]||"\u{1F30A}";console.log(`    ${$} ${u(d)}`+p(f?.services?.length?`  [${f.services.join(", ")}]`:""))}console.log()}else console.log(p("  No downstream dependencies.")),console.log();if(g.length>0){console.log(w("  Called by (upstream dependents):"));for(const d of g){const f=l[d],u=F[f?.stability]||j,$=C[f?.stability]||"\u{1F30A}";console.log(`    ${$} ${u(d)}`)}console.log()}else console.log(p("  No capabilities call this one.")),console.log();if((n.stability==="frozen"||n.stability==="stable")&&g.length>0){const d=n.stability==="frozen"?S:T;console.log(d(`  \u26A0  This capability is ${n.stability}. Changing it may break:`));for(const f of g)console.log(d(`     \u2022 ${f}`));console.log()}}function Q(i,o){const l=[];if(!i||!o)return l;for(const[c,s]of Object.entries(o.nodes)){if(s.stability==="experimental")continue;const n=new Set(i.reverse?.[c]||[]),h=[...new Set(o.reverse[c]||[])].filter(t=>!n.has(t));if(h.length>0&&l.push({type:"new-dependents",capId:c,stability:s.stability,detail:`${h.join(", ")} now depend on this`}),s.stability==="frozen"){const t=new Set(i.edges?.[c]||[]),g=new Set(o.edges[c]||[]),d=[...g].filter(u=>!t.has(u)),f=[...t].filter(u=>!g.has(u));(d.length>0||f.length>0)&&l.push({type:"frozen-internals-changed",capId:c,stability:s.stability,detail:[d.length?`added calls: ${d.join(", ")}`:"",f.length?`removed calls: ${f.join(", ")}`:""].filter(Boolean).join("; ")})}}return l}async function ae(i){const o=(i||[]).slice(1),l=o.includes("--json"),c=o.includes("--check"),s=o.includes("--mermaid"),n=o.includes("--html"),y=o.indexOf("--cap"),h=y!==-1?o[y+1]:null,t=process.cwd(),g=v.join(t,"inferno"),d=v.join(g,"scan.json"),f=v.join(g,"graph.json"),u=v.join(g,"capabilities.json"),$=300*1e3;let b=D(d);if(!b||!Array.isArray(b.capabilities)||b.capabilities.length===0||I.existsSync(d)&&Date.now()-I.statSync(d).mtimeMs>$){console.log(p("  \u27F3 Running infernoflow scan first (scan.json missing or stale)\u2026"));try{const{scanCommand:e}=await import("./scan.mjs");await e(["scan"]),b=D(d)}catch(e){console.error(S(`\u2717 Could not run scan automatically: ${e.message}`)),console.error(p("  Run `infernoflow scan` manually and try again.")),process.exit(1)}}(!b||!Array.isArray(b.capabilities)||b.capabilities.length===0)&&(console.error(S("\u2717 inferno/scan.json still empty after scan.")),console.error(p("   Make sure your contract has at least one capability and your code matches.")),process.exit(1));let P=[];const L=D(u);L&&(P=Array.isArray(L)?L:L.capabilities||[]);const W=b.capabilities||[],a=Z(W,P),k=Array.isArray(b.components)?b.components:[],A={};for(const e of W){const r=(e.codeAnalysis?.files||[]).map(x=>x.replace(/\\/g,"/"));for(const x of r)A[x]||(A[x]=new Set),A[x].add(e.id)}const Y=[/(?:^|\/)src\/App\.(jsx|tsx|js|ts|vue|svelte)$/i,/(?:^|\/)src\/main\.(jsx|tsx|js|ts)$/i,/(?:^|\/)src\/index\.(jsx|tsx|js|ts)$/i,/(?:^|\/)pages\/_app\.(jsx|tsx|js|ts)$/i,/(?:^|\/)app\/layout\.(jsx|tsx|js|ts)$/i,/(?:^|\/)src\/App\.(jsx|tsx)$/i],E=new Set;for(const e of k)Y.some(r=>r.test(e.file))&&E.add(e.name);let B=0;for(const e of k){const r=`comp:${e.name}`;a.nodes[r]={id:r,name:e.name,stability:E.has(e.name)?"entry":"component",kind:"component",isEntry:E.has(e.name),file:e.file,functions:[],calls:[]},a.edges[r]=a.edges[r]||new Set,a.reverse[r]=a.reverse[r]||new Set;const x=A[e.file]?[...A[e.file]]:[];for(const m of x)a.edges[r].add(m),a.reverse[m]||(a.reverse[m]=new Set),a.reverse[m].add(r),B++}let N=0;for(const e of k){const r=`comp:${e.name}`;for(const x of e.renders||[]){const m=`comp:${x}`;a.nodes[m]&&r!==m&&(a.edges[r].add(m),a.reverse[m]||(a.reverse[m]=new Set),a.reverse[m].add(r),N++)}}const G=Array.isArray(b.uiElements)?b.uiElements:[],_={};for(const e of k)_[e.file]||(_[e.file]=e.name);const M={};for(const e of W){const r=e.codeAnalysis?.functions||[];for(const x of r){const m=x.replace(/\(\)$/,"");M[m]=e.id,M[m.toLowerCase()]=e.id}}let z=0;for(const e of G){const r=`ui:${e.tag}:${e.handler}:${e.file.replace(/[^a-z0-9]/gi,"_")}`;a.nodes[r]={id:r,name:e.label||e.handler,stability:"ui",kind:"ui",tag:e.tag,handler:e.handler,file:e.file,functions:[],calls:[]},a.edges[r]=a.edges[r]||new Set,a.reverse[r]=a.reverse[r]||new Set;const x=_[e.file];if(x){const O=`comp:${x}`;if(a.nodes[O]){a.edges[r].add(O),a.reverse[O]||(a.reverse[O]=new Set),a.reverse[O].add(r),z++;continue}}const m=M[e.handler]||M[e.handler?.toLowerCase()];m&&(a.edges[r].add(m),a.reverse[m]||(a.reverse[m]=new Set),a.reverse[m].add(r),z++)}!l&&!s&&!n&&(B>0&&console.log(p(`  \u{1F9E9} Wired ${k.length} component${k.length===1?"":"s"} to capabilities.`)),N>0&&console.log(p(`  \u{1F333} Found ${N} component render relationship${N===1?"":"s"} (parent \u2192 child).`)),z>0&&console.log(p(`  \u26A1 Wired ${z} UI element${z===1?"":"s"}.`)),E.size>0&&console.log(p(`  \u{1F6AA} Entry: ${[...E].join(", ")}`)));const V=D(f),J=Q(V,a),U={builtAt:new Date().toISOString(),capabilities:Object.keys(a.nodes).length,edges:Object.values(a.edges).reduce((e,r)=>e+r.length,0),nodes:a.nodes,deps:a.edges,dependents:a.reverse};if(l||I.writeFileSync(f,JSON.stringify(U,null,2)),l){console.log(JSON.stringify(U,null,2));return}if(s){console.log(ee(a));return}if(n){const e=v.join(g,"graph.html");I.writeFileSync(e,te(a)),console.log(j("\u2714 Interactive graph saved \u2192 inferno/graph.html")),console.log(p(`  Open it: file://${e.replace(/\\/g,"/")}`));return}if(h?K(h,a):q(a),J.length>0){console.log(T("  \u26A0  Dependency changes detected:"));for(const e of J){const r=e.stability==="frozen"?S("\u{1F9CA}"):T("\u3030\uFE0F ");console.log(`  ${r} ${w(e.capId)} \u2014 ${e.detail}`)}console.log(),c&&process.exit(1)}l||console.log(p("  Graph saved \u2192 inferno/graph.json"))}function ee(i){const o=[];o.push("```mermaid"),o.push("graph LR"),o.push("  classDef frozen       fill:#fee,stroke:#c44,color:#900;"),o.push("  classDef stable       fill:#fffbe6,stroke:#cc9,color:#840;"),o.push("  classDef experimental fill:#eef,stroke:#88c,color:#226;"),o.push("  classDef component    fill:#fff3e0,stroke:#ff9800,color:#bf6d00;"),o.push("  classDef entry        fill:#fce4ec,stroke:#e91e63,color:#880e4f,stroke-width:3px;"),o.push("  classDef ui           fill:#e8f5e9,stroke:#4caf50,color:#2e7d32,stroke-dasharray:4 2;");for(const l of Object.keys(i.nodes)){const c=R(l),s=i.nodes[l];if(s.kind==="ui"){const y=`${ne(s.tag)} ${s.name||s.handler}<br/><small>&lt;${s.tag}&gt;</small>`;o.push(`  ${c}(["${y}"]):::ui`)}else if(s.kind==="component")s.isEntry?o.push(`  ${c}{{"\u{1F6AA} ${s.name} (entry)"}}:::entry`):o.push(`  ${c}{{"\u{1F9E9} ${s.name}"}}:::component`);else{const n=s.functions?.length||0,y=`${s.name||l}<br/><small>${n} fn${n===1?"":"s"}</small>`;o.push(`  ${c}["${y}"]:::${s.stability||"experimental"}`)}}for(const[l,c]of Object.entries(i.edges)){const s=c instanceof Set?[...c]:Array.isArray(c)?c:[];for(const n of s)o.push(`  ${R(l)} --> ${R(n)}`)}return o.push("```"),o.join(`
-`)}function R(i){return String(i).replace(/[^a-zA-Z0-9_]/g,"_")}function ne(i){switch(i){case"button":return"\u{1F518}";case"input":return"\u2328\uFE0F ";case"form":return"\u{1F4DD}";case"link":return"\u{1F517}";case"select":return"\u25BE";default:return"\u{1F9E9}"}}function te(i){const o=Object.keys(i.nodes).map(s=>{const n=i.nodes[s];return{id:s,name:n.name||s,stability:n.stability||"experimental",kind:n.kind||"capability",isEntry:!!n.isEntry,tag:n.tag||null,handler:n.handler||null,file:n.file||null,functions:n.functions?.length||0}}),l=[];for(const[s,n]of Object.entries(i.edges)){const y=n instanceof Set?[...n]:Array.isArray(n)?n:[];for(const h of y)l.push({source:s,target:h})}const c=JSON.stringify({nodes:o,links:l});return`<!DOCTYPE html>
+import*as z from"node:fs";import*as x from"node:path";import{bold as j,cyan as Z,gray as h,green as k,yellow as M,red as C}from"../ui/output.mjs";function I(a){try{return JSON.parse(z.readFileSync(a,"utf8"))}catch{return null}}function te(a){return a?.stability||"experimental"}const S={frozen:"\u{1F9CA}",stable:"\u3030\uFE0F ",experimental:"\u{1F30A}"},Y={frozen:C,stable:M,experimental:k};function q(a,e){const f={},c={},r={},t={};for(const n of a){const g=e.find(p=>p.id===n.id)||{};f[n.id]={id:n.id,name:n.name||g.name||g.title||n.id,stability:g.stability||"experimental",functions:n.codeAnalysis?.functions||[],calls:n.codeAnalysis?.calls||[],services:n.codeAnalysis?.services||[],dbCalls:n.codeAnalysis?.dbCalls||[],httpCalls:n.codeAnalysis?.httpCalls||[]},c[n.id]=new Set,r[n.id]=new Set;for(const p of n.codeAnalysis?.functions||[]){const m=p.replace(/\(\)$/,"");t[m]=n.id,t[m.toLowerCase()]=n.id}}for(const[n,g]of Object.entries(f))for(const p of g.calls){const m=p.replace(/\(\)$/,""),y=t[m]||t[m.toLowerCase()];y&&y!==n&&c[n]&&r[y]&&(c[n].add(y),r[y].add(n))}const d={},i={};for(const n of Object.keys(f))d[n]=[...c[n]],i[n]=[...r[n]];return{nodes:f,edges:d,reverse:i}}function K(a){const{nodes:e,edges:f,reverse:c}=a,r=Object.keys(e).sort();console.log(),console.log(j("  Capability Dependency Graph")),console.log(h("  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")),console.log();let t=!1;for(const i of r){const n=e[i],g=f[i]||[],p=c[i]||[],m=S[n.stability]||"\u{1F30A}",y=Y[n.stability]||k;if(!(g.length===0&&p.length===0)){if(t=!0,console.log(`  ${m} ${j(y(i))}`),g.length>0){console.log(h("    calls \u2192"));for(const w of g){const b=e[w],X=S[b?.stability]||"\u{1F30A}";console.log(h(`       ${X} ${w}`))}}if(p.length>0){console.log(h("    called by \u2190"));for(const w of p){const b=S[e[w]?.stability]||"\u{1F30A}";console.log(h(`       ${b} ${w}`))}}console.log()}}t||(console.log(h("  No inter-capability dependencies detected.")),console.log(h("  Run `infernoflow scan` first to populate call data.")),console.log());const d=Object.values(a.edges).reduce((i,n)=>i+n.length,0);console.log(h("  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")),console.log(h(`  ${r.length} capabilities \xB7 ${d} dependency edge(s)`)),console.log()}function Q(a,e){const{nodes:f,edges:c,reverse:r}=e,t=f[a];t||(console.error(C(`\u2717 Capability "${a}" not found in graph.`)),process.exit(1));const d=S[t.stability]||"\u{1F30A}",i=Y[t.stability]||k;console.log(),console.log(j(`  ${d} ${i(a)}`)+h(`  (${t.stability})`)),t.services?.length&&console.log(h("  external: ")+Z(t.services.join(", "))),console.log();const n=c[a]||[],g=r[a]||[];if(n.length>0){console.log(j("  Calls (downstream dependencies):"));for(const p of n){const m=f[p],y=Y[m?.stability]||k,w=S[m?.stability]||"\u{1F30A}";console.log(`    ${w} ${y(p)}`+h(m?.services?.length?`  [${m.services.join(", ")}]`:""))}console.log()}else console.log(h("  No downstream dependencies.")),console.log();if(g.length>0){console.log(j("  Called by (upstream dependents):"));for(const p of g){const m=f[p],y=Y[m?.stability]||k,w=S[m?.stability]||"\u{1F30A}";console.log(`    ${w} ${y(p)}`)}console.log()}else console.log(h("  No capabilities call this one.")),console.log();if((t.stability==="frozen"||t.stability==="stable")&&g.length>0){const p=t.stability==="frozen"?C:M;console.log(p(`  \u26A0  This capability is ${t.stability}. Changing it may break:`));for(const m of g)console.log(p(`     \u2022 ${m}`));console.log()}}function ee(a,e){const f=[];if(!a||!e)return f;for(const[c,r]of Object.entries(e.nodes)){if(r.stability==="experimental")continue;const t=new Set(a.reverse?.[c]||[]),i=[...new Set(e.reverse[c]||[])].filter(n=>!t.has(n));if(i.length>0&&f.push({type:"new-dependents",capId:c,stability:r.stability,detail:`${i.join(", ")} now depend on this`}),r.stability==="frozen"){const n=new Set(a.edges?.[c]||[]),g=new Set(e.edges[c]||[]),p=[...g].filter(y=>!n.has(y)),m=[...n].filter(y=>!g.has(y));(p.length>0||m.length>0)&&f.push({type:"frozen-internals-changed",capId:c,stability:r.stability,detail:[p.length?`added calls: ${p.join(", ")}`:"",m.length?`removed calls: ${m.join(", ")}`:""].filter(Boolean).join("; ")})}}return f}async function ae(a){const e=(a||[]).slice(1),f=e.includes("--json"),c=e.includes("--check"),r=e.includes("--mermaid"),t=e.includes("--html"),d=e.indexOf("--cap"),i=d!==-1?e[d+1]:null,n=process.cwd(),g=x.join(n,"inferno"),p=x.join(g,"scan.json"),m=x.join(g,"graph.json"),y=x.join(g,"capabilities.json"),w=300*1e3;let b=I(p);if(!b||!Array.isArray(b.capabilities)||b.capabilities.length===0||z.existsSync(p)&&Date.now()-z.statSync(p).mtimeMs>w){console.log(h("  \u27F3 Running infernoflow scan first (scan.json missing or stale)\u2026"));try{const{scanCommand:o}=await import("./scan.mjs");await o(["scan"]),b=I(p)}catch(o){console.error(C(`\u2717 Could not run scan automatically: ${o.message}`)),console.error(h("  Run `infernoflow scan` manually and try again.")),process.exit(1)}}(!b||!Array.isArray(b.capabilities)||b.capabilities.length===0)&&(console.error(C("\u2717 inferno/scan.json still empty after scan.")),console.error(h("   Make sure your contract has at least one capability and your code matches.")),process.exit(1));let P=[];const N=I(y);N&&(P=Array.isArray(N)?N:N.capabilities||[]);const R=b.capabilities||[],s=q(R,P),v=Array.isArray(b.components)?b.components:[],D={};for(const o of R){const l=(o.codeAnalysis?.files||[]).map($=>$.replace(/\\/g,"/"));for(const $ of l)D[$]||(D[$]=new Set),D[$].add(o.id)}const G=[/(?:^|\/)src\/App\.(jsx|tsx|js|ts|vue|svelte)$/i,/(?:^|\/)src\/main\.(jsx|tsx|js|ts)$/i,/(?:^|\/)src\/index\.(jsx|tsx|js|ts)$/i,/(?:^|\/)pages\/_app\.(jsx|tsx|js|ts)$/i,/(?:^|\/)app\/layout\.(jsx|tsx|js|ts)$/i,/(?:^|\/)src\/App\.(jsx|tsx)$/i],E=new Set;for(const o of v)G.some(l=>l.test(o.file))&&E.add(o.name);let W=0;for(const o of v){const l=`comp:${o.name}`;s.nodes[l]={id:l,name:o.name,stability:E.has(o.name)?"entry":"component",kind:"component",isEntry:E.has(o.name),file:o.file,functions:[],calls:[]},s.edges[l]=s.edges[l]||new Set,s.reverse[l]=s.reverse[l]||new Set;const $=D[o.file]?[...D[o.file]]:[];for(const u of $)s.edges[l].add(u),s.reverse[u]||(s.reverse[u]=new Set),s.reverse[u].add(l),W++}let T=0;for(const o of v){const l=`comp:${o.name}`;for(const $ of o.renders||[]){const u=`comp:${$}`;s.nodes[u]&&l!==u&&(s.edges[l].add(u),s.reverse[u]||(s.reverse[u]=new Set),s.reverse[u].add(l),T++)}}const V=Array.isArray(b.uiElements)?b.uiElements:[],_={};for(const o of v)_[o.file]||(_[o.file]=o.name);const F={};for(const o of R){const l=o.codeAnalysis?.functions||[];for(const $ of l){const u=$.replace(/\(\)$/,"");F[u]=o.id,F[u.toLowerCase()]=o.id}}let O=0;for(const o of V){const l=`ui:${o.tag}:${o.handler}:${o.file.replace(/[^a-z0-9]/gi,"_")}`;s.nodes[l]={id:l,name:o.label||o.handler,stability:"ui",kind:"ui",tag:o.tag,handler:o.handler,file:o.file,functions:[],calls:[]},s.edges[l]=s.edges[l]||new Set,s.reverse[l]=s.reverse[l]||new Set;const $=_[o.file];if($){const L=`comp:${$}`;if(s.nodes[L]){s.edges[l].add(L),s.reverse[L]||(s.reverse[L]=new Set),s.reverse[L].add(l),O++;continue}}const u=F[o.handler]||F[o.handler?.toLowerCase()];u&&(s.edges[l].add(u),s.reverse[u]||(s.reverse[u]=new Set),s.reverse[u].add(l),O++)}!f&&!r&&!t&&(W>0&&console.log(h(`  \u{1F9E9} Wired ${v.length} component${v.length===1?"":"s"} to capabilities.`)),T>0&&console.log(h(`  \u{1F333} Found ${T} component render relationship${T===1?"":"s"} (parent \u2192 child).`)),O>0&&console.log(h(`  \u26A1 Wired ${O} UI element${O===1?"":"s"}.`)),E.size>0&&console.log(h(`  \u{1F6AA} Entry: ${[...E].join(", ")}`)));const H=I(m),B=ee(H,s),J={builtAt:new Date().toISOString(),capabilities:Object.keys(s.nodes).length,edges:Object.values(s.edges).reduce((o,l)=>o+l.length,0),nodes:s.nodes,deps:s.edges,dependents:s.reverse};if(f||z.writeFileSync(m,JSON.stringify(J,null,2)),f){console.log(JSON.stringify(J,null,2));return}if(r){console.log(oe(s));return}if(t){const o=x.join(g,"graph.html");z.writeFileSync(o,ne(s)),console.log(k("\u2714 Interactive graph saved \u2192 inferno/graph.html")),console.log(h(`  Open it: file://${o.replace(/\\/g,"/")}`));return}if(i?Q(i,s):K(s),B.length>0){console.log(M("  \u26A0  Dependency changes detected:"));for(const o of B){const l=o.stability==="frozen"?C("\u{1F9CA}"):M("\u3030\uFE0F ");console.log(`  ${l} ${j(o.capId)} \u2014 ${o.detail}`)}console.log(),c&&process.exit(1)}f||console.log(h("  Graph saved \u2192 inferno/graph.json"))}function oe(a){const e=[];e.push("```mermaid"),e.push("graph LR"),e.push("  classDef frozen       fill:#fee,stroke:#c44,color:#900;"),e.push("  classDef stable       fill:#fffbe6,stroke:#cc9,color:#840;"),e.push("  classDef experimental fill:#eef,stroke:#88c,color:#226;"),e.push("  classDef component    fill:#fff3e0,stroke:#ff9800,color:#bf6d00;"),e.push("  classDef entry        fill:#fce4ec,stroke:#e91e63,color:#880e4f,stroke-width:3px;"),e.push("  classDef ui           fill:#e8f5e9,stroke:#4caf50,color:#2e7d32,stroke-dasharray:4 2;");for(const f of Object.keys(a.nodes)){const c=A(f),r=a.nodes[f];if(r.kind==="ui"){const d=`${U(r.tag)} ${r.name||r.handler}<br/><small>&lt;${r.tag}&gt;</small>`;e.push(`  ${c}(["${d}"]):::ui`)}else if(r.kind==="component")r.isEntry?e.push(`  ${c}{{"\u{1F6AA} ${r.name} (entry)"}}:::entry`):e.push(`  ${c}{{"\u{1F9E9} ${r.name}"}}:::component`);else{const t=r.functions?.length||0,d=`${r.name||f}<br/><small>${t} fn${t===1?"":"s"}</small>`;e.push(`  ${c}["${d}"]:::${r.stability||"experimental"}`)}}for(const[f,c]of Object.entries(a.edges)){const r=c instanceof Set?[...c]:Array.isArray(c)?c:[];for(const t of r)e.push(`  ${A(f)} --> ${A(t)}`)}return e.push("```"),e.join(`
+`)}function A(a){return String(a).replace(/[^a-zA-Z0-9_]/g,"_")}function U(a){switch(a){case"button":return"\u{1F518}";case"input":return"\u2328\uFE0F ";case"form":return"\u{1F4DD}";case"link":return"\u{1F517}";case"select":return"\u25BE";default:return"\u{1F9E9}"}}function ne(a){const e=[];e.push("graph LR"),e.push("  classDef frozen       fill:#3a1a1a,stroke:#d43f3a,color:#ff8a80,stroke-width:2px;"),e.push("  classDef stable       fill:#3a2a1a,stroke:#f0ad4e,color:#ffd180,stroke-width:2px;"),e.push("  classDef experimental fill:#1a2a3a,stroke:#5bc0de,color:#9fd6ed,stroke-width:2px;"),e.push("  classDef component    fill:#2a1f0a,stroke:#ff9800,color:#ffcc80,stroke-width:2px;"),e.push("  classDef entry        fill:#3a0a1f,stroke:#e91e63,color:#ff80ab,stroke-width:3px;"),e.push("  classDef ui           fill:#1a2e1a,stroke:#4caf50,color:#a5d6a7,stroke-width:2px,stroke-dasharray: 4 2;");for(const t of Object.keys(a.nodes)){const d=A(t),i=a.nodes[t];if(i.kind==="ui"){const g=`${U(i.tag)} ${i.name||i.handler}`;e.push(`  ${d}(["${g}"]):::ui`)}else if(i.kind==="component")i.isEntry?e.push(`  ${d}{{"\u{1F6AA} ${i.name}"}}:::entry`):e.push(`  ${d}{{"\u{1F9E9} ${i.name}"}}:::component`);else{const n=i.functions?.length||0,g=`${i.name||t}<br/><small>${n} fn${n===1?"":"s"}</small>`;e.push(`  ${d}["${g}"]:::${i.stability||"experimental"}`)}}for(const[t,d]of Object.entries(a.edges)){const i=d instanceof Set?[...d]:Array.isArray(d)?d:[];for(const n of i)e.push(`  ${A(t)} --> ${A(n)}`)}const f=e.join(`
+`),c=Object.keys(a.nodes).length,r=Object.values(a.edges).reduce((t,d)=>t+(d instanceof Set?d.size:Array.isArray(d)?d.length:0),0);return`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>infernoflow \u2014 capability graph</title>
+<title>infernoflow \u2014 code map</title>
 <style>
-  body { margin: 0; padding: 0; background: #1e1e1e; color: #ccc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+  html, body { margin: 0; padding: 0; background: #1e1e1e; color: #ccc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; height: 100%; overflow: hidden; }
   header { padding: 12px 24px; background: #2a2a2a; border-bottom: 1px solid #3a3a3a; }
   header h1 { margin: 0; font-size: 16px; font-weight: 600; }
   header .meta { font-size: 12px; color: #999; margin-top: 4px; }
   header .meta span { margin-right: 16px; }
   header .legend { margin-top: 8px; font-size: 11px; }
-  header .legend .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
-  svg { width: 100vw; height: calc(100vh - 88px); cursor: grab; }
-  svg:active { cursor: grabbing; }
-  .link { stroke: #555; stroke-opacity: 0.7; }
-  .node circle { stroke: #1e1e1e; stroke-width: 2px; cursor: pointer; }
-  .node text { fill: #ddd; font-size: 11px; font-weight: 500; pointer-events: none; }
-  .node.frozen       circle { fill: #d43f3a; }
-  .node.stable       circle { fill: #f0ad4e; }
-  .node.experimental circle { fill: #5bc0de; }
-  .node.component    circle { fill: #ff9800; }
-  .node.component    text   { fill: #ffd180; }
-  .node.entry        circle { fill: #e91e63; stroke: #ff80ab; stroke-width: 4px; }
-  .node.entry        text   { fill: #ff80ab; font-weight: 700; }
-  .node.ui           circle { fill: #4caf50; stroke-dasharray: 3 2; }
-  .node.ui           text   { fill: #aef; font-weight: 400; font-style: italic; }
-  .node:hover circle { stroke: #fff; stroke-width: 3px; }
-  .tooltip { position: fixed; background: #2a2a2a; border: 1px solid #555; padding: 8px 12px; border-radius: 4px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.15s; max-width: 300px; }
+  header .legend .chip { display: inline-block; padding: 2px 8px; border-radius: 4px; margin-right: 8px; font-size: 11px; border: 1px solid; }
+  header .legend .entry        { color: #ff80ab; border-color: #e91e63; background: #3a0a1f; }
+  header .legend .component    { color: #ffcc80; border-color: #ff9800; background: #2a1f0a; }
+  header .legend .capability   { color: #9fd6ed; border-color: #5bc0de; background: #1a2a3a; }
+  header .legend .ui           { color: #a5d6a7; border-color: #4caf50; background: #1a2e1a; border-style: dashed; }
+  #map-wrap { width: 100vw; height: calc(100vh - 88px); overflow: auto; cursor: grab; }
+  #map-wrap:active { cursor: grabbing; }
+  #map { padding: 24px; display: inline-block; min-width: 100%; }
+  .mermaid { background: transparent; }
+  .mermaid svg { max-width: none !important; height: auto !important; }
+  .empty { padding: 40px 24px; color: #888; font-size: 14px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>\u{1F525} infernoflow \u2014 capability graph</h1>
+  <h1>\u{1F525} infernoflow \u2014 code map</h1>
   <div class="meta">
-    <span>Generated: ${new Date().toLocaleString()}</span>
-    <span>${o.length} capabilities \xB7 ${l.length} edges</span>
+    <span>Generated: \${new Date().toLocaleString()}</span>
+    <span>\${nodeCount} nodes \xB7 \${edgeCount} edges</span>
   </div>
   <div class="legend">
-    <span><span class="swatch" style="background:#e91e63"></span>entry (App.jsx / main / index)</span>
-    <span><span class="swatch" style="background:#ff9800"></span>component</span>
-    <span><span class="swatch" style="background:#5bc0de"></span>capability</span>
-    <span><span class="swatch" style="background:#4caf50"></span>UI element</span>
-    <span><span class="swatch" style="background:#d43f3a"></span>frozen</span>
-    <span style="color:#666; margin-left:16px;">drag \xB7 scroll to zoom \xB7 hover for details</span>
+    <span class="chip entry">\u{1F6AA} entry</span>
+    <span class="chip component">\u{1F9E9} component</span>
+    <span class="chip capability">capability</span>
+    <span class="chip ui">UI element</span>
+    <span style="color:#666;">scroll to pan \xB7 pinch / Ctrl-scroll to zoom \xB7 click-drag empty area</span>
   </div>
 </header>
-<svg></svg>
-<div class="tooltip" id="tt"></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<script>
-const data = ${c};
-const svg = d3.select("svg");
-const W = window.innerWidth, H = window.innerHeight - 88;
-const g = svg.append("g");
+<div id="map-wrap">
+  <div id="map">
+    \${nodeCount === 0
+      ? '<div class="empty">No nodes to render \u2014 run <code>infernoflow scan</code> first.</div>'
+      : '<pre class="mermaid">' + \`${f.replace(/`/g,"`")}\` + '</pre>'
+    }
+  </div>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: "dark",
+    securityLevel: "loose",
+    flowchart: { useMaxWidth: false, htmlLabels: true, curve: "linear", padding: 20, nodeSpacing: 60, rankSpacing: 80 },
+  });
 
-const zoom = d3.zoom().scaleExtent([0.3, 4]).on("zoom", e => g.attr("transform", e.transform));
-svg.call(zoom);
-
-const sim = d3.forceSimulation(data.nodes)
-  .force("link",   d3.forceLink(data.links).id(d => d.id).distance(120))
-  .force("charge", d3.forceManyBody().strength(-400))
-  .force("center", d3.forceCenter(W/2, H/2))
-  .force("collide", d3.forceCollide(40));
-
-const link = g.append("g").selectAll("line")
-  .data(data.links).enter().append("line")
-  .attr("class", "link").attr("marker-end", "url(#arrow)");
-
-svg.append("defs").append("marker").attr("id","arrow").attr("viewBox","0 -5 10 10").attr("refX",18).attr("refY",0).attr("markerWidth",6).attr("markerHeight",6).attr("orient","auto").append("path").attr("d","M0,-5L10,0L0,5").attr("fill","#888");
-
-const node = g.append("g").selectAll(".node")
-  .data(data.nodes).enter().append("g")
-  .attr("class", d => "node " + (d.isEntry ? "entry" : (d.kind === "ui" ? "ui" : (d.kind === "component" ? "component" : d.stability))))
-  .call(d3.drag()
-    .on("start", (e,d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
-    .on("drag",  (e,d) => { d.fx=e.x; d.fy=e.y; })
-    .on("end",   (e,d) => { if (!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }));
-
-node.append("circle").attr("r", d => {
-  if (d.isEntry) return 18;             // entry component is biggest \u2014 root of the tree
-  if (d.kind === "ui") return 7;
-  if (d.kind === "component") return 11;
-  return 12 + Math.min(d.functions, 8);
-});
-node.append("text").attr("dx", 18).attr("dy", 4).text(d => {
-  if (d.kind === "ui") {
-    const emoji = { button: "\u{1F518}", input: "\u2328\uFE0F", form: "\u{1F4DD}", link: "\u{1F517}", select: "\u25BE" }[d.tag] || "\u{1F9E9}";
-    return emoji + " " + d.name;
-  }
-  if (d.kind === "component") return "\u{1F9E9} " + d.name;
-  return d.name;
-});
-
-const tt = d3.select("#tt");
-node.on("mouseover", (e,d) => {
-  let html;
-  if (d.kind === "ui") {
-    html = \`<strong>\${d.name}</strong><br/>UI element: &lt;\${d.tag}&gt;<br/>Handler: \${d.handler || "\u2014"}\`;
-  } else if (d.kind === "component") {
-    html = \`<strong>\u{1F9E9} \${d.name}</strong><br/>Component<br/>\${d.file || ""}\`;
-  } else {
-    html = \`<strong>\${d.name}</strong><br/>Capability \xB7 \${d.stability}<br/>Functions: \${d.functions}\`;
-  }
-  tt.html(html).style("left", (e.pageX+12)+"px").style("top", (e.pageY+12)+"px").style("opacity", 1);
-}).on("mouseout", () => tt.style("opacity", 0));
-
-sim.on("tick", () => {
-  link.attr("x1", d=>d.source.x).attr("y1", d=>d.source.y).attr("x2", d=>d.target.x).attr("y2", d=>d.target.y);
-  node.attr("transform", d => \`translate(\${d.x},\${d.y})\`);
-});
+  // Drag-to-pan on the wrapper (zoom is native via wheel/pinch + browser zoom)
+  const wrap = document.getElementById("map-wrap");
+  let dragging = false, startX = 0, startY = 0, scrollX = 0, scrollY = 0;
+  wrap.addEventListener("mousedown", e => {
+    if (e.target.closest("a, button")) return;
+    dragging = true; startX = e.pageX; startY = e.pageY; scrollX = wrap.scrollLeft; scrollY = wrap.scrollTop;
+    e.preventDefault();
+  });
+  window.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    wrap.scrollLeft = scrollX - (e.pageX - startX);
+    wrap.scrollTop  = scrollY - (e.pageY - startY);
+  });
+  window.addEventListener("mouseup", () => { dragging = false; });
 </script>
 </body>
-</html>`}function ie(i){return D(v.join(i,"graph.json"))}export{ae as graphCommand,ie as loadGraph};
+</html>`}function re(a){return I(x.join(a,"graph.json"))}export{ae as graphCommand,re as loadGraph};

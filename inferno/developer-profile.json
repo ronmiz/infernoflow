@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "createdAt": "2026-05-05T17:46:02.885Z",
-  "updatedAt": "2026-05-10T17:22:40.808Z",
-  "sessionCount": 6,
+  "updatedAt": "2026-05-13T16:04:10.889Z",
+  "sessionCount": 8,
   "namingStyle": "unknown",
   "preferredVerbs": [],
   "commandUsage": {
@@ -10,9 +10,9 @@
     "definitely-not-a-real-command": 1,
     "sync": 2,
     "pr-impact": 1,
-    "check": 14,
-    "review": 14,
-    "changelog": 12
+    "check": 18,
+    "review": 19,
+    "changelog": 16
   },
   "featureClusters": [],
   "avgSessionLength": 0,
@@ -23,5 +23,5 @@
     "framework": "unknown",
     "projectType": "unknown"
   },
-  "_lastCommandTs": 1778433760808
+  "_lastCommandTs": 1778688250889
 }
