@@ -281,6 +281,10 @@ Same content as 0.42.6 — that version got registered on npm during a flaky pub
 - v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
 - remove internal planning docs from public repo
 
+- v0.43.6 + ext v0.7.5: Memory protocol skill (AI proactively logs via amp_write) + Mermaid flow-chart for --html graph
+- v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
+- remove internal planning docs from public repo
+
 ## 0.42.1 — 2026-05-03
 
 ### Added
