@@ -27,6 +27,7 @@ import { InfernoCodeLensProvider } from "./codeLens";
 import { AutoCapture }             from "./autoCapture";
 import { rebuildAiRuleFiles }      from "./contextSync";
 import { registerCommands }        from "./commands";
+import { ensureCliAndSetup }       from "./cliInstaller";
 
 let statusBar:   InfernoStatusBar        | undefined;
 let diagnostics: InfernoDiagnostics      | undefined;
@@ -138,6 +139,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Commands + keybindings
   registerCommands(context, () => treeProvider.refresh());
+
+  // One-time-per-workspace bootstrap: install the CLI if missing, then run
+  // setup so MCP servers are wired up for Cursor / VS Code Copilot / Claude
+  // Code. Runs in the background — never blocks activation, never throws.
+  // The user gets a one-prompt "Install?" toast on a fresh workspace; after
+  // that everything is automatic.
+  void ensureCliAndSetup(context);
 }
 
 export function deactivate(): void {

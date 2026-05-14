@@ -1,5 +1,20 @@
 # Changelog — infernoflow
 
+## 0.43.9 — 2026-05-13 — `init` is enough
+
+### Fixed — Memory protocol skill now actually works after `init`
+Before this release, `infernoflow init` only created `.ai-memory/`. The Memory protocol skill block — which tells the AI "call `amp_write` when you see frustration / decisions / etc." — was injected by the **VS Code extension** on auto-sync. CLI-only users got `.ai-memory/`, no rule files, no MCP server, no `amp_write` tool. The AI had nothing to call. **Nothing got logged.**
+
+`init` now does what `setup` used to do — automatically. Specifically:
+
+- **Writes rule files directly** — `.cursorrules`, `CLAUDE.md`, and `.github/copilot-instructions.md` get the Memory protocol skill block on the very first `init`, no extension required. New shared module `lib/ruleFiles.mjs` is the single source of truth; the extension will refresh these files with ranked memory using the same delimiter markers (`<!-- infernoflow:start --> ... <!-- infernoflow:end -->`).
+- **Auto-runs MCP setup** — copies `.cursor/inferno-mcp-server.mjs`, registers it in `~/.claude.json`, and writes `.claude/settings.json` with pre-approved tool names. So when the AI reads the protocol block and tries to call `amp_write`, the tool is actually there.
+
+Both pieces are idempotent and non-fatal — `init` finishes successfully even if `~/.claude.json` is locked.
+
+### Backfill on re-run
+Re-running `infernoflow init` on a project that was set up with an older version backfills the rule files, gitignore block, and MCP server registration. No flag needed.
+
 ## 0.43.8 — 2026-05-13 — branch-switch fix
 
 ### Added — memory is developer-local, not branch-attached
@@ -314,6 +329,14 @@ Same content as 0.42.6 — that version got registered on npm during a flaky pub
 - v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
 - remove internal planning docs from public repo
 
+- block internal planning docs from git
+- v0.43.7 dist rebuild + remove lib/cloud + lib/commands/{cloud,dashboard,login} (moved to legacy/)
+- bump 0.43.6 → 0.43.7 (phantom-publish workaround)
+- v0.43.6 + ext v0.7.5: Memory protocol skill (AI proactively logs via amp_write) + Mermaid flow-chart for --html graph
+- v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
+- remove internal planning docs from public repo
+
+- gitignore .ai-memory/ + rule files so memory survives branch switches (0.43.8)
 - block internal planning docs from git
 - v0.43.7 dist rebuild + remove lib/cloud + lib/commands/{cloud,dashboard,login} (moved to legacy/)
 - bump 0.43.6 → 0.43.7 (phantom-publish workaround)

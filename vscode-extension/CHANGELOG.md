@@ -1,5 +1,27 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.7 — 2026-05-13 — one install, everything works
+
+### Fixed — installing the extension is now enough
+Before: install extension → AI agent reads the Memory protocol skill block, tries to call `amp_write`, no tool registered, nothing logged. User had to separately run `npm install -g infernoflow` and `infernoflow setup`. Two more steps no one knew about.
+
+Now: on first activation in a workspace the extension:
+1. Probes for the `infernoflow` CLI (runs `infernoflow --version`).
+2. If missing, asks once: "Install infernoflow CLI now?" — runs `npm install -g infernoflow@latest` with a progress toast.
+3. Runs `infernoflow setup --yes` in the workspace so MCP servers are registered for **all four** AI tools (Cursor / VS Code Copilot Chat / Claude Code / generic AMP) in one shot.
+4. Tracks completion per-workspace in `globalState` so the prompt never fires twice. Re-runs setup silently if a required artifact (`.ai-memory/`, `.cursor/mcp.json`, `.vscode/mcp.json`) is missing.
+
+Never blocks activation — runs entirely in the background. Never throws — if `npm install` fails (e.g. permissions), the extension still works; only MCP wiring is missing.
+
+### Pairs with CLI 0.43.9
+CLI's `setup` now writes `.vscode/mcp.json` (VS Code Copilot Chat) in addition to `~/.claude.json` (Claude Code) and `.cursor/mcp.json` (Cursor). Previously Copilot users had no `amp_write` tool to call.
+
+## 0.7.6 — 2026-05-13 — pairs with CLI 0.43.8
+
+### Improved
+- **Companion to CLI branch-switch fix.** CLI 0.43.8 now writes `.ai-memory/`, `.cursorrules`, `CLAUDE.md`, and `.github/copilot-instructions.md` into the project's `.gitignore` on `infernoflow init`. The extension does no extension-side work here — but bumping the version keeps the two in lockstep so users on `npm install -g infernoflow@latest` get a Marketplace extension that matches.
+- Same feature set as 0.7.5: Memory protocol skill auto-sync block, sidebar cull (6 sections), Code Map.
+
 ## 0.7.5 — 2026-05-11 — focus pivot (sidebar cull)
 
 ### Removed
