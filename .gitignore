@@ -61,3 +61,17 @@ docs/INFERNOFLOW_*_DESIGN.md
 docs/INFERNOFLOW_*.md
 infernoflow-roadmap.docx
 *.docx
+
+# --- infernoflow (developer-local AI memory; do not commit) ---
+# Memory is per-developer, not per-branch. These files travel with you, not with git.
+.ai-memory/
+.cursorrules
+CLAUDE.md
+.github/copilot-instructions.md
+# MCP server setup — contains absolute paths to local machine; per-developer
+.cursor/
+.vscode/mcp.json
+# Auto-generated per-developer profile
+inferno/developer-profile.json
+inferno/CONTEXT.draft.md
+# --- /infernoflow ---
