@@ -1,5 +1,25 @@
 # Changelog — infernoflow
 
+## 0.43.11 — 2026-05-13 — upgrades are transparent now
+
+### Fixed — upgrading the CLI no longer leaves your setup half-wired
+**The bug** (caught in dogfood, 30 minutes after 0.43.10 shipped): a user on 0.43.4 ran `infernoflow init`. Then they upgraded to 0.43.10 via `npm install -g infernoflow@next`. The new init has auto-MCP-setup baked in — but their existing project never re-ran init, so MCP was silently NOT wired up. They had to discover and run `infernoflow setup --yes` as a separate manual step. "One install = everything works" broke on every upgrade.
+
+**The fix:** new `lib/upgradeCheck.mjs` runs at the top of every CLI invocation. It reads `.ai-memory/.last-cli-version` (or `inferno/.last-cli-version` for legacy projects) and compares to the running version. If they differ, it silently re-runs the bits of init that need to be fresh:
+
+- `writeInitRuleFiles` — refreshes `.cursorrules`, `CLAUDE.md`, `.github/copilot-instructions.md` with the latest Memory protocol skill block.
+- `ensureGitignoreEntries` — re-adds the developer-local memory block if missing.
+- `autoSetupMcp` — copies the MCP server, registers it in `~/.claude.json`, `.cursor/mcp.json`, `.vscode/mcp.json`, and `.claude/settings.json`.
+
+Then writes the current version to the marker file so it never re-runs for the same version twice.
+
+**Visibility:** if anything was actually written (first upgrade in this project, or new MCP files needed), one line goes to stderr: `infernoflow: upgraded X → Y, wired MCP servers + rule files`. Otherwise silent.
+
+**Safety:** the entire check is wrapped in try/catch at the call site. Failures are completely invisible — the user's command always runs. Skip-list covers `--help`, `--version`, `init`, `setup`, `doctor`, `uninstall` (commands that don't need it or do their own setup).
+
+### Fixed — false "update skipped" warning on `setup`
+Cosmetic but trust-eroding: `infernoflow setup --yes` was printing `[!] .vscode/mcp.json update skipped: gray is not defined` even though the file was correctly written. The `gray` helper wasn't in `setup.mjs`'s import list — the write succeeded but the success-log line crashed and got caught by the surrounding try/catch as if the write had failed. Added `gray` to the import. File now writes silently with no false warning.
+
 ## 0.43.10 — 2026-05-13 — trust pass on dogfood feedback
 
 ### Fixed — bugs caught by an outside agent reviewing the product
@@ -362,6 +382,16 @@ Same content as 0.42.6 — that version got registered on npm during a flaky pub
 
 - one-install bootstrap — extension auto-installs CLI + setup wires all 4 AI tools (CLI 0.43.9 + ext 0.7.7)
 - gitignore .ai-memory/ + rule files so memory survives branch switches (0.43.8)
+- block internal planning docs from git
+- v0.43.7 dist rebuild + remove lib/cloud + lib/commands/{cloud,dashboard,login} (moved to legacy/)
+- bump 0.43.6 → 0.43.7 (phantom-publish workaround)
+- v0.43.6 + ext v0.7.5: Memory protocol skill (AI proactively logs via amp_write) + Mermaid flow-chart for --html graph
+- v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
+- remove internal planning docs from public repo
+
+- one-install bootstrap — extension auto-installs CLI + setup wires all 4 AI tools (CLI 0.43.9 + ext 0.7.7)
+- gitignore .ai-memory/ + rule files so memory survives branch switches (0.43.8)
+- trust pass on dogfood feedback — init --help, sync CONTEXT.md drift, status hint, scanner exclusions, gitignore transparency, stale npm scripts audit, auto-capture default off (CLI 0.43.10 + ext 0.7.8)
 - block internal planning docs from git
 - v0.43.7 dist rebuild + remove lib/cloud + lib/commands/{cloud,dashboard,login} (moved to legacy/)
 - bump 0.43.6 → 0.43.7 (phantom-publish workaround)

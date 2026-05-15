@@ -345,6 +345,23 @@ if (!commands.includes(cmd)) {
 }
 
 const args = [cmd, ...rest];
+
+// ── Silent version-skew backfill ──────────────────────────────────────────
+// If the CLI was upgraded since the last time it ran in this project,
+// re-run the bits of init that need to be refreshed (rule files, MCP
+// server registration, .gitignore block). Idempotent + non-fatal — runs
+// before the command's own handler so a freshly-upgraded user gets a
+// fully-wired environment on the very next command, without having to
+// know to run `infernoflow setup` themselves.
+//
+// Skips for help/version/init/setup/doctor/uninstall — those either don't
+// need it or do their own setup. Also skips when there's no infernoflow
+// project in cwd at all (we don't scaffold into random folders).
+try {
+  const { runUpgradeBackfillIfNeeded } = await import("../lib/upgradeCheck.mjs");
+  await runUpgradeBackfillIfNeeded(VERSION, cmd);
+} catch { /* never block the user's command on the upgrade check */ }
+
 COMMAND_HANDLERS[cmd](args).catch((err) => {
   console.error(red("\nError: ") + err.message);
   process.exit(1);
