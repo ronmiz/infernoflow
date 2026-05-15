@@ -399,6 +399,17 @@ Same content as 0.42.6 — that version got registered on npm during a flaky pub
 - v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
 - remove internal planning docs from public repo
 
+- one-install bootstrap — extension auto-installs CLI + setup wires all 4 AI tools (CLI 0.43.9 + ext 0.7.7)
+- gitignore .ai-memory/ + rule files so memory survives branch switches (0.43.8)
+- silent version-skew backfill on every CLI command + gray import bug in setup
+- trust pass on dogfood feedback — init --help, sync CONTEXT.md drift, status hint, scanner exclusions, gitignore transparency, stale npm scripts audit, auto-capture default off (CLI 0.43.10 + ext 0.7.8)
+- block internal planning docs from git
+- v0.43.7 dist rebuild + remove lib/cloud + lib/commands/{cloud,dashboard,login} (moved to legacy/)
+- bump 0.43.6 → 0.43.7 (phantom-publish workaround)
+- v0.43.6 + ext v0.7.5: Memory protocol skill (AI proactively logs via amp_write) + Mermaid flow-chart for --html graph
+- v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
+- remove internal planning docs from public repo
+
 ## 0.42.1 — 2026-05-03
 
 ### Added
