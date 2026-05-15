@@ -1,5 +1,10 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.8 — 2026-05-13 — auto-capture popup off by default
+
+### Changed
+- **`infernoflow.autoCapture.repeatedEdits` now defaults to `false`.** The 5-edits-in-10-min popup was originally meant to catch "stuck on something?" moments, but in practice fired on low-signal noise — the reviewer's example was a tiny `<div>loading…</div>` getting edited 5 times in a row, surfacing as a captured gotcha. The Memory protocol skill block (shipped 0.7.5) now does this job from the AI side: the AI itself decides what's worth logging. If you specifically want the popup back, flip the setting in `infernoflow.autoCapture.repeatedEdits`.
+
 ## 0.7.7 — 2026-05-13 — one install, everything works
 
 ### Fixed — installing the extension is now enough

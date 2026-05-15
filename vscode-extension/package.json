@@ -2,7 +2,7 @@
   "name": "infernoflow",
   "displayName": "infernoflow",
   "description": "Persistent memory for AI coding sessions \u2014 live sidebar over .ai-memory/ (AMP). Captures gotchas, decisions, dead ends and replays them into Cursor / Copilot / Claude / Windsurf.",
-  "version": "0.7.7",
+  "version": "0.7.8",
   "publisher": "infernoflow",
   "license": "MIT",
   "repository": {
@@ -301,8 +301,8 @@
         },
         "infernoflow.autoCapture.repeatedEdits": {
           "type": "boolean",
-          "default": true,
-          "description": "Detect when you edit the same file repeatedly in a short window and prompt to log a gotcha or failed attempt."
+          "default": false,
+          "description": "Deprecated. The Memory protocol skill block in your AI rule files now handles capture (the AI itself calls `amp_write` when it sees frustration / decisions / etc.). The 5-edits-in-10-min popup was found to fire on low-signal noise (editing a tiny div repeatedly) — enable only if you specifically want the popup back."
         },
         "infernoflow.autoCapture.repeatedEditsThreshold": {
           "type": "number",

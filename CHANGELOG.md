@@ -1,5 +1,21 @@
 # Changelog — infernoflow
 
+## 0.43.10 — 2026-05-13 — trust pass on dogfood feedback
+
+### Fixed — bugs caught by an outside agent reviewing the product
+The agent dogfooding 0.43.9 flagged seven friction points. The four "trust-eroding" ones are fixed here:
+
+- **`init --help` now actually shows help.** Used to run interactive init with the flag ignored. Agents piping `init --help | head` got an interactive prompt; humans typing it lost faith. Added a real help printer and a short-circuit at the top of `initCommand`.
+- **`contract sync --auto` now detects CONTEXT.md drift.** Previously only checked git-diff impact via `pr-impact`; said "no drift detected" while CONTEXT.md still claimed an obsolete policyId / version. New `detectContextMdDrift` compares H1, version token, and capability ids in CONTEXT.md against contract.json. Surfaces in JSON output as `contextDrift` and reason code `CONTEXT_MD_STALE`.
+- **`status` no longer nags about contracts when contracts already exist.** The "Want capability contracts + CI gates? Run: infernoflow init --mode full" hint always printed in memory-mode, even after the user had set up the full mode (because amp.json + contract.json can coexist). Now gated on `!fs.existsSync(inferno/contract.json)`.
+- **Capability scanner no longer mistakes our own scaffolding for user code.** `.cursor/hooks/inferno-session-draft.mjs` was being attributed to user-domain capabilities like ReadTasks. Added `.cursor`, `.vscode`, `.claude`, `.ai-memory`, `inferno`, `legacy` to `SKIP_DIRS` and an `inferno-*.mjs` filename filter.
+
+### Added — `doctor` detects stale npm scripts from old releases
+`infernoflow doctor` now audits `package.json` scripts for references to commands that no longer exist on the current surface (post-0.43 cull). Surfaces them with the script name + bad verb so the user knows what to delete. Doesn't auto-fix — your CI may depend on those references and we don't trust ourselves to rewrite them.
+
+### Changed — `.gitignore` opinion is now transparent
+On `init`, the .gitignore-block log line used to say only "Updated .gitignore". It now prints the exact list of patterns added and tells the user how to undo (delete the `# --- infernoflow ---` block). Reviewers flagged that silently adding `CLAUDE.md` to a developer's gitignore is a strong philosophical claim some teams will disagree with — make the claim visible.
+
 ## 0.43.9 — 2026-05-13 — `init` is enough
 
 ### Fixed — Memory protocol skill now actually works after `init`
@@ -336,6 +352,15 @@ Same content as 0.42.6 — that version got registered on npm during a flaky pub
 - v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
 - remove internal planning docs from public repo
 
+- gitignore .ai-memory/ + rule files so memory survives branch switches (0.43.8)
+- block internal planning docs from git
+- v0.43.7 dist rebuild + remove lib/cloud + lib/commands/{cloud,dashboard,login} (moved to legacy/)
+- bump 0.43.6 → 0.43.7 (phantom-publish workaround)
+- v0.43.6 + ext v0.7.5: Memory protocol skill (AI proactively logs via amp_write) + Mermaid flow-chart for --html graph
+- v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
+- remove internal planning docs from public repo
+
+- one-install bootstrap — extension auto-installs CLI + setup wires all 4 AI tools (CLI 0.43.9 + ext 0.7.7)
 - gitignore .ai-memory/ + rule files so memory survives branch switches (0.43.8)
 - block internal planning docs from git
 - v0.43.7 dist rebuild + remove lib/cloud + lib/commands/{cloud,dashboard,login} (moved to legacy/)
