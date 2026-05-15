@@ -1,5 +1,25 @@
 # Changelog — infernoflow
 
+## 0.43.12 — 2026-05-13 — extension is now optional
+
+### Changed — `infernoflow log` keeps rule files fresh by itself
+Up to now, when you ran `infernoflow log "..."` from CLI, the entry landed in `.ai-memory/sessions.jsonl` but the AI's rule files (`.cursorrules`, `CLAUDE.md`, `.github/copilot-instructions.md`) stayed **frozen** at whatever was written at init time. Refreshing them required the VS Code extension's auto-sync watcher. CLI-only users (Cursor / Claude Code / Copilot without our extension) had a memory store the AI never saw new entries from.
+
+`log` now calls `refreshRuleFilesFromMemory(cwd)` after every successful entry. The rule files always reflect the latest memory + last 10 git commits. Non-fatal if the refresh errors (e.g. read-only FS).
+
+**Impact:** the VS Code extension is now **optional UX polish**, not a hard dependency for the core memory-to-AI flow. Cursor users, Claude Code-in-terminal users, anyone using any MCP-aware AI tool — they all get fresh rule files just by running `infernoflow log`.
+
+### Changed — upgrade-check now writes memory-aware rule files
+The 0.43.11 silent upgrade backfill called `writeInitRuleFiles` which produced an empty stub. On upgrade in a project that already had 30 logged entries, the rule file showed "no entries yet" — wrong. Now uses `refreshRuleFilesFromMemory` so the post-upgrade rule file accurately reflects existing memory.
+
+### What "memory-aware" includes (CLI side)
+- Memory protocol skill block (same as before)
+- Recent commits — last 10, from `git log`
+- Recent entries — last 10 by timestamp, newest first
+- Memory entries grouped by type (gotcha / decision / attempt / note) with icons + file refs
+
+The CLI does NOT do per-file relevance ranking (it has no editor state to know what file you're looking at). That's still the extension's job. CLI gives you "what's been happening lately"; extension gives you "what's relevant to the file you're editing right now."
+
 ## 0.43.11 — 2026-05-13 — upgrades are transparent now
 
 ### Fixed — upgrading the CLI no longer leaves your setup half-wired
