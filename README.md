@@ -1,208 +1,146 @@
 # 🔥 infernoflow
 
-> Persistent memory for AI coding sessions. Captures what agents can't infer from code: gotchas, decisions, dead ends. Replays it into your next AI chat so you stop re-deriving context every time.
->
-> infernoflow is the reference CLI for [**AMP — the AI Memory Protocol**](docs/protocol/PROTOCOL.md). Any AMP-compatible tool can read your `.ai-memory/sessions.jsonl` — Cursor, Copilot, Claude, Windsurf, future agents. Vendor-neutral, file-based, zero deps.
+> Persistent memory for AI coding sessions. Capture what agents can't infer from code — the gotchas, the decisions, the failed approaches — and replay it into your next chat so you stop re-deriving context every time you open Cursor / Claude Code / Copilot.
 
 [![npm version](https://img.shields.io/npm/v/infernoflow.svg?color=orange)](https://www.npmjs.com/package/infernoflow)
 [![npm downloads](https://img.shields.io/npm/dw/infernoflow.svg?color=orange)](https://www.npmjs.com/package/infernoflow)
-[![zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](./package.json)
-[![npm audit](https://img.shields.io/badge/npm%20audit-0%20vulnerabilities-brightgreen)](https://docs.npmjs.com/cli/v10/commands/npm-audit)
+[![zero runtime dependencies](https://img.shields.io/badge/runtime%20deps-0-brightgreen)](./package.json)
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/infernoflow.infernoflow?label=VS%20Code&color=orange)](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow)
-[![status: alpha](https://img.shields.io/badge/status-alpha-yellow)](#)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
-> **⚠ Alpha — actively iterating.** Local memory operations (logging, search, handoff, AI rule-file injection) are stable. The product does ONE thing: persistent memory that any AI tool can read. No network calls in default command paths. See [SECURITY.md](./SECURITY.md) for the full data-flow disclosure.
+## The loop
 
-## The 60-second pitch
+Every new AI session today starts cold. The agent re-reads your code, re-derives the obvious, and often re-makes the same wrong move someone else made yesterday. infernoflow closes that loop in four stages:
 
-Every new Copilot/Cursor/Claude session starts cold. The agent re-reads your code, ignores constraints that aren't expressed there, and often re-makes the same wrong move someone else made yesterday. infernoflow is a small CLI that captures *those things* — the API quirks, the failed approaches, the architectural decisions — and replays them into the next AI session as a clean handoff. One command. No paste, no copy, no manual setup.
+1. **Capture** — while you and the agent work, certain moments are worth saving: a gotcha hit, a decision made, an attempted fix that failed, a pattern noticed. The agent writes them down automatically via the `amp_write` MCP tool — no copy/paste, no `git commit -m`.
+2. **Link** — each captured moment becomes a structured AMP entry (`gotcha | decision | attempt | note | detection | pattern`) with timestamp, file:line, tags, and a stable AMP id. Linked into the project, not your scratchpad.
+3. **Persist** — entries land in `.ai-memory/branches/<branch>.jsonl` (git-tracked, travels with your branch — teammates inherit it) plus `.ai-memory/global.jsonl` (personal preferences, gitignored, synced across your machines via any OS-synced folder).
+4. **Restore** — when a new session starts, the agent reads `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` at boot. The most relevant entries are already there. Warm start; no cold derivation.
+
+That's it. No service to log into. No SaaS. JSONL on disk, an MCP server, and three rule files your IDE already reads.
 
 ## Install
 
 ```bash
 npm install -g infernoflow
-# or zero-install:
-npx infernoflow init
+infernoflow init --yes
 ```
 
-Zero npm dependencies. Works on Node ≥ 18. Windows, macOS, Linux.
+Zero runtime dependencies. Works on Node ≥ 18 — macOS, Linux, Windows.
 
-## Quick start (90 seconds)
+`init --yes` does the whole setup: creates `.ai-memory/`, writes rule files for every supported IDE, wires the MCP server for Cursor / VS Code Copilot / Claude Code in one shot, applies the clean-tree git policy, and drops a visible demo entry so you can confirm the loop is alive with one command:
 
 ```bash
-cd your-project
-infernoflow init                # 30-second setup, asks for your first gotcha
-infernoflow log "API returns 202 not 200" --type gotcha
-infernoflow log "use polling not websocket for progress" --type decision
-infernoflow ask "API"           # search your memory
-infernoflow switch --copy       # generate handoff, copy to clipboard
-# paste into your next Cursor/Copilot/Claude chat — the agent picks up everything
+infernoflow status
 ```
 
-## The 5-command core
+## The 5-command core + 1
 
-These five cover 90% of usage:
+These cover 95% of usage:
 
 | Command | What it does |
 |---|---|
-| `infernoflow log "..."` | Remember a gotcha, decision, attempt, or note. `--type gotcha\|decision\|attempt\|preference` |
-| `infernoflow ask "..."` | Search your memory by keyword. Gotchas surface first. |
-| `infernoflow switch` | Generate a handoff for your next AI session. `--copy` puts it on the clipboard. |
-| `infernoflow recap` | End-of-session summary with health score and unlogged-change detection. |
-| `infernoflow status` | Quick session-memory health check. |
+| `infernoflow log "..."` | Remember a gotcha / decision / attempt / note. `--type gotcha\|decision\|attempt\|preference` |
+| `infernoflow ask "..."` | Search your memory by keyword — gotchas surface first |
+| `infernoflow switch` | Generate a handoff for the next session. `--copy` puts it on your clipboard |
+| `infernoflow recap` | End-of-session summary with health score + unlogged-change detection |
+| `infernoflow status` | Quick health check — entries, gotchas, decisions, last activity |
+| `infernoflow refresh` | Manually rebuild `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` from memory |
 
-Run `infernoflow commands` for the full grouped list (12 visible commands across Session Memory, Code Analysis, Workflow, Cloud, Setup; ~40 more available as aliases for backward compat).
+In practice you barely run any of these — the MCP-aware AI does it for you. The CLI is for grep-style introspection.
 
-## The AI Memory Protocol (AMP)
+`infernoflow commands` shows the full list (17 commands, grouped by purpose).
 
-infernoflow stores memory in the AMP-canonical layout:
+## Branch-aware memory + cross-machine sync
+
+**Your teammate takes your branch — they inherit your memory.**
 
 ```
 .ai-memory/
-├── sessions.jsonl   # one AMP entry per line (gotchas, decisions, attempts, notes…)
-├── amp.json         # project metadata
-└── handoff.md       # generated handoff for AI agents
+├── branches/
+│   ├── main.jsonl              ← project-wide truths (git-tracked)
+│   └── feature-auth.jsonl      ← your current branch's work (git-tracked)
+├── global.jsonl                ← your personal preferences (gitignored)
+└── sessions.jsonl              ← legacy flat file (still read)
 ```
 
-Each entry on disk is AMP wire format:
+- **Captures on a feature branch travel with that branch via git.** When a teammate runs `git checkout feature-auth`, the JSONL is there. Their MCP server boots, reads it, regenerates their rule files — their AI is warm-started on *your* findings without you sending a message.
+- **Personal preferences travel between your own machines.** Point at any OS-synced folder once:
+  ```
+  infernoflow sync set ~/Dropbox/infernoflow-memory
+  ```
+  Home → work → home. No infra to stand up; the OS does the sync.
+- **`merge=union` on branch JSONLs** means concurrent commits from different machines merge cleanly — no manual conflict resolution.
+- **Branch switching never blocked.** Rule files refresh only at MCP server boot or via explicit `infernoflow refresh`, not on every entry — your working tree stays clean while you log.
 
-```json
-{"type":"gotcha","msg":"API returns 202 not 200","ts":1714704000000,"id":"amp_01HXYZ...","file":"src/api.js","line":42}
-```
+## Cross-IDE — same memory, every tool
 
-The full spec is in [docs/protocol/PROTOCOL.md](docs/protocol/PROTOCOL.md). Any tool that can parse JSONL can read your memory — that's the whole point. infernoflow is currently the **AMP Full** reference implementation: read + write + handoff + injection across CLAUDE.md / .cursorrules / copilot-instructions.md.
+The rule files at the top level of your project are what every AI agent reads on boot. infernoflow writes the same canonical block to all three:
 
-Building your own AMP-compatible tool? Use the reference TS library:
+| Tool | Reads from |
+|---|---|
+| Claude Code | `CLAUDE.md` |
+| Cursor | `.cursorrules` |
+| GitHub Copilot (VS Code, JetBrains) | `.github/copilot-instructions.md` |
 
-```bash
-npm install infernoflow-amp
-```
+Plus MCP for tools that speak it — Cursor, Claude Code, VS Code Copilot Chat. The MCP server is wired by `infernoflow setup` / `init` into each tool's config file. No per-tool setup.
 
-If you have a project on the legacy `inferno/sessions.jsonl` layout, migrate with one command:
+## MCP tools (for AI agents)
 
-```bash
-infernoflow amp migrate
-```
+When the MCP server is wired, your AI agent can call these directly in chat:
 
-The original `inferno/sessions.jsonl` is left in place — nothing is overwritten.
+| Tool | What it does |
+|---|---|
+| `amp_write` | Log an entry (`type`, `msg`, optional `file` / `line` / `tags`) |
+| `amp_read` | Read entries with optional filters |
+| `amp_search` | Keyword search across entries |
+| `amp_handoff` | Generate the handoff document for the next AI session |
+| `amp_health` | Session health score (A–F) |
+| `infernoflow_status` | Memory + project health at a glance |
+| `infernoflow_check` | Validate the capability contract (read-only) |
+| `infernoflow_context` | Generate AI-ready context for a task |
+| `infernoflow_git_drift` | Detect which capabilities recent commits affected |
 
-## Auto-context for AI agents
+The `amp_*` tools follow the [AMP MCP spec §7.3](docs/protocol/PROTOCOL.md#73-mcp-tool-interface) — vendor-neutral. Any AMP-Full client only needs to know those five names.
 
-When you run `infernoflow log`, infernoflow silently keeps these files up to date so any AI agent reading them gets your latest gotchas/decisions automatically:
+## What it has caught (real dogfood)
 
-- `CLAUDE.md` — picked up by Claude Code
-- `.cursorrules` — picked up by Cursor
-- `.github/copilot-instructions.md` — picked up by GitHub Copilot
+infernoflow was developed by building a multi-tenant kanban (`infernotest_01`) and capturing what it surfaced. A sample of real entries from that dogfood:
 
-You don't have to paste anything. Set up once, every future session is better.
+- **gotcha** (`vite.config.ts`): *"Vite proxy with `changeOrigin: true` rewrites the Host header — server-side URL construction produces URLs pointing at the BACKEND port. Build user-facing URLs client-side via `window.location.origin`."*
+- **gotcha** (`server/prisma/schema.prisma`): *"Prisma 6 `query_engine.dll.node` is locked while tsx watch is running; `prisma migrate dev` fails with EPERM on rename. Stop the dev server before migrating."*
+- **gotcha** (`server/src/routes/members.ts`): *"Invite accept must NOT burn the token when the caller is already a member of the workspace — return early with the existing membership before marking acceptedAt."*
+- **pattern** (`server/src/routes/columns.ts`): *"Position assignment for ordered children: next position = max(existing) + 1024. The 1024 step leaves room for ~10 inserts between two siblings without renumbering."*
+- **pattern** (`server/src/access.ts`): *"Cross-entity auth helpers do `where: { memberships: { where: { userId } } }` via Prisma nested-select — one DB hop per assertion. Return 404 not 403 when not a member to avoid leaking existence."*
+- **decision** (`server/src/auth.ts`): *"Opaque session tokens in a Session table (not JWTs) — chosen so we can revoke per-session (`deleteMany` on Session). bcryptjs over native bcrypt to avoid platform-specific binaries."*
+
+These are the things you'd otherwise forget by next Tuesday and re-derive at 11pm on a Friday. They live in `.ai-memory/branches/*.jsonl` forever.
 
 ## VS Code extension
 
-The companion extension turns the CLI into a live visual surface inside VS Code. Install it from the Marketplace:
+The companion extension renders your memory as a live sidebar — ranked-by-relevance gotchas/decisions for whatever file you're editing, status bar health score, inline CodeLens annotations at gotcha locations.
 
 ```
 ext install infernoflow.infernoflow
 ```
 
-Or browse it [on the Marketplace](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow). Activates automatically on any project containing `.ai-memory/sessions.jsonl` or `inferno/`.
+Or in the Marketplace: [infernoflow.infernoflow](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow). Activates on any project with `.ai-memory/` (or legacy `inferno/`).
 
-**What you get (v0.7.4):**
-
-The extension closes a real loop: **capture** the right thing → **rank** it for the file you're editing → **inject** it into the AI's context automatically.
-
-#### Capture (zero-typing memory)
-
-- **Auto-capture popup** — when you edit the same file 5+ times in 10 minutes, a popup asks "Stuck on something?" with [Log Gotcha] [Log Attempt] [Dismiss] buttons. Click once → entry is auto-written with timestamp, file:line, the enclosing function name, a 5-line code-context window, nearby TypeScript/ESLint diagnostics, AND failure/success-keyword excerpts from the recent agent conversation.
-- **Agent conversation harvest** — if you've installed Cursor / Copilot hooks (`infernoflow install-cursor-hooks`), every agent exchange writes to `CONTEXT.draft.md`. Auto-capture pulls failure-signal lines (`error`, `cannot`, `still failing`) AND resolution-signal lines (`got it`, `the fix was`, `turns out`) so the gotcha tells the full arc — breakdown and breakthrough.
-- **AI session summarize** — new "Summarize session with AI" action runs the recent conversation through Copilot (via VS Code LM API) or your configured AI provider, proposes 1–6 structured memory entries, shows them in a multi-select picker. Tick which to keep.
-- **Bulk delete + orphan cleanup** — "Manage entries…" picker grouped by date for cleanups. "Cleanup orphaned entries…" finds entries whose source files were deleted (e.g., after refactor) for bulk removal.
-
-#### Inject (closing the loop)
-
-- **AI Context for [current file]** sidebar section — shows top 5 most-relevant entries for whatever file you're editing, scored by: same file (+100), same directory (+40), same extension (+10), recent (+20), type-weighted. Updates as you switch editors.
-- **Auto-sync rule files** (default on, debounced 1.5s) — on every memory change OR editor switch, the extension rewrites `.cursorrules` / `CLAUDE.md` / `.github/copilot-instructions.md` with the current ranking. Recent git commits go at the top, top-5 most-relevant memory entries next, older context collapsed under `<details>`. Idempotent — uses delimiter comments, doesn't trample your manual edits. **Result: when you open a NEW AI chat in the same VS Code session, the AI tool reads the updated rule files at chat start and sees the right gotchas first — no manual "rebuild" step required.**
-- **Inline CodeLens** — `🔥 ⚠ 2 gotchas · 1 failed · 1 decision` above any file with logged entries. Per-line annotations at gotcha locations. Click for full entry detail.
-- **Editor diagnostics** — gotchas as yellow Warnings, failed attempts as blue Information squiggles. Copilot reads them.
-
-#### Surface
-
-- **Sidebar memory panel** — Session Health (A–F), AI Context for [current file], Gotchas, Decisions, Failed Attempts, Quick Actions, CLI Tools (one-click access to 11 CLI commands).
-- **Status bar** — `🔥 B 65 · ⚠3 · ✓2 · ❌1 · 📋 Switch` with grade-based color coding.
-- **Help tooltips everywhere** — hover any sidebar item for a description of what it does, when to use it, what happens when clicked.
-- **Keyboard shortcuts** — `Ctrl+Alt+G/D/A/S/R` for log gotcha / log decision / ask memory / generate handoff / show recap.
-
-## Cursor / VS Code MCP integration
-
-```bash
-infernoflow install-cursor-hooks
-# Restart Cursor → Settings → MCP → infernoflow: 4 tools enabled
-
-# or for VS Code + Copilot (Preview):
-infernoflow install-vscode-copilot-hooks
-```
-
-After install-cursor-hooks, your AI agent can call infernoflow directly in chat:
-
-| MCP tool | What it does |
-|---|---|
-| `infernoflow_run` | Generate a task prompt from your contract |
-| `infernoflow_apply` | Apply the JSON response — updates contract + CHANGELOG |
-| `infernoflow_check` | Validate contract sync |
-| `infernoflow_status` | Show contract health |
-| `infernoflow_context` | Generate AI-ready context for a new session |
-| `infernoflow_implement` | Step-by-step code prompt for a specific task |
-| `infernoflow_review` | Pre-merge capability drift check on the current branch |
-| `infernoflow_git_drift` | Detect capabilities affected by recent commits |
-| `infernoflow_scan_ui` | Detect UI / design-token changes vs contract |
-| `amp_read` | **AMP-spec** alias — read entries with optional filters |
-| `amp_write` | **AMP-spec** alias — log a new entry |
-| `amp_handoff` | **AMP-spec** alias — generate the handoff document |
-| `amp_search` | **AMP-spec** alias — search entries by keyword |
-| `amp_health` | **AMP-spec** alias — session health score |
-
-The `amp_*` tools are vendor-neutral aliases following the [AMP MCP spec §7.3](docs/protocol/PROTOCOL.md#73-mcp-tool-interface). Any AMP-Full client only needs to know these names — the `infernoflow_*` set stays for backward compat.
-
-## Capability contracts (advanced)
-
-The "memory" track above (Tier 1) is what most users want. infernoflow also ships a heavier "contracts" track for teams that want machine-checked guarantees about what their codebase *does*:
-
-```bash
-infernoflow init --mode full  # set up contract.json, capabilities, scenarios
-infernoflow scan              # AST-walk to discover capabilities
-infernoflow freeze CreateItem # mark a capability as protected — AI won't modify it
-infernoflow impact CreateItem # blast radius before changes
-infernoflow check             # CI gate
-```
-
-Most users don't need this. If you do, run `infernoflow demo` for an interactive walkthrough.
-
-## CI integration
-
-```yaml
-- name: infernoflow check
-  run: npx infernoflow check --json
-- name: infernoflow doc-gate
-  run: npx infernoflow doc-gate --json
-```
-
-Or use the GitHub Action:
-
-```yaml
-- uses: ronmiz/infernoflow-action@v1
-```
+The extension is **window only** in v0.7.9+ — the CLI is the single canonical writer of rule files. No race between extension and CLI; the extension watches `.ai-memory/**/*.jsonl` and renders.
 
 ## Troubleshooting
 
-- **MCP not showing in Cursor** — fully quit and relaunch Cursor after `install-cursor-hooks`.
-- **`infernoflow not found`** — use `npx infernoflow` or `npm install -g infernoflow`.
-- **PowerShell script execution blocked** — `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
-- **`infernoflow doctor`** — runs a full diagnostic if anything looks wrong.
-- **Box-drawing chars look broken in PowerShell** — should auto-fall-back to ASCII; if not, you're on a non-WT_SESSION shell, please open an issue.
+- **I upgraded infernoflow but `amp_write` entries still look wrong.** Your IDE's MCP server is loaded into memory at session start and doesn't reload from disk. **Quit and reopen Cursor / Claude Code / VS Code.** `infernoflow doctor` will flag this with a "MCP runtime v… but CLI v…" warning.
+- **`infernoflow` not found.** Use `npx infernoflow` until the global install resolves on your PATH.
+- **PowerShell script execution blocked.** `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
+- **Box-drawing chars look broken.** Should auto-fall-back to ASCII on legacy PowerShell. If not, open an issue.
+- **`infernoflow doctor`** — full diagnostic if anything looks wrong. Includes the MCP runtime stamp check + AI provider detection + git hooks status.
 
-## Why infernoflow?
+## Why this matters
 
-Code changes daily. But what does the system *actually do*? What did someone try last week that didn't work? What invariants are load-bearing? infernoflow keeps the answer current — and feeds it to your AI agent so it stops re-deriving from scratch.
+Code changes daily. What the system *actually does* under all those edits — the invariants, the constraints, the things that bit you last week — code can't tell you. infernoflow keeps that current and feeds it to the agent so the agent stops re-deriving from scratch.
+
+That's the whole product. No vendor lock-in (it's JSONL on disk). No SaaS. One CLI, one MCP server, three rule files your IDE was reading anyway.
 
 ## License
 
@@ -210,6 +148,6 @@ MIT
 
 ## Links
 
-- [GitHub](https://github.com/ronmiz/infernoflow)
-- [npm](https://www.npmjs.com/package/infernoflow)
-- [Issues](https://github.com/ronmiz/infernoflow/issues)
+- [GitHub](https://github.com/ronmiz/infernoflow) · [npm](https://www.npmjs.com/package/infernoflow) · [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow) · [Issues](https://github.com/ronmiz/infernoflow/issues)
+- [AMP protocol spec](docs/protocol/PROTOCOL.md) — vendor-neutral memory format
+- [Dogfood: what infernoflow caught while building infernotest_01](docs/dogfood-infernotest_01.md)

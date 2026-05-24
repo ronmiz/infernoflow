@@ -2,10 +2,174 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
+import { createRequire } from "node:module";
+import { pathToFileURL, fileURLToPath } from "node:url";
+
+const require = createRequire(import.meta.url);
+
+/**
+ * Find the root of the infernoflow package, regardless of how this file was
+ * launched. Tried in order:
+ *   1. Walk UP from this file's own location looking for a package.json with
+ *      name=infernoflow. This works whether the template is run from inside
+ *      infernoflow-pkg/, from a project's .cursor/ copy (via require.resolve),
+ *      or from a test temp dir.
+ *   2. require.resolve("infernoflow/package.json") — works if infernoflow is
+ *      in node_modules of the CWD or one of its parents.
+ * Returns null if neither finds infernoflow.
+ */
+function walkUpForInfernoflow(startFile) {
+  let dir;
+  try { dir = path.dirname(fs.realpathSync(startFile)); }
+  catch { dir = path.dirname(startFile); }
+  while (true) {
+    const pj = path.join(dir, "package.json");
+    if (fs.existsSync(pj)) {
+      try {
+        const meta = JSON.parse(fs.readFileSync(pj, "utf8"));
+        if (meta && meta.name === "infernoflow") return dir;
+      } catch {}
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+function findInfernoflowRoot() {
+  // 1. Walk up from this template's own location.
+  //    Works when the template runs from inside infernoflow-pkg/ or from a
+  //    project's .cursor/ copy that has node_modules/infernoflow/ in scope.
+  const fromHere = walkUpForInfernoflow(fileURLToPath(import.meta.url));
+  if (fromHere) return fromHere;
+
+  // 2. require.resolve — works when infernoflow is in CWD's node_modules.
+  try {
+    return path.dirname(require.resolve("infernoflow/package.json"));
+  } catch {}
+
+  // 3. Resolve via the global install on PATH.
+  //    When the user runs `npm install -g infernoflow` and `init` copies this
+  //    template into their .cursor/, neither (1) nor (2) can find the package
+  //    — there's no parent package.json above .cursor/ with name=infernoflow,
+  //    and the user's project doesn't depend on infernoflow locally. Without
+  //    this branch the MCP server boots with v0.0.0-unknown.
+  try {
+    const lookup = process.platform === "win32" ? "where infernoflow" : "which infernoflow";
+    const out = execSync(lookup, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    for (const candidate of out.split(/\r?\n/).map(s => s.trim()).filter(Boolean)) {
+      if (!fs.existsSync(candidate)) continue;
+      const binDir = path.dirname(candidate);
+      // Windows layout: <npm-prefix>/infernoflow.cmd  +  <npm-prefix>/node_modules/infernoflow/
+      // Unix layout:    <npm-prefix>/bin/infernoflow  +  <npm-prefix>/lib/node_modules/infernoflow/
+      for (const layout of [
+        path.join(binDir, "node_modules", "infernoflow"),
+        path.join(binDir, "..", "lib", "node_modules", "infernoflow"),
+      ]) {
+        if (fs.existsSync(path.join(layout, "package.json"))) {
+          try { return fs.realpathSync(layout); } catch { return layout; }
+        }
+      }
+    }
+  } catch {}
+
+  return null;
+}
+
+const INFERNOFLOW_ROOT = findInfernoflowRoot();
 
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\n"); }
 function sendResult(id, result) { send({ jsonrpc: "2.0", id, result }); }
 function sendError(id, code, message) { send({ jsonrpc: "2.0", id, error: { code, message } }); }
+
+// ── Infernoflow resolution ─────────────────────────────────────────────────
+// Avoid `npx infernoflow`. npx may resolve to a different (registry-fetched)
+// version than what the user installed, which silently breaks subcommands.
+// Resolve a deterministic location once at startup, in priority order:
+//   1. infernoflow installed in the project's node_modules (npm i / npm link)
+//   2. `where`/`which` the global binary
+// Returns null if nothing is found; runCmd surfaces a clear error in that case.
+function resolveInfernoflowBin() {
+  if (INFERNOFLOW_ROOT) {
+    for (const c of [
+      path.join(INFERNOFLOW_ROOT, "dist", "bin", "infernoflow.mjs"),
+      path.join(INFERNOFLOW_ROOT, "bin",  "infernoflow.mjs"),
+    ]) if (fs.existsSync(c)) return c;
+  }
+  try {
+    const lookup = process.platform === "win32" ? "where infernoflow" : "which infernoflow";
+    const out = execSync(lookup, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    const first = out.split(/\r?\n/)[0];
+    if (first && fs.existsSync(first)) return first;
+  } catch {}
+  return null;
+}
+
+const INFERNOFLOW_BIN = resolveInfernoflowBin();
+
+// In-process AMP I/O loader. When available, amp_write / amp_read bypass the
+// CLI entirely — no subprocess, no version skew, no flag-mapping field loss.
+// Falls back to shell-out via runCmd() if the AMP layer can't be loaded.
+let ampIo = null;
+let refreshRuleFiles = null;
+if (INFERNOFLOW_ROOT) {
+  try {
+    for (const c of [
+      path.join(INFERNOFLOW_ROOT, "lib",  "amp", "io.mjs"),
+      path.join(INFERNOFLOW_ROOT, "dist", "lib", "amp", "io.mjs"),
+    ]) {
+      if (fs.existsSync(c)) { ampIo = await import(pathToFileURL(c).href); break; }
+    }
+    for (const c of [
+      path.join(INFERNOFLOW_ROOT, "lib",  "ruleFiles.mjs"),
+      path.join(INFERNOFLOW_ROOT, "dist", "lib", "ruleFiles.mjs"),
+    ]) {
+      if (fs.existsSync(c)) { refreshRuleFiles = (await import(pathToFileURL(c).href)).refreshRuleFilesFromMemory; break; }
+    }
+  } catch { /* swallow — fallback path handles it */ }
+}
+
+// ── Clean-tree policy: regenerate rule files ONCE at boot ──────────────────
+// Historically, every amp_write rewrote CLAUDE.md / .cursorrules. That
+// dirtied tracked files dozens of times per session and blocked git
+// checkout. Now we regenerate exactly once when the MCP server starts —
+// enough for the next AI session to boot warm — and never again during
+// the session. amp_read serves runtime queries; rule-file content is
+// for cold-start injection only.
+if (refreshRuleFiles) {
+  try { refreshRuleFiles(process.cwd()); } catch { /* non-fatal */ }
+}
+
+// ── Boot stamp: record which MCP version is running ──────────────────────
+// IDE-loaded MCP servers stay in memory until session restart. After
+// `npm install -g infernoflow@<new>` the on-disk wrapper updates but the
+// running process is still the old code — silent version skew that
+// shipped 0.43→0.44 bugs (file→source field misroute, etc.). We write a
+// boot stamp every time the server starts so `infernoflow setup` and
+// `infernoflow doctor` can compare against the installed CLI version and
+// tell the user when to restart their AI tool.
+try {
+  const root = (() => { try { return findInfernoflowRoot(); } catch { return null; } })();
+  let runtimeVersion = "0.0.0-unknown";
+  if (root) {
+    try { runtimeVersion = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version || runtimeVersion; }
+    catch {}
+  }
+  const memDir = path.join(process.cwd(), ".ai-memory");
+  if (fs.existsSync(memDir)) {
+    fs.writeFileSync(path.join(memDir, ".mcp-runtime.json"), JSON.stringify({
+      version:  runtimeVersion,
+      pid:      process.pid,
+      bootedAt: new Date().toISOString(),
+      source:   "inferno-mcp-server.mjs",
+    }, null, 2) + "\n", "utf8");
+  }
+  // Also surface the version on stderr so users can see it in their IDE's
+  // MCP-server log panel — that's the easiest way to verify "the new code
+  // is running" without running another command.
+  process.stderr.write(`[infernoflow MCP] active — v${runtimeVersion}, pid ${process.pid}\n`);
+} catch { /* boot stamp is best-effort; never block the server */ }
 
 /**
  * Run the infernoflow CLI. Returns either the stdout string OR a structured
@@ -13,8 +177,21 @@ function sendError(id, code, message) { send({ jsonrpc: "2.0", id, error: { code
  * sendError() instead of returning gibberish text to the agent.
  */
 function runCmd(args, env = {}) {
+  if (!INFERNOFLOW_BIN) {
+    return {
+      __error: true,
+      message: "infernoflow not installed — install it locally (`npm i infernoflow`) or globally (`npm i -g infernoflow`)",
+      stderr: "",
+      stdout: "",
+      status: 127,
+    };
+  }
   try {
-    return execSync(`npx infernoflow ${args}`, {
+    const isMjs = INFERNOFLOW_BIN.toLowerCase().endsWith(".mjs");
+    const cmd = isMjs
+      ? `"${process.execPath}" "${INFERNOFLOW_BIN}" ${args}`
+      : `"${INFERNOFLOW_BIN}" ${args}`;
+    return execSync(cmd, {
       encoding: "utf8",
       cwd: process.cwd(),
       timeout: 30000,
@@ -36,26 +213,27 @@ function isCmdError(result) {
   return typeof result === "object" && result !== null && result.__error === true;
 }
 
+// ── MCP tool surface after Phase 4 truth audit ────────────────────────────
+// Mission: session memory. The off-mission contract-iteration tools
+// (infernoflow_run / _apply / _implement / _review / _scan_ui) were cut —
+// they duplicated CLI commands that are themselves gone, and the fragile
+// env-var subprocess handoff for _apply was a recurring bug source.
+// What remains is everything an AI agent needs to capture, query, and
+// hand off memory between sessions, plus the two read-only contract
+// helpers that pair cleanly with the kept CLI surface.
 const TOOLS = [
-  { name: "infernoflow_run", description: "Generate an infernoflow task prompt. Returns the prompt — respond to it with JSON, then call infernoflow_apply.", inputSchema: { type: "object", properties: { task: { type: "string", description: "What to build" } }, required: ["task"] } },
-  { name: "infernoflow_apply", description: "Apply an infernoflow suggestion JSON returned by the agent. Call this after responding to infernoflow_run.", inputSchema: { type: "object", properties: { json: { type: "string", description: "The JSON suggestion from the agent" } }, required: ["json"] } },
-  { name: "infernoflow_check", description: "Validate infernoflow contract and capabilities", inputSchema: { type: "object", properties: {} } },
-  { name: "infernoflow_status", description: "Show contract health at a glance", inputSchema: { type: "object", properties: {} } },
-  { name: "infernoflow_context", description: "Generate AI-ready context", inputSchema: { type: "object", properties: { intent: { type: "string" }, working: { type: "string" } } } },
-  { name: "infernoflow_git_drift", description: "Detect which capabilities may be affected by recent code changes. Compares git-changed files to the capability registry and returns suggestions for contract updates.", inputSchema: { type: "object", properties: { sinceCommits: { type: "number", description: "How many commits back to check (default: 1)" } } } },
-  { name: "infernoflow_implement", description: "Generate a structured code implementation prompt for a task. Uses the contract and stack context to produce step-by-step coding instructions for the agent.", inputSchema: { type: "object", properties: { task: { type: "string", description: "What to implement" }, mode: { type: "string", enum: ["cursor", "generic", "both"], description: "Prompt style (default: both)" } }, required: ["task"] } },
-  { name: "infernoflow_scan_ui", description: "Scan components and styles for UI changes vs the stored contract. Returns new/changed components, design token changes, and suggested contract updates.", inputSchema: { type: "object", properties: {} } },
-  { name: "infernoflow_review", description: "Pre-merge capability drift check. Compares all changed files in the current branch against the capability contract and reports drift risk before you merge.", inputSchema: { type: "object", properties: { branch: { type: "string", description: "Branch to compare against (default: main)" } } } },
-
-  // ── AMP-spec MCP tools (per docs/protocol/PROTOCOL.md §7.3) ────────────────
-  // These are the standard names any AMP-compliant MCP server should expose.
-  // They're thin wrappers around the existing infernoflow_* tools so AMP-only
-  // clients don't need to know the infernoflow_ vendor prefix.
+  // ── AMP-spec memory tools (the product) ──────────────────────────────────
   { name: "amp_read",    description: "AMP: read session memory entries with optional filters.", inputSchema: { type: "object", properties: { file: { type: "string" }, type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] }, query: { type: "string" }, limit: { type: "number" } } } },
   { name: "amp_write",   description: "AMP: log a new entry. Required: type + msg. Optional: file, line, tags.", inputSchema: { type: "object", properties: { type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] }, msg: { type: "string" }, file: { type: "string" }, line: { type: "number" }, tags: { type: "array", items: { type: "string" } } }, required: ["type","msg"] } },
-  { name: "amp_handoff", description: "AMP: generate the handoff document for the next AI session. format=markdown|json (default: markdown).", inputSchema: { type: "object", properties: { format: { type: "string", enum: ["markdown","json"] } } } },
   { name: "amp_search",  description: "AMP: search entries by keyword. Optional type filter.", inputSchema: { type: "object", properties: { query: { type: "string" }, type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] } }, required: ["query"] } },
+  { name: "amp_handoff", description: "AMP: generate the handoff document for the next AI session. format=markdown|json (default: markdown).", inputSchema: { type: "object", properties: { format: { type: "string", enum: ["markdown","json"] } } } },
   { name: "amp_health",  description: "AMP: get the session health score (0-100, A-F grade).", inputSchema: { type: "object", properties: {} } },
+
+  // ── Read-only contract helpers ───────────────────────────────────────────
+  { name: "infernoflow_status",    description: "Show project memory + contract health at a glance.", inputSchema: { type: "object", properties: {} } },
+  { name: "infernoflow_check",     description: "Validate the capability contract (read-only).", inputSchema: { type: "object", properties: {} } },
+  { name: "infernoflow_context",   description: "Generate AI-ready context for a task.", inputSchema: { type: "object", properties: { intent: { type: "string" }, working: { type: "string" } } } },
+  { name: "infernoflow_git_drift", description: "Detect which capabilities may be affected by recent code changes — useful when memory needs branch-aware revalidation.", inputSchema: { type: "object", properties: { sinceCommits: { type: "number", description: "How many commits back to check (default: 1)" } } } },
 ];
 
 // ── git drift detection (inline — no external imports in this template file) ─
@@ -173,305 +351,11 @@ function detectGitDrift(sinceCommits) {
   return lines.join("\n");
 }
 
-// ── infernoflow_scan_ui ────────────────────────────────────────────────────
-function scanUi() {
-  const cwd = process.cwd();
-  const infernoDir = path.join(cwd, "inferno");
-  const contractPath = path.join(infernoDir, "contract.json");
-  if (!fs.existsSync(contractPath)) return "inferno/ not found — run infernoflow init first";
-
-  const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
-  const storedUi = contract.ui || {};
-
-  // Collect style + component files
-  const styleExts = /\.(css|scss|sass|less|ts|tsx|js|jsx|html)$/;
-  const SKIP = new Set(["node_modules", ".git", "dist", "build", ".angular", ".next", "vendor", "coverage"]);
-  const files = [];
-  const walk = (dir) => {
-    try {
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) { if (!SKIP.has(entry.name)) walk(full); }
-        else if (styleExts.test(entry.name) && !entry.name.includes(".min.") && !entry.name.endsWith(".map")) files.push(full);
-      }
-    } catch {}
-  };
-  for (const root of ["src", "app", "frontend", "components", "styles"]) {
-    const p = path.join(cwd, root);
-    if (fs.existsSync(p)) walk(p);
-  }
-
-  // Extract current components from TS/TSX files
-  const currentComponents = new Set();
-  const currentTokens = new Set();
-
-  for (const f of files) {
-    const text = fs.existsSync(f) ? fs.readFileSync(f, "utf8") : "";
-    // Components
-    for (const m of text.matchAll(/@Component[\s\S]*?class\s+([A-Z][A-Za-z0-9_]*Component)/g)) currentComponents.add(m[1].replace(/Component$/, ""));
-    for (const m of text.matchAll(/export\s+(?:default\s+)?function\s+([A-Z][A-Za-z0-9_]*)/g)) currentComponents.add(m[1]);
-    // Design tokens
-    for (const m of text.matchAll(/--([a-zA-Z][a-zA-Z0-9_-]*)\s*:/g)) currentTokens.add(`--${m[1]}`);
-  }
-
-  const storedComponents = new Set(storedUi.components || []);
-  const storedTokens = new Set(storedUi.designTokens || []);
-
-  const newComponents = [...currentComponents].filter(c => !storedComponents.has(c));
-  const removedComponents = [...storedComponents].filter(c => !currentComponents.has(c));
-  const newTokens = [...currentTokens].filter(t => !storedTokens.has(t));
-  const removedTokens = [...storedTokens].filter(t => !currentTokens.has(t));
-
-  const lines = ["## infernoflow UI scan report", ""];
-
-  if (!newComponents.length && !removedComponents.length && !newTokens.length && !removedTokens.length) {
-    lines.push("✔ No UI changes detected since last scan.");
-    return lines.join("\n");
-  }
-
-  if (newComponents.length) {
-    lines.push(`### New components (${newComponents.length})`);
-    newComponents.slice(0, 15).forEach(c => lines.push(`  + ${c}`));
-    lines.push("");
-  }
-  if (removedComponents.length) {
-    lines.push(`### Removed components (${removedComponents.length})`);
-    removedComponents.slice(0, 10).forEach(c => lines.push(`  - ${c}`));
-    lines.push("");
-  }
-  if (newTokens.length) {
-    lines.push(`### New design tokens (${newTokens.length})`);
-    newTokens.slice(0, 10).forEach(t => lines.push(`  + ${t}`));
-    lines.push("");
-  }
-  if (removedTokens.length) {
-    lines.push(`### Removed design tokens (${removedTokens.length})`);
-    removedTokens.slice(0, 10).forEach(t => lines.push(`  - ${t}`));
-    lines.push("");
-  }
-
-  lines.push("### Suggested action");
-  if (newComponents.length) {
-    const newCaps = newComponents.slice(0, 5).map(c => `View${c}`).join(", ");
-    lines.push(`Consider adding these capabilities: ${newCaps}`);
-    lines.push(`Call infernoflow_run with task "add UI capabilities for new components: ${newComponents.slice(0,3).join(", ")}" to update the contract.`);
-  }
-
-  return lines.join("\n");
-}
-
-// ── infernoflow_review ─────────────────────────────────────────────────────
-function reviewDrift(baseBranch) {
-  const cwd = process.cwd();
-  const infernoDir = path.join(cwd, "inferno");
-  const contractPath = path.join(infernoDir, "contract.json");
-  if (!fs.existsSync(contractPath)) return "inferno/ not found — run infernoflow init first";
-
-  const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
-
-  // Get changed files vs base branch
-  const runGit = (cmd) => { try { return execSync(cmd, { cwd, encoding: "utf8", timeout: 15_000 }); } catch { return ""; } };
-
-  const diffOutput = runGit(`git diff --name-only ${baseBranch}...HEAD`);
-  const changedFiles = diffOutput.split("\n").map(l => l.trim()).filter(Boolean);
-
-  if (!changedFiles.length) return `No changes detected vs ${baseBranch}. Safe to merge.`;
-
-  // Categorise changed files
-  const infraFiles = changedFiles.filter(f => /\.(json|yaml|yml|env|config|lock)$/.test(f) || f.includes("inferno/"));
-  const sourceFiles = changedFiles.filter(f => /\.(ts|tsx|js|jsx|mjs|cs|py|go|java)$/.test(f));
-  const styleFiles = changedFiles.filter(f => /\.(css|scss|sass|less)$/.test(f));
-  const contractChanged = changedFiles.some(f => f.startsWith("inferno/"));
-
-  // Keyword-based drift detection on changed source files
-  const HEURISTICS = [
-    { kw: ["search"], id: "SearchItems" }, { kw: ["filter"], id: "FilterItems" },
-    { kw: ["auth", "login", "logout"], id: "Authentication" },
-    { kw: ["create", "add", "new"], id: "CreateItem" },
-    { kw: ["update", "edit", "patch"], id: "UpdateItem" },
-    { kw: ["delete", "remove"], id: "DeleteItem" },
-    { kw: ["list", "read", "fetch", "get"], id: "ReadItems" },
-    { kw: ["due", "deadline"], id: "SetDueDate" },
-    { kw: ["priority"], id: "SetPriority" },
-    { kw: ["complete", "toggle"], id: "ToggleComplete" },
-    { kw: ["export", "download"], id: "ExportData" },
-    { kw: ["import", "upload"], id: "ImportData" },
-    { kw: ["notify", "notification", "email"], id: "SendNotification" },
-    { kw: ["payment", "checkout", "stripe"], id: "ProcessPayment" },
-  ];
-
-  const capHits = new Map();
-  const registeredCaps = new Set(contract.capabilities || []);
-
-  for (const file of sourceFiles) {
-    const lower = file.toLowerCase();
-    for (const rule of HEURISTICS) {
-      if (rule.kw.some(k => lower.includes(k))) {
-        if (!capHits.has(rule.id)) capHits.set(rule.id, []);
-        capHits.get(rule.id).push(file);
-      }
-    }
-  }
-
-  const newCapSignals = [...capHits.entries()].filter(([id]) => !registeredCaps.has(id));
-  const existingCapSignals = [...capHits.entries()].filter(([id]) => registeredCaps.has(id));
-
-  const lines = [
-    `## infernoflow PR review — drift check vs \`${baseBranch}\``,
-    `Changed files: ${changedFiles.length} | Source: ${sourceFiles.length} | Styles: ${styleFiles.length} | Infra: ${infraFiles.length}`,
-    "",
-  ];
-
-  // Risk assessment
-  let riskLevel = "LOW";
-  if (newCapSignals.length > 0) riskLevel = "MEDIUM";
-  if (newCapSignals.length >= 3 || (newCapSignals.length >= 1 && !contractChanged)) riskLevel = "HIGH";
-
-  const riskEmoji = riskLevel === "HIGH" ? "🔴" : riskLevel === "MEDIUM" ? "🟡" : "🟢";
-  lines.push(`### ${riskEmoji} Drift risk: ${riskLevel}`);
-  lines.push("");
-
-  if (contractChanged) {
-    lines.push("✔ inferno/ contract files were updated in this PR — good practice.");
-    lines.push("");
-  } else if (sourceFiles.length > 0) {
-    lines.push("⚠ Source files changed but inferno/ contract was NOT updated.");
-    lines.push("  Consider running: infernoflow_run to check if capabilities need updating.");
-    lines.push("");
-  }
-
-  if (newCapSignals.length > 0) {
-    lines.push(`### Possible new capabilities (not in contract):`);
-    for (const [id, files] of newCapSignals.slice(0, 6)) {
-      lines.push(`  - **${id}** — suggested by: ${files.slice(0,2).join(", ")}`);
-    }
-    lines.push("");
-    lines.push(`Suggested action: call infernoflow_run with task "review new capabilities: ${newCapSignals.slice(0,3).map(([id])=>id).join(', ')}"`);
-    lines.push("");
-  }
-
-  if (existingCapSignals.length > 0) {
-    lines.push(`### Existing capabilities touched:`);
-    for (const [id, files] of existingCapSignals.slice(0, 6)) {
-      lines.push(`  - **${id}** — ${files.slice(0,2).join(", ")}`);
-    }
-    lines.push("");
-  }
-
-  if (styleFiles.length > 0) {
-    lines.push(`### Style changes (${styleFiles.length} files) — run infernoflow_scan_ui to check UI contract`);
-    styleFiles.slice(0, 5).forEach(f => lines.push(`  - ${f}`));
-    lines.push("");
-  }
-
-  if (riskLevel === "LOW" && !newCapSignals.length) {
-    lines.push("✔ No new capability signals detected. Safe to merge (run infernoflow_check as final gate).");
-  }
-
-  return lines.join("\n");
-}
-
-function buildImplementPrompt(task, mode) {
-  const cwd = process.cwd();
-  const infernoDir = path.join(cwd, "inferno");
-  const contractPath = path.join(infernoDir, "contract.json");
-  const capsPath = path.join(infernoDir, "capabilities.json");
-  const profilePath = path.join(infernoDir, "developer-profile.json");
-
-  if (!fs.existsSync(contractPath)) return "inferno/ not found — run infernoflow init first";
-
-  const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
-  const caps = fs.existsSync(capsPath) ? JSON.parse(fs.readFileSync(capsPath, "utf8")) : {};
-  const profile = fs.existsSync(profilePath) ? JSON.parse(fs.readFileSync(profilePath, "utf8")) : {};
-
-  const capList = (caps.capabilities || []).map(c => `  - ${c.id}: ${c.title || c.id}`).join("\n");
-  const stack = profile.stack || {};
-  const stackLine = [stack.framework, stack.language, stack.projectType].filter(Boolean).join(" / ") || "unknown";
-  const namingStyle = profile.namingStyle || "PascalCase";
-
-  const cursorPrompt = `## Cursor Agent Implementation Prompt
-Task: "${task}"
-Project: ${contract.policyId} (${stackLine})
-Naming convention: ${namingStyle}
-
-### Current capabilities
-${capList || "  (none registered)"}
-
-### Implementation instructions
-1. Implement "${task}" following the existing code patterns in this project
-2. Use ${namingStyle} for any new identifiers, matching the existing capability naming
-3. Keep changes minimal — only touch files relevant to this task
-4. After implementing, call \`infernoflow_run\` with task "${task}" to update the contract
-5. Then call \`infernoflow_check\` to validate everything is in sync
-
-### Definition of done
-- Feature works as described
-- Contract updated via infernoflow_run → infernoflow_apply
-- infernoflow_check passes`;
-
-  const genericPrompt = `## Implementation Prompt
-Task: "${task}"
-Project: ${contract.policyId}
-Stack: ${stackLine}
-Capabilities already in contract: ${(contract.capabilities || []).join(", ")}
-
-Implement the task above. When done, run:
-  infernoflow suggest "${task}"
-  infernoflow check`;
-
-  if (mode === "cursor") return cursorPrompt;
-  if (mode === "generic") return genericPrompt;
-  return cursorPrompt + "\n\n---\n\n" + genericPrompt;
-}
-
-function buildPrompt(task) {
-  const infernoDir = path.join(process.cwd(), "inferno");
-  const contractPath = path.join(infernoDir, "contract.json");
-  const capsPath = path.join(infernoDir, "capabilities.json");
-  if (!fs.existsSync(contractPath)) return null;
-  const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
-  const caps = fs.existsSync(capsPath) ? JSON.parse(fs.readFileSync(capsPath, "utf8")) : {};
-  const capList = (caps.capabilities || []).map(c => `  - ${c.id}: ${c.title || c.id}`).join("\n");
-  return `You are a developer assistant for the infernoflow CLI tool.
-Analyze this task and suggest updates to the infernoflow contract files.
-
-## Current contract
-policyId: ${contract.policyId}
-policyVersion: ${contract.policyVersion}
-capabilities: [${(contract.capabilities || []).join(", ")}]
-
-## Capabilities registry
-${capList || "  (none)"}
-
-## Task
-"${task}"
-
-## Instructions
-Respond with ONLY a valid JSON object:
-{
-  "summary": "one-line summary of what changed",
-  "newCapabilities": [{ "id": "PascalCase", "title": "Human readable title", "reason": "why this is new" }],
-  "removedCapabilities": [],
-  "updatedScenarios": [],
-  "changelogEntry": "- Short description for CHANGELOG.md"
-}`;
-}
-
 function handleTool(id, name, input) {
   try {
     let text = "";
-    if (name === "infernoflow_run") {
-      const prompt = buildPrompt(input.task);
-      if (!prompt) { sendError(id, -32000, "inferno/ not found — run infernoflow init first"); return; }
-      const promptFile = path.join(process.cwd(), "inferno", "agent-prompt.md");
-      fs.writeFileSync(promptFile, prompt, "utf8");
-      text = `## infernoflow task: "${input.task}"\n\n${prompt}\n\n---\nRespond with the JSON, then call **infernoflow_apply** with your JSON string.`;
-    } else if (name === "infernoflow_apply") {
-      const responseFile = path.join(process.cwd(), "inferno", "agent-response.json");
-      let json = input.json.trim().replace(/^```json?\n?/, "").replace(/\n?```$/, "");
-      fs.writeFileSync(responseFile, json, "utf8");
-      text = runCmd(`run "apply"`, { INFERNO_AGENT_RESPONSE_FILE: responseFile, INFERNO_AGENT_AVAILABLE: "1" });
-    } else if (name === "infernoflow_check") {
+    // ── Read-only contract helpers ─────────────────────────────────────────
+    if (name === "infernoflow_check") {
       text = runCmd("check");
     } else if (name === "infernoflow_status") {
       text = runCmd("status");
@@ -482,14 +366,8 @@ function handleTool(id, name, input) {
       text = runCmd("context " + parts.join(" "));
     } else if (name === "infernoflow_git_drift") {
       text = detectGitDrift(input.sinceCommits || 1);
-    } else if (name === "infernoflow_implement") {
-      text = buildImplementPrompt(input.task, input.mode || "both");
-    } else if (name === "infernoflow_scan_ui") {
-      text = scanUi();
-    } else if (name === "infernoflow_review") {
-      text = reviewDrift(input.branch || "main");
 
-    // ── AMP-spec aliases ───────────────────────────────────────────────────
+    // ── AMP-spec memory tools ──────────────────────────────────────────────
     } else if (name === "amp_read") {
       const args = [];
       if (input.query) args.push(JSON.stringify(input.query));
@@ -497,11 +375,47 @@ function handleTool(id, name, input) {
       if (input.limit) args.push("--limit", String(input.limit));
       text = runCmd("ask " + args.join(" "));
     } else if (name === "amp_write") {
-      const t = (input.type || "note").replace(/[^a-z]/g, "");
-      const m = JSON.stringify(input.msg || "");
-      const extras = [];
-      if (input.file) extras.push("--source", JSON.stringify(input.file));
-      text = runCmd(`log ${m} --type ${t} ${extras.join(" ")}`);
+      // Prefer in-process write: no subprocess, no `npx` version skew, and
+      // file/line/tags reach disk unchanged. The CLI fallback below is only
+      // used when infernoflow's AMP layer can't be imported.
+      if (ampIo) {
+        const entry = {
+          ts:      new Date().toISOString(),
+          type:    input.type || "note",
+          summary: input.msg || "",
+          agent:   process.env.INFERNOFLOW_AGENT
+                   || (process.env.CLAUDE_CODE_SESSION ? "claude"
+                   :  process.env.CURSOR_SESSION       ? "cursor"
+                   :  process.env.COPILOT_SESSION      ? "copilot"
+                   :                                     "claude"),
+        };
+        if (input.file)                       entry.file = input.file;
+        if (input.line)                       entry.line = input.line;
+        if (input.tags && input.tags.length)  entry.tags = input.tags;
+        try {
+          const written = ampIo.appendEntry(process.cwd(), entry);
+          // NOTE: rule-file refresh deliberately NOT called here — clean-tree
+          // policy regenerates them once at MCP boot only. Doing it on every
+          // write dirties tracked files and blocks `git checkout`. Within a
+          // session, the agent uses amp_read for fresh queries; rule files
+          // are for cold-start injection of the *next* session.
+          text = `✔ Logged [${written.type}] ${written.id}\n  msg:  ${written.msg}` +
+                 (written.file ? `\n  file: ${written.file}${written.line ? ":" + written.line : ""}` : "") +
+                 (written.tags ? `\n  tags: ${written.tags.join(", ")}` : "");
+        } catch (err) {
+          return sendError(id, -32000, `amp_write failed (in-process): ${err.message}`);
+        }
+      } else {
+        // Fallback: shell-out. Pass --file/--line/--tags through the CLI so
+        // they're not silently dropped like in the original implementation.
+        const t = (input.type || "note").replace(/[^a-z]/g, "");
+        const m = JSON.stringify(input.msg || "");
+        const extras = [];
+        if (input.file)                      extras.push("--file", JSON.stringify(input.file));
+        if (input.line)                      extras.push("--line", String(input.line));
+        if (input.tags && input.tags.length) extras.push("--tags", JSON.stringify(input.tags.join(",")));
+        text = runCmd(`log ${m} --type ${t} ${extras.join(" ")}`);
+      }
     } else if (name === "amp_handoff") {
       // switch writes a file; we read it back to return the content
       const switchResult = runCmd("switch");

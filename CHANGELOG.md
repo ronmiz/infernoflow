@@ -1,5 +1,150 @@
 # Changelog — infernoflow
 
+## 0.44.2 — 2026-05-20 — fix the four first-impression bugs in `recap`, `switch`, `doctor`, and the MCP boot stamp
+
+Polish release. Every fix targets something a first-time user hits in the first 5 minutes of a cold install — none of them were caught by the unit tests because they each cross a seam the tests don't exercise (a fresh handoff entry written seconds ago, the actual on-disk file path vs. the message text, the new memory-only init layout vs. the legacy `inferno/` shape, the template's runtime context vs. the package source).
+
+### Fixed
+
+**`recap` no longer shows a zero-state right after `switch`.** `findSessionStart` was treating the just-written handoff entry as the session boundary, so any `recap` run within minutes of a `switch` reported "Nothing logged this session — D (0/100)" even when `status` correctly counted 4+ entries. It now treats a handoff <5 minutes old as the END of the just-finished session and anchors on the prior handoff (or 24h, whichever is more recent). Symmetric fix in `switch.mjs` so both commands agree on what "this session" means.
+
+**`switch` instructions match the real write path.** Output said "Open `inferno/HANDOFF.md`" but the file was written to `.ai-memory/handoff.md` — a user following the instruction looked in the wrong folder and concluded nothing happened. The "Ready to use" steps, the `--copy` clipboard-failed fallback, and the `--show` lookup now all use `path.relative(cwd, ampLayout().handoff)`. Legacy `inferno/HANDOFF.md` is still read as a fallback for older projects.
+
+**`doctor` stops red-flagging the default memory-only init.** A project initialized with `infernoflow init` (memory mode) has only `.ai-memory/` — no `inferno/`, no `inferno/config.json`, no contract. `doctor` was reporting both `inferno/ directory not found` and `No contract.json` as **fails** (red ✗), even though the project was correctly set up. `isMemoryMode` now detects "`.ai-memory/` exists with no `inferno/contract.json`" as the modern memory-mode signal; `checkInfernoDir` accepts either layout; `checkContract` counts entries via the merged AMP reader. Cold-install smoke goes from **7 pass / 6 warn / 2 fail** → **9 pass / 3 warn / 0 fail**.
+
+**MCP server boots with the real version, not `v0.0.0-unknown`.** `findInfernoflowRoot` in the cursor template only checked two paths: walk-up from the template's own location, and `require.resolve("infernoflow/package.json")`. Neither hits when the template is copied into a user's `.cursor/` and the package is a global install. Added a third fallback that uses `where`/`which` to locate the bin shim on PATH and resolves the package via `<npm-prefix>/node_modules/infernoflow` (Windows) or `<npm-prefix>/lib/node_modules/infernoflow` (Unix). The `[infernoflow MCP] active — vX.Y.Z, pid N` stderr line is now correct, and `.ai-memory/.mcp-runtime.json` carries a real version. As a side effect, `doctor`'s `checkMcpRuntime` skew detection — previously silent against the bogus stamp — now actually works.
+
+### Tests
+
+Full suite still **184/184 green**. No new tests added in this point release; the four bugs are integration-level (recap-after-switch timing, template-out-of-package-context, default-init layout) and the existing test infrastructure didn't have hooks for them. Worth a follow-up to add direct regression tests for each.
+
+### Migration
+
+No action — `npm install -g infernoflow@0.44.2` and restart your IDE so the new MCP server template gets loaded. Existing `.ai-memory/` projects keep working unchanged.
+
+---
+
+## 0.44.1 — 2026-05-19 — close the silent-stale-MCP footgun
+
+A point release that closes the exact bug 0.44.0's "Action required after upgrade" paragraph warned about: users who skip release notes (most of them) had no way to tell their IDE still had the old MCP server loaded in memory.
+
+### New
+
+**Boot-stamp + version-skew detection.** The MCP server now writes `.ai-memory/.mcp-runtime.json` at boot recording the version it's serving, and emits a `[infernoflow MCP] active — v<version>, pid <pid>` line on stderr. `infernoflow setup` and `infernoflow doctor` read that stamp and compare it to the installed CLI version. If they differ, you get a typed `⚠ Restart required` warning naming both versions and telling you to quit and reopen your IDE.
+
+- New helper module `lib/mcpRuntime.mjs` with `readMcpRuntimeStamp` / `compareMcpRuntime` / `detectStaleMcpRuntime`.
+- `setup.mjs` surfaces the warning after its summary block.
+- `doctor.mjs` adds a "MCP runtime version" check.
+- `templates/cursor/inferno-mcp-server.mjs` writes the stamp + stderr line (best-effort; missing `.ai-memory/` is fine).
+
+Dev builds (`0.0.0-source` / `0.0.0-unknown`) are skipped so contributors don't see the warning.
+
+### Tests
+
+12 new tests in `tests/mcp-runtime-stamp.test.mjs` pin the behavior: stamp parsing, malformed-JSON handling, version match → no warning, version skew → warn, dev-build skip, downgrade case. Full suite: **184/184 green, 0 typecheck errors.**
+
+### Migration
+
+No action — install `infernoflow@0.44.1`, restart your IDE once. After that, future upgrades will tell you when to restart instead of relying on a paragraph nobody reads.
+
+---
+
+## 0.44.0 — 2026-05-18 — solid base for the memory product
+
+This is a focusing release. The product was 50+ commands across overlapping namespaces, with several broken or off-mission verbs and a duplicate-writer bug that produced two managed blocks in users' `CLAUDE.md`. 0.44.0 cuts ~9000 LOC and rebuilds around what infernoflow actually is: **persistent memory for AI coding sessions**.
+
+### TL;DR for users
+- One installation does everything (CLI = engine, VS Code extension = window).
+- Branch memory now **travels with branches via git** — when a teammate checks out your branch, they inherit the memory.
+- Personal preferences travel **across your own machines** via a synced folder (iCloud / Dropbox / OneDrive / Syncthing) — point at it once with `infernoflow sync set <path>`.
+- Branch switching never blocked by infernoflow writes anymore.
+- 143 tests now lock down the behavior; future refactors get blocked if they regress the contract.
+
+### Breaking changes
+
+**Surface culled — 50 commands → 17.** Removed: `publish`, `diff`, `changelog`, `monorepo`, `ci`, `notify`, `feedback`, `demo`, `review`, `pr-impact`, `doc-gate`, `scaffold`, `freeze`, `thaw`, `why`, `impact`, `stability`, `graph`, `coverage`, `scan`, `explain`, `test`, `theme`, `watch`, `suggest`, `run`, `implement`, `upgrade`, `stats`. The `contract` and `dev` namespace dispatchers are also gone. The full audit lives in the release notes — most of these were either broken, off-mission for the memory loop, or trapped maintainers' attention away from the core product. If you depended on any of them, pin to 0.43.12.
+
+**MCP tool surface culled — 14 → 9.** Removed: `infernoflow_run`, `infernoflow_apply`, `infernoflow_implement`, `infernoflow_review`, `infernoflow_scan_ui`. Kept: all five `amp_*` tools (the AMP spec), plus `infernoflow_status` / `_check` / `_context` / `_git_drift` for read-only contract helpers.
+
+**Memory layout is branch-aware.**
+
+```
+.ai-memory/
+  sessions.jsonl              ← legacy flat file (still read for back-compat)
+  global.jsonl                ← gitignored, personal across all branches
+  branches/
+    main.jsonl                ← project-wide truth, git-tracked
+    feature-auth.jsonl        ← branch-local work, git-tracked
+```
+
+Writes route by type: `preference` → `global.jsonl`, everything else → `branches/<current>.jsonl`. Reads merge `{ legacy, global, default-branch, current-branch }`, dedupe by id, sort by ts. Legacy single-file projects keep working.
+
+**Clean-tree policy.** New `.gitignore` block (only `.ai-memory/global.jsonl` and regenerated artifacts ignored — everything else tracked) and `.gitattributes merge=union` on `branches/*.jsonl` so home → work → home sync produces no conflicts. The legacy v0.43 "ignore everything" block is migrated automatically on the next CLI invocation in old projects.
+
+**`<!-- AMP:START -->` managed block in `CLAUDE.md` is gone.** Only `<!-- infernoflow:start -->` remains. The old block was an orphan from a removed feature; running 0.43.x produced both blocks because two parallel writers existed. Single-writer policy now enforced by a regression test.
+
+**`infernoflow log` no longer rewrites `CLAUDE.md` / `.cursorrules` on every entry.** That was the source of the "branch switch blocked by infernoflow" bug. Rule files now regenerate at three explicit points: (1) `init`, (2) MCP server boot, (3) explicit `infernoflow refresh`. Inside a session the agent uses `amp_read` for fresh queries; rule files are for cold-start injection of the *next* session. Pass `--refresh-rules` to `log` to opt back in for one-off CLI use.
+
+**`AMP_MARKERS` removed from `lib/amp/io.mjs`.** It was dead code. If a third-party tool needs the sentinel pair, inline the strings; they're not part of the AMP wire spec.
+
+### New
+
+**`infernoflow refresh`** — first-class hand-crank for rule-file rebuild. `--dry-run` and `--json` for scripting.
+
+**`infernoflow sync`** — cross-machine personal memory.
+
+```
+infernoflow sync                       status (default)
+infernoflow sync set <path>            configure synced directory
+infernoflow sync clear                 remove configuration
+infernoflow sync migrate [--dry-run]   move local global.jsonl into sync
+```
+
+Recommended setup: point at an OS-synced folder. Resolution: `INFERNOFLOW_GLOBAL_DIR` env var → `globalDir` in `amp.json` → in-project default. Project slug namespaces multiple projects under the same synced folder.
+
+**Project-root resolution (`lib/projectRoot.mjs`)** — walks up from `cwd` looking for `.ai-memory/` → `.git/` → manifest files (`package.json`, `*.sln`, `*.csproj`, `Cargo.toml`, `pyproject.toml`, `go.mod`, etc.). Memoised. Multi-folder projects (.NET full-stack with separate `publish/` dirs, monorepos) stop scattering `.ai-memory/` folders in subdirectories.
+
+**Branch detection (`lib/git/branch.mjs`)** — reads `.git/HEAD` directly. ~100× faster than the 0.43 git-subprocess approach. Handles regular branches, nested-slash names (`feature/auth`), worktree gitdir files, detached HEAD, and no-git-at-all gracefully.
+
+**`infernoflow init --yes` is the 60-second magic command.** Creates `.ai-memory/`, writes rule files for every IDE, wires MCP, applies clean-tree policy, drops a visible demo entry, and prints next-step commands. End-to-end test suite verifies the contract.
+
+### Internal — test foundation
+
+143 tests across 9 files, run via `vitest`. Coverage:
+
+- **AMP I/O** — round-trip fidelity, type fallback, ULID format, file read/write
+- **CLI log command** — VALID_TYPES contract (incl. AMP `detection`/`pattern`), `--file`/`--line`/`--tags` flag parsing
+- **MCP server** — JSON-RPC integration, field misrouting regression (the bug that started 0.44 work), clean-tree dirty-tree-blocks-checkout regression
+- **Project root** — multi-folder pollution detection, marker resolution, memoisation
+- **Clean tree** — managed-block writes, idempotency
+- **Cross-IDE** — Cursor / Claude Code / Copilot all get the same canonical block
+- **Branch-aware memory** — routing matrix, read-merge, detached HEAD, legacy fallback
+- **Sync** — resolution priority, slug safety, migration idempotency
+- **init E2E** — `init --yes` produces a working memory loop end-to-end
+
+The old `scripts/*-smoke.mjs` chain still exists under `npm run test:smoke` for parity. The default `npm test` runs the real suite.
+
+### Migration
+
+Re-run `infernoflow init` (or just run any infernoflow command) in any project that was on 0.43.x. The silent upgrade backfill in `lib/upgradeCheck.mjs` will:
+
+- Replace the legacy v0.43 `.gitignore` block with the v0.44 clean-tree policy
+- Refresh `.cursorrules` / `CLAUDE.md` / `.github/copilot-instructions.md` from current memory (the dual-block bug clears on first refresh)
+- Re-wire the MCP config if it's been disturbed
+
+Existing `.ai-memory/sessions.jsonl` content is preserved and read by the merged reader. New writes route into the branch-aware layout; you can leave the flat file in place forever or run `infernoflow amp migrate` to consolidate.
+
+### ⚠ Action required after upgrade — restart your AI tool
+
+The MCP server (the `inferno-mcp-server.mjs` Cursor / Claude Code / Copilot use to call `amp_write` etc.) is loaded into memory by your IDE at session start. **Editing the source on disk doesn't reload the running process.** After `npm install -g infernoflow@0.44.0`, you must **quit and re-open Cursor / Claude Code / VS Code** to get the patched wrapper. Until you do:
+
+- `amp_write` entries written via MCP keep landing in the legacy field shape (`source` instead of `file`; `line` and `tags` silently dropped) — this is the bug 0.44 is built to fix.
+- You can confirm the new wrapper is live by calling `amp_write` with `tags: ["test"]` after the restart. If the resulting entry on disk has a `tags` array, the new code is in memory. If `tags` is missing, the old wrapper is still cached — restart again.
+
+This applies once per project per upgrade — subsequent CLI commands pick up the latest source via npx normally. Only the long-running MCP subprocess needs the bounce.
+
+---
+
 ## 0.43.12 — 2026-05-13 — extension is now optional
 
 ### Changed — `infernoflow log` keeps rule files fresh by itself
@@ -423,6 +568,20 @@ Same content as 0.42.6 — that version got registered on npm during a flaky pub
 - gitignore .ai-memory/ + rule files so memory survives branch switches (0.43.8)
 - silent version-skew backfill on every CLI command + gray import bug in setup
 - trust pass on dogfood feedback — init --help, sync CONTEXT.md drift, status hint, scanner exclusions, gitignore transparency, stale npm scripts audit, auto-capture default off (CLI 0.43.10 + ext 0.7.8)
+- block internal planning docs from git
+- v0.43.7 dist rebuild + remove lib/cloud + lib/commands/{cloud,dashboard,login} (moved to legacy/)
+- bump 0.43.6 → 0.43.7 (phantom-publish workaround)
+- v0.43.6 + ext v0.7.5: Memory protocol skill (AI proactively logs via amp_write) + Mermaid flow-chart for --html graph
+- v0.43.6 + ext v0.7.5 focus pivot — strip cloud + dashboard + login (preserved in legacy/), remove init comma-prompt, cull sidebar to 6 sections, README/SECURITY simplified
+- remove internal planning docs from public repo
+
+- infernoflow log auto-refreshes rule files — extension is now optional, not required
+- one-install bootstrap — extension auto-installs CLI + setup wires all 4 AI tools (CLI 0.43.9 + ext 0.7.7)
+- gitignore .ai-memory/ + rule files so memory survives branch switches (0.43.8)
+- silent version-skew backfill on every CLI command + gray import bug in setup.mjs
+- silent version-skew backfill on every CLI command + gray import bug in setup
+- trust pass on dogfood feedback — init --help, sync CONTEXT.md drift, status hint, scanner exclusions, gitignore transparency, stale npm scripts audit, auto-capture default off (CLI 0.43.10 + ext 0.7.8)
+- gitignore .cursor/, .vscode/mcp.json, developer-profile.json; untrack vscode-extension/out
 - block internal planning docs from git
 - v0.43.7 dist rebuild + remove lib/cloud + lib/commands/{cloud,dashboard,login} (moved to legacy/)
 - bump 0.43.6 → 0.43.7 (phantom-publish workaround)

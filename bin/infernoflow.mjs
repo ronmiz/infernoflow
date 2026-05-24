@@ -40,9 +40,6 @@ import { fileURLToPath } from "node:url";
 import { bold, gray, cyan, red } from "../lib/ui/output.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// Find package.json: try the dist layout first (../../package.json), then
-// fall back to running from source (../package.json) so `node bin/infernoflow.mjs`
-// works in development without a build step.
 function findPackageJson(start) {
   for (const candidate of [join(start, "..", "..", "package.json"), join(start, "..", "package.json")]) {
     try { return JSON.parse(readFileSync(candidate, "utf8")); } catch {}
@@ -52,149 +49,82 @@ function findPackageJson(start) {
 const pkg = findPackageJson(__dirname);
 const VERSION = pkg.version || "0.0.0";
 
-const COMMAND_DESCRIPTIONS = {
-  publish: "Bump version, update changelog, build, npm publish, git commit + push in one shot",
-  diff: "Show what capabilities changed since the last git tag (or any ref)",
-  changelog: "Draft a changelog entry from commits since the last tag",
-  setup: "One command to get fully operational — detects IDE, inits, installs hooks + MCP",
-  init: "Scaffold inferno/ in your project (or adopt existing project)",
-  "install-cursor-hooks": "Install Cursor hooks: draft agent replies to inferno/CONTEXT.draft.md",
-  "install-vscode-copilot-hooks":
-    "Install VS Code + Copilot agent hooks (Preview): draft to inferno/CONTEXT.draft.md",
-  check: "Validate contract, capabilities, scenarios, changelog",
-  status: "Show contract health at a glance",
-  "pr-impact": "Summarize PR impact on capabilities and docs",
-  sync: "Run deterministic inferno sync flow",
-  run: "One-command detect/propose/apply/validate flow",
-  "doc-gate": "Fail if code changed but docs were not updated",
-  suggest: "Generate AI prompt + apply capability updates",
-  implement: "Generate code-agent implementation prompt(s)",
-  context: "Generate AI-ready context for new sessions",
-  "generate-skills": "Generate personalised Cursor rules + skill files from your developer profile",
-  watch:    "Watch source files and run suggest automatically on save",
-  ci:       "CI-native check: GitHub Actions annotations, GitLab code quality, exit codes",
-  notify:   "Post capability drift summary to Slack or Discord",
-  monorepo: "Manage infernoflow across monorepo packages (init | list | status | diff | sync)",
-  doctor:   "Diagnose your infernoflow setup — checks Node, git, contract, AI providers, MCP, hooks",
-  coverage: "Map test files to capabilities — show which caps have test coverage and which don't",
-  review:   "AI-powered capability impact review for staged or recent git changes",
-  scan:      "Deep AST scan — route discovery, entry point detection, HTTP URL extraction, capability suggestions",
-  graph:     "Build capability dependency graph — shows which caps call which, detects breaking changes",
-  stability: "Show solid/liquid stability level for every capability (frozen/stable/experimental)",
-  freeze:    "Mark a capability as frozen (solid) — AI will not modify it without explicit instruction",
-  thaw:      "Reset a capability to experimental (liquid) — free to evolve",
-  why:       "Given a file or function name — show which capability it serves, scenarios, stability, and git history",
-  impact:    "Blast radius analysis — see every cap, scenario, and risk level affected before you change anything",
-  scaffold:  "Generate a new capability — source skeleton, contract registration, and placeholder scenario in one command",
-  explain:   "AI narrative about a capability — what it does, why it exists, what's risky, and what to test",
-  test:      "Run registered scenarios for a capability — auto-generates a smoke harness if no test runner is configured",
-  ai:        "Manage AI providers — setup, status, test connection (subcommands: setup | status | test | clear)",
-  demo:      "Interactive walkthrough — scaffolds a sample project and runs the full capability chain end-to-end",
-  feedback:  "60-second CLI survey about how you use infernoflow (--form to open web form)",
-  telemetry: "Manage anonymous usage telemetry (on | off | status) — opt-in, command names only",
-  log:       "Append to session memory (decisions, gotchas, failed attempts, theme changes) — what AI can't infer from code",
-  theme:     "Scan fonts, colors, and CSS variables — write inferno/theme.json so AI always matches the design system",
-  switch:    "Generate a handoff summary when switching AI agents — paste into the next session so nothing is lost",
-  upgrade:   "Upgrade a lite infernoflow setup to the full structure (scenarios, changelog, scripts)",
-  stats:     "Value dashboard — session memory, tokens injected per session, coverage %, estimated savings",
-  ask:       "Query session memory — search gotchas, decisions, and failed attempts by keyword or type",
-  recap:     "End-of-session summary — what was captured, what git changes weren't logged, session health score",
-  uninstall: "Remove infernoflow from a project — inferno/, CLAUDE.md, MCP server, git hooks (--dry-run to preview)",
+// ── Surface kept after the Phase 2 truth audit ────────────────────────────
+// Mission: persistent memory for AI coding sessions. Every command below
+// either captures memory, queries memory, hands off between sessions, or
+// wires up the IDE so memory can flow. Off-mission commands (publish, ci,
+// monorepo, scaffold, scan, graph, theme, suggest, run, etc. — ~30 verbs)
+// were removed in Phase 4 of the v0.44 refactor. See docs/CHANGELOG.md.
 
-  // ── Namespace dispatchers (route to legacy verbs) ──────────────────────────
-  contract: "Capability contracts — scan, freeze, impact, graph, scaffold, etc. (run: infernoflow contract)",
-  dev:      "Maintenance & integration — publish, changelog, dashboard, ai, ci, sync, etc. (run: infernoflow dev)",
-  amp:      "AI Memory Protocol — status, migrate from legacy, validate (run: infernoflow amp)",
+const COMMAND_DESCRIPTIONS = {
+  // ── Memory core (the five that ARE the product) ────────────────────────
+  log:    "Append to session memory (decisions, gotchas, failed attempts)",
+  ask:    "Query memory by keyword (gotchas surface first)",
+  switch: "Generate a handoff doc for the next AI agent / session",
+  recap:  "End-of-session summary + health score + unlogged-change surfacing",
+  status: "Quick health check — entries, gotchas, decisions, last activity",
+  refresh: "Rebuild CLAUDE.md / .cursorrules / copilot-instructions.md from memory",
+
+  // ── Setup / scaffolding ────────────────────────────────────────────────
+  init:    "Scaffold .ai-memory/ and wire the current IDE in one command",
+  setup:   "Re-run wiring (idempotent) — detects IDE, installs MCP + hooks",
+  doctor:  "Diagnose your setup — Node, git, contract, AI provider, MCP, hooks",
+  context: "Generate AI-ready context for new sessions",
+
+  // ── IDE-side wiring ────────────────────────────────────────────────────
+  "install-cursor-hooks":         "Install Cursor hooks (afterAgentResponse + stop)",
+  "install-vscode-copilot-hooks": "Install VS Code + Copilot agent hooks (Preview)",
+  "generate-skills":              "Generate Cursor rules + skill files from your developer profile",
+
+  // ── Configuration / housekeeping ───────────────────────────────────────
+  ai:        "Manage AI providers — setup, status, test, clear",
+  telemetry: "Opt-in anonymous telemetry (on | off | status)",
+  uninstall: "Remove infernoflow from a project (--dry-run to preview)",
+
+  // ── Contract validation (kept for users who use capability contracts) ──
+  check:     "Validate contract, capabilities, scenarios, changelog",
+
+  // ── Cross-machine sync (personal layer) ────────────────────────────────
+  sync:    "Cross-machine sync for personal memory — status/set/clear/migrate",
+
+  // ── Namespace ──────────────────────────────────────────────────────────
+  amp: "AI Memory Protocol — status, migrate, validate (run: infernoflow amp)",
 };
 
 const COMMAND_HANDLERS = {
-  publish: async (args) => (await import("../lib/commands/publish.mjs")).publishCommand(args),
-  diff: async (args) => (await import("../lib/commands/diff.mjs")).diffCommand(args),
-  changelog: async (args) => (await import("../lib/commands/changelog.mjs")).changelogCommand(args),
-  setup: async (args) => (await import("../lib/commands/setup.mjs")).setupCommand(args),
-  init: async (args) => (await import("../lib/commands/init.mjs")).initCommand(args),
-  "install-cursor-hooks": async (args) =>
-    (await import("../lib/commands/installCursorHooks.mjs")).installCursorHooksCommand(args),
-  "install-vscode-copilot-hooks": async (args) =>
-    (await import("../lib/commands/installVsCodeCopilotHooks.mjs")).installVsCodeCopilotHooksCommand(args),
-  check: async (args) => (await import("../lib/commands/check.mjs")).checkCommand(args),
-  status: async (args) => (await import("../lib/commands/status.mjs")).statusCommand(args),
-  "pr-impact": async (args) => (await import("../lib/commands/prImpact.mjs")).prImpactCommand(args),
-  sync: async (args) => (await import("../lib/commands/syncAuto.mjs")).syncCommand(args),
-  run: async (args) => (await import("../lib/commands/run.mjs")).runCommand(args),
-  suggest: async (args) => (await import("../lib/commands/suggest.mjs")).suggestCommand(args),
-  implement: async (args) => (await import("../lib/commands/implement.mjs")).implementCommand(args),
+  // memory core
+  log:    async (args) => (await import("../lib/commands/log.mjs")).logCommand(args),
+  ask:    async (args) => (await import("../lib/commands/ask.mjs")).askCommand(args),
+  switch: async (args) => (await import("../lib/commands/switch.mjs")).switchCommand(args),
+  recap:   async (args) => (await import("../lib/commands/recap.mjs")).recapCommand(args),
+  status:  async (args) => (await import("../lib/commands/status.mjs")).statusCommand(args),
+  refresh: async (args) => (await import("../lib/commands/refresh.mjs")).refreshCommand(args),
+
+  // setup
+  init:    async (args) => (await import("../lib/commands/init.mjs")).initCommand(args),
+  setup:   async (args) => (await import("../lib/commands/setup.mjs")).setupCommand(args),
+  doctor:  async (args) => (await import("../lib/commands/doctor.mjs")).doctorCommand(args),
   context: async (args) => (await import("../lib/commands/context.mjs")).contextCommand(args),
-  "doc-gate": async (args) => (await import("../lib/commands/docGate.mjs")).docGateCommand(args),
-  "generate-skills": async (args) => (await import("../lib/commands/generateSkills.mjs")).generateSkillsCommand(args),
-  // dashboard / login / logout / whoami / cloud — moved to legacy/ (v0.43.6 focus pivot, see legacy/README.md)
-  watch:    async (args) => (await import("../lib/commands/watch.mjs")).watchCommand(args),
-  ci:       async (args) => (await import("../lib/commands/ci.mjs")).ciCommand(args),
-  notify:   async (args) => (await import("../lib/commands/notify.mjs")).notifyCommand(args),
-  monorepo: async (args) => (await import("../lib/commands/monorepo.mjs")).monorepoCommand(args),
-  doctor:   async (args) => (await import("../lib/commands/doctor.mjs")).doctorCommand(args),
-  coverage: async (args) => (await import("../lib/commands/coverage.mjs")).coverageCommand(args),
-  review:   async (args) => (await import("../lib/commands/review.mjs")).reviewCommand(args),
-  scan:      async (args) => (await import("../lib/commands/scan.mjs")).scanCommand(args),
-  graph:     async (args) => (await import("../lib/commands/graph.mjs")).graphCommand(args),
-  stability: async (args) => (await import("../lib/commands/stability.mjs")).stabilityCommand(args),
-  freeze:    async (args) => (await import("../lib/commands/stability.mjs")).freezeCommand(args),
-  thaw:      async (args) => (await import("../lib/commands/stability.mjs")).thawCommand(args),
-  why:       async (args) => (await import("../lib/commands/why.mjs")).whyCommand(args),
-  impact:    async (args) => (await import("../lib/commands/impact.mjs")).impactCommand(args),
-  scaffold:  async (args) => (await import("../lib/commands/scaffold.mjs")).scaffoldCommand(args),
-  explain:   async (args) => (await import("../lib/commands/explain.mjs")).explainCommand(args),
-  test:      async (args) => (await import("../lib/commands/test.mjs")).testCommand(args),
+
+  // ide wiring
+  "install-cursor-hooks":         async (args) => (await import("../lib/commands/installCursorHooks.mjs")).installCursorHooksCommand(args),
+  "install-vscode-copilot-hooks": async (args) => (await import("../lib/commands/installVsCodeCopilotHooks.mjs")).installVsCodeCopilotHooksCommand(args),
+  "generate-skills":              async (args) => (await import("../lib/commands/generateSkills.mjs")).generateSkillsCommand(args),
+
+  // configuration / housekeeping
   ai:        async (args) => (await import("../lib/commands/ai.mjs")).aiCommand(args),
-  demo:      async (args) => (await import("../lib/commands/demo.mjs")).demoCommand(args),
-  log:       async (args) => (await import("../lib/commands/log.mjs")).logCommand(args),
-  theme:     async (args) => (await import("../lib/commands/theme.mjs")).themeCommand(args),
-  switch:    async (args) => (await import("../lib/commands/switch.mjs")).switchCommand(args),
-  upgrade:   async (args) => (await import("../lib/commands/upgrade.mjs")).upgradeCommand(args),
-  stats:     async (args) => (await import("../lib/commands/stats.mjs")).statsCommand(args),
-  ask:       async (args) => (await import("../lib/commands/ask.mjs")).askCommand(args),
-  recap:     async (args) => (await import("../lib/commands/recap.mjs")).recapCommand(args),
-  uninstall: async (args) => (await import("../lib/commands/uninstall.mjs")).uninstallCommand(args),
-  feedback:  async (args) => (await import("../lib/commands/feedback.mjs")).feedbackCommand(args),
   telemetry: async (args) => (await import("../lib/telemetry.mjs")).telemetryCommand(args),
+  uninstall: async (args) => (await import("../lib/commands/uninstall.mjs")).uninstallCommand(args),
 
-  // ── Namespace dispatchers ──────────────────────────────────────────────────
-  // Route `infernoflow <namespace> <verb> [args]` to the underlying verb. The
-  // legacy top-level names above still work, so `infernoflow scan` ===
-  // `infernoflow contract scan`.
-  contract: async (args) => routeNamespace("contract", CONTRACT_VERBS, args),
-  dev:      async (args) => routeNamespace("dev",      DEV_VERBS,      args),
-  amp:      async (args) => (await import("../lib/commands/amp.mjs")).ampCommand(args),
+  // contract validation (kept; `check` uses lib/commands/docGate.mjs internally)
+  check:     async (args) => (await import("../lib/commands/check.mjs")).checkCommand(args),
+
+  // cross-machine sync
+  sync:      async (args) => (await import("../lib/commands/sync.mjs")).syncCommand(args),
+
+  // namespace
+  amp: async (args) => (await import("../lib/commands/amp.mjs")).ampCommand(args),
 };
-
-async function routeNamespace(name, verbs, rawArgs) {
-  // rawArgs[0] is the namespace name itself (set by the main dispatcher),
-  // rawArgs[1] is the verb the user typed.
-  const verb = rawArgs[1];
-  if (!verb || verb === "--help" || verb === "-h") {
-    console.log();
-    console.log(`  ${bold("🔥 infernoflow " + name)} ${gray("— available verbs:")}`);
-    console.log();
-    const w = Math.max(...Object.keys(verbs).map(v => v.length)) + 2;
-    for (const v of Object.keys(verbs)) {
-      const desc = COMMAND_DESCRIPTIONS[verbs[v]] || "";
-      console.log(`    ${cyan(v.padEnd(w))} ${gray(desc)}`);
-    }
-    console.log();
-    console.log(`  ${gray("Run")} ${cyan(`infernoflow ${name} <verb> --help`)} ${gray("for verb-specific options.")}`);
-    console.log();
-    return;
-  }
-  const target = verbs[verb];
-  if (!target || !COMMAND_HANDLERS[target]) {
-    console.error(red(`\n  Unknown ${name} verb: ${verb}`));
-    console.error(gray(`  Run: infernoflow ${name}   (see all verbs)\n`));
-    process.exit(1);
-  }
-  // Hand off to the underlying handler with args reshaped to look like a
-  // direct top-level invocation: [verb, ...rest]
-  return COMMAND_HANDLERS[target]([target, ...rawArgs.slice(2)]);
-}
 
 function formatCommandsHelp() {
   const names = Object.keys(COMMAND_DESCRIPTIONS);
@@ -204,71 +134,16 @@ function formatCommandsHelp() {
     .join("\n");
 }
 
-// ── Verb maps for the namespaced dispatchers ──────────────────────────────────
-// `infernoflow contract scan` routes to the same handler as `infernoflow scan`.
-// All legacy top-level names remain callable for backward compatibility.
-const CONTRACT_VERBS = {
-  scan:        "scan",
-  check:       "check",
-  status:      "status",
-  freeze:      "freeze",
-  thaw:        "thaw",
-  why:         "why",
-  impact:      "impact",
-  graph:       "graph",
-  stability:   "stability",
-  scaffold:    "scaffold",
-  explain:     "explain",
-  test:        "test",
-  coverage:    "coverage",
-  suggest:     "suggest",
-  run:         "run",
-  implement:   "implement",
-  "doc-gate":  "doc-gate",
-  "pr-impact": "pr-impact",
-  review:      "review",
-  demo:        "demo",
-  upgrade:     "upgrade",
-  context:     "context",
-  sync:        "sync",
-};
-
-const DEV_VERBS = {
-  publish:                         "publish",
-  changelog:                       "changelog",
-  diff:                            "diff",
-  monorepo:                        "monorepo",
-  ci:                              "ci",
-  ai:                              "ai",
-  theme:                           "theme",
-  stats:                           "stats",
-  feedback:                        "feedback",
-  telemetry:                       "telemetry",
-  uninstall:                       "uninstall",
-  "generate-skills":               "generate-skills",
-  "install-cursor-hooks":          "install-cursor-hooks",
-  "install-vscode-copilot-hooks":  "install-vscode-copilot-hooks",
-  setup:                           "setup",
-};
-
-// ── Full grouped command list (infernoflow commands) ──────────────────────────
-// Top-level surface advertised in --help is just 12 commands. Everything else
-// stays callable as a top-level alias (back-compat) — the grouping below is
-// what `infernoflow commands` shows for discoverability.
 const COMMAND_GROUPS = {
-  "Memory  (top-level)":          ["log", "ask", "switch", "recap", "status"],
-  "Watch   (top-level)":          ["watch"],
-  "Setup   (top-level)":          ["init", "doctor"],
-  "AMP       (use: infernoflow amp <verb>)":
-    ["status", "migrate", "validate", "version"],
-  "Contract  (use: infernoflow contract <verb>)":
-    Object.keys(CONTRACT_VERBS),
-  "Dev       (use: infernoflow dev <verb>)":
-    Object.keys(DEV_VERBS),
+  "Memory (the 5-command core)":  ["log", "ask", "switch", "recap", "status", "refresh"],
+  "Setup":                        ["init", "setup", "doctor", "context"],
+  "IDE wiring":                   ["install-cursor-hooks", "install-vscode-copilot-hooks", "generate-skills"],
+  "Configuration":                ["ai", "telemetry", "sync", "uninstall"],
+  "Contract":                     ["check"],
+  "AMP (use: infernoflow amp <verb>)": ["status", "migrate", "validate", "version"],
 };
 
 function formatCommandGroups() {
-  const w = 18;
   return Object.entries(COMMAND_GROUPS).map(([group, cmds]) =>
     `  ${bold(group + ":")}\n    ${cmds.join("  ")}`
   ).join("\n\n");
@@ -292,13 +167,12 @@ const HELP = `
 
   ${bold("Setup")}
     ${cyan("init")}              60-second setup ${gray("(memory mode by default)")}
-    ${cyan("watch")}             Auto-capture mode ${gray("(stuck-loops, dep changes, test removals)")}
+    ${cyan("setup")}             Re-run IDE wiring ${gray("(idempotent — MCP + hooks)")}
     ${cyan("doctor")}            Diagnose your setup
+    ${cyan("context")}           Generate AI-ready context for new sessions
 
   ${bold("Subsystems")} ${gray("— grouped, run for verbs:")}
-    ${cyan("amp")}                AI Memory Protocol ${gray("(status, migrate, validate)")}
-    ${cyan("contract")}          Capability contracts ${gray("(scan, freeze, impact, scaffold, …)")}
-    ${cyan("dev")}                Publishing, AI providers, hooks ${gray("(publish, ai, ci, …)")}
+    ${cyan("amp")}               AI Memory Protocol ${gray("(status, migrate, validate)")}
 
   ${gray("Run")} ${cyan("infernoflow commands")} ${gray("to see all " + TOTAL_COMMANDS + " commands grouped.")}
   ${gray("Run")} ${cyan("infernoflow <command> --help")} ${gray("for command-specific options.")}
@@ -347,16 +221,6 @@ if (!commands.includes(cmd)) {
 const args = [cmd, ...rest];
 
 // ── Silent version-skew backfill ──────────────────────────────────────────
-// If the CLI was upgraded since the last time it ran in this project,
-// re-run the bits of init that need to be refreshed (rule files, MCP
-// server registration, .gitignore block). Idempotent + non-fatal — runs
-// before the command's own handler so a freshly-upgraded user gets a
-// fully-wired environment on the very next command, without having to
-// know to run `infernoflow setup` themselves.
-//
-// Skips for help/version/init/setup/doctor/uninstall — those either don't
-// need it or do their own setup. Also skips when there's no infernoflow
-// project in cwd at all (we don't scaffold into random folders).
 try {
   const { runUpgradeBackfillIfNeeded } = await import("../lib/upgradeCheck.mjs");
   await runUpgradeBackfillIfNeeded(VERSION, cmd);

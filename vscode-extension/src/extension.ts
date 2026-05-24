@@ -25,7 +25,12 @@ import { InfernoStatusBar }        from "./statusBar";
 import { InfernoDiagnostics }      from "./diagnostics";
 import { InfernoCodeLensProvider } from "./codeLens";
 import { AutoCapture }             from "./autoCapture";
-import { rebuildAiRuleFiles }      from "./contextSync";
+// v0.44.1: rebuildAiRuleFiles is no longer called from the extension —
+// the CLI is the single canonical writer of CLAUDE.md / .cursorrules /
+// copilot-instructions.md (see lib/ruleFiles.mjs in the infernoflow npm
+// package). The extension now ONLY reads memory and renders the sidebar;
+// rule files refresh at MCP-server boot and via `infernoflow refresh`.
+// import { rebuildAiRuleFiles }      from "./contextSync";
 import { registerCommands }        from "./commands";
 import { ensureCliAndSetup }       from "./cliInstaller";
 
@@ -92,19 +97,17 @@ export function activate(context: vscode.ExtensionContext): void {
   let rebuildTimer: NodeJS.Timeout | undefined;
   const scheduleRebuild = () => {
     if (!isAutoSyncEnabled()) return;
+    // v0.44.1: scheduleRebuild used to call rebuildAiRuleFiles after a 1.5s
+    // debounce. Removed — the CLI's MCP-boot refresh is the canonical write
+    // path. Watching memory still drives the sidebar refresh via the
+    // onChange handler below; rule files now only update once per session
+    // start (or via explicit `infernoflow refresh`).
     if (rebuildTimer) clearTimeout(rebuildTimer);
     rebuildTimer = setTimeout(() => {
       rebuildTimer = undefined;
-      const editor = vscode.window.activeTextEditor;
-      const root   = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-      let activeFile: string | undefined;
-      if (editor && root && editor.document.uri.scheme === "file") {
-        activeFile = path.relative(root, editor.document.uri.fsPath).replace(/\\/g, "/");
-      }
-      try {
-        rebuildAiRuleFiles(activeFile);
-      } catch { /* never throw from a watcher */ }
-    }, 1500); // 1.5s debounce
+      // intentionally a no-op; left as a hook in case ranking-by-active-file
+      // moves into a future CLI plug-in API.
+    }, 1500);
   };
 
   // Trigger 1: any memory change (new entry, deletion, edit, CLI write, etc.)

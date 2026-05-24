@@ -60,8 +60,12 @@ class AmpIO {
     this.root = root;
     this.amp = new AMP(root);
 
-    // Watch BOTH layouts so we catch CLI writes regardless of where they land.
-    const pattern = new vscode.RelativePattern(root, "{.ai-memory,inferno}/sessions.jsonl");
+    // v0.44.1: watch EVERY .jsonl file under the memory dirs, not just
+    // sessions.jsonl. v0.44 introduced branch-aware writes (branches/<branch>.jsonl)
+    // and a personal layer (global.jsonl); the old pattern was blind to both.
+    // We use a broad `**/*.jsonl` glob under the memory roots — narrow enough
+    // to avoid noisy filesystem events from the rest of the workspace.
+    const pattern = new vscode.RelativePattern(root, "{.ai-memory,inferno}/**/*.jsonl");
     this.watcher = vscode.workspace.createFileSystemWatcher(pattern);
     const fire = () => this.listeners.forEach(l => { try { l(); } catch { /* ignore */ } });
     this.watcher.onDidChange(fire);

@@ -2,7 +2,7 @@
   "name": "infernoflow",
   "displayName": "infernoflow",
   "description": "Persistent memory for AI coding sessions \u2014 live sidebar over .ai-memory/ (AMP). Captures gotchas, decisions, dead ends and replays them into Cursor / Copilot / Claude / Windsurf.",
-  "version": "0.7.8",
+  "version": "0.7.9",
   "publisher": "infernoflow",
   "license": "MIT",
   "repository": {

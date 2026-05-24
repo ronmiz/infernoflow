@@ -1,5 +1,28 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.9 — 2026-05-19 — pairs with CLI 0.44.0 (branch-aware memory + single-writer rule files)
+
+This release closes the boundary issue between the extension and the CLI flagged in the v0.44 audit — the two were racing each other on rule-file writes and the extension was blind to v0.44's branch-aware layout. Both halves fixed here.
+
+### Fixed — extension now sees writes that land outside `sessions.jsonl`
+
+The CLI 0.44.0 introduced branch-aware memory: new entries route into `.ai-memory/branches/<branch>.jsonl` (git-tracked, travels with the branch) and `.ai-memory/global.jsonl` (personal). The extension's file watcher only listened to `{.ai-memory,inferno}/sessions.jsonl` — so anything written under the new layout was invisible to the sidebar, status bar, diagnostics, and CodeLens.
+
+Pattern widened to `{.ai-memory,inferno}/**/*.jsonl`. Every branch + global write now fires the watcher.
+
+### Fixed — the duplicate rule-file writer race
+
+The extension's `rebuildAiRuleFiles` and the CLI's `refreshRuleFilesFromMemory` were both rewriting `CLAUDE.md` / `.cursorrules` / `.github/copilot-instructions.md` with the same `<!-- infernoflow:start -->` markers, on different cadences. In a project where both were running, they overwrote each other every ~1.5 s.
+
+The extension's per-edit auto-refresh is removed. Rule files now refresh exclusively from the CLI: once at MCP server boot, plus on explicit `infernoflow refresh` invocations. The user-triggered `infernoflow.rebuildAiRules` command stays — clicking it explicitly is fine, racing the CLI on every keystroke was not.
+
+### Pairs with CLI 0.44.0
+This release expects the CLI to be on 0.44.0 or later. The CLI's mirror-write policy (every entry also lands in `sessions.jsonl` for live-watcher compatibility) means **prior extension releases keep working with CLI 0.44** — but you'll only see entries in the legacy file. Upgrade to 0.7.9 to see the full branch + global picture.
+
+### Migration
+- No action required. Just upgrade.
+- If you were depending on the old per-edit rule-file refresh (e.g. you'd open a file and expect `.cursorrules` to re-rank within 1.5 s), use the explicit `infernoflow.rebuildAiRules` command instead — it's the same code path, just user-driven.
+
 ## 0.7.8 — 2026-05-13 — auto-capture popup off by default
 
 ### Changed
