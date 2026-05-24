@@ -33,3 +33,10 @@
 *.vsix  binary
 *.tgz   binary
 *.zip   binary
+
+# >>> infernoflow:start
+# Branch-local memory: append-only JSONL files. Auto-merge concurrent
+# additions from different machines/branches as union of lines so
+# `home → work → home` syncs don't produce conflicts.
+.ai-memory/branches/*.jsonl merge=union
+# <<< infernoflow:end

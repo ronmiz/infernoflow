@@ -26,7 +26,10 @@ assert(help.stdout.includes("infernoflow commands"), "--help should point at `in
 // ── 2. `commands` lists the broader command set ──────────────────────────
 const commands = run(["commands"]);
 assert(commands.status === 0, "`commands` failed");
-for (const cmd of ["suggest", "implement", "pr-impact", "sync", "run", "scan", "freeze", "thaw"]) {
+// Surface kept after the v0.44 cull — refresh, sync, amp are new top-level
+// commands; the old contract verbs (suggest/implement/pr-impact/run/scan/
+// freeze/thaw) were intentionally removed and must NOT come back.
+for (const cmd of ["init", "setup", "doctor", "refresh", "sync", "amp", "context", "ai"]) {
   assert(commands.stdout.includes(cmd), `command "${cmd}" missing from \`commands\` listing`);
 }
 

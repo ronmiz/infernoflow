@@ -62,16 +62,19 @@ docs/INFERNOFLOW_*.md
 infernoflow-roadmap.docx
 *.docx
 
-# --- infernoflow (developer-local AI memory; do not commit) ---
-# Memory is per-developer, not per-branch. These files travel with you, not with git.
-.ai-memory/
-.cursorrules
-CLAUDE.md
-.github/copilot-instructions.md
-# MCP server setup — contains absolute paths to local machine; per-developer
-.cursor/
-.vscode/mcp.json
-# Auto-generated per-developer profile
-inferno/developer-profile.json
-inferno/CONTEXT.draft.md
-# --- /infernoflow ---
+# >>> infernoflow:start
+# Personal memory (per-developer, per-machine). Sync via cloud folder
+# or `infernoflow sync`, not git.
+.ai-memory/global.jsonl
+.ai-memory/sessions.jsonl
+# Regenerated artifacts — never commit these.
+.ai-memory/handoff.md
+.ai-memory/CONTEXT.draft.md
+.ai-memory/HANDOFF.md
+.ai-memory/.last-cli-version
+# Build/publish hygiene — don't ship memory in published .NET / monorepo bundles.
+**/publish/.ai-memory/
+**/publish/inferno/
+**/dist/.ai-memory/
+**/dist/inferno/
+# <<< infernoflow:end
