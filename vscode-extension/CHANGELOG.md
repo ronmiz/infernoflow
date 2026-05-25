@@ -1,5 +1,19 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.10 — 2026-05-25 — drop sidebar/palette entries for CLI commands deleted in v0.44
+
+The CLI v0.44 surface cull deleted `scan`, `watch`, `freeze`, `impact`, `graph`, and the whole `contract` subsystem. The extension still registered four palette commands and a sidebar "Code Map" section that invoked them — clicking any of these in v0.7.9 against CLI v0.44+ produced "Unknown command" errors in the terminal.
+
+### Removed
+- **Palette commands:** `infernoflow.cliScan` (Scan codebase), `infernoflow.cliWatch` (Watch auto-capture), `infernoflow.cliCodeMap` (Show code map), `infernoflow.cliCloudStatus` (orphan — was declared in package.json contributes but never registered).
+- **Sidebar section:** the "Code Map" parent and its two action nodes ("Scan codebase", "Show code map"). The whole section is gone — visual code-map was a feature of the contract/scan track that v0.44 removed.
+
+### Pairs with CLI 0.44.2
+Everything in the extension's command palette and sidebar now routes to a CLI verb that actually exists in v0.44.2.
+
+### Migration
+No action — install the new version. If you specifically used the "Code Map" or "Scan codebase" actions, those features are gone with the CLI cull. Use `infernoflow doctor` for setup diagnostics instead.
+
 ## 0.7.9 — 2026-05-19 — pairs with CLI 0.44.0 (branch-aware memory + single-writer rule files)
 
 This release closes the boundary issue between the extension and the CLI flagged in the v0.44 audit — the two were racing each other on rule-file writes and the extension was blind to v0.44's branch-aware layout. Both halves fixed here.

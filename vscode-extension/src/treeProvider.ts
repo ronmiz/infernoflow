@@ -199,8 +199,6 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
             "Approaches that didn't work — surfaced as blue Information squiggles in the editor."),
           this.section("Memory Actions", "zap", true,
             "The core memory loop: log entries, search memory, generate handoff for the next AI."),
-          this.section("Code Map", "map", false,
-            "Visual scan of components → capabilities. Run scan to refresh; Show map opens the interactive flow chart."),
         ];
       }
 
@@ -211,7 +209,6 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
       if (label.startsWith("Decisions"))         return this.entriesByType("decision", "check");
       if (label.startsWith("Failed Attempts"))   return this.entriesByType("attempt",  "error");
       if (label === "Memory Actions")            return this.memoryActions();
-      if (label === "Code Map")                  return this.codeMapActions();
       return [];
     } catch (err) {
       // Last-resort fallback: never let the panel render fully blank.
@@ -304,27 +301,6 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
         "Manage entries…", "checklist", "infernoflow.manageEntries",
         "Bulk select and delete entries (orphaned + manual).\n\n" +
         "When: cleanup. Picker is grouped by date so you can scan and tick noise away."),
-    ];
-  }
-
-  /**
-   * Code Map section — the visual companion to memory. `scan` runs the AST
-   * scan and updates inferno/scan.json + graph.json. `Show code map` opens
-   * the interactive HTML flow chart (entry → components → capabilities → UI).
-   */
-  private codeMapActions(): InfernoItem[] {
-    return [
-      this.action(
-        "🔄 Scan codebase", "search-fuzzy", "infernoflow.cliScan",
-        "Run `infernoflow scan`.\n\n" +
-        "Deep AST scan — maps function names to capabilities, detects components/UI elements/DB+HTTP calls. Required before 'Show code map' has data.\n\n" +
-        "When to re-run: after meaningful structural changes."),
-      this.action(
-        "🗺  Show code map", "graph", "infernoflow.cliCodeMap",
-        "Open the interactive flow chart in your browser.\n\n" +
-        "Hierarchical layout: entry component → child components → capabilities → UI elements. " +
-        "Shows how the app is composed alongside the memory you've captured.\n\n" +
-        "If the map is empty or stale, run 'Scan codebase' first."),
     ];
   }
 

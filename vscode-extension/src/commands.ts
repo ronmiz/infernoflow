@@ -603,12 +603,9 @@ export function registerCommands(context: vscode.ExtensionContext, refresh: () =
   reg("infernoflow.cliStatus",        () => runInTerminal("status"));
   reg("infernoflow.cliCheck",         () => runInTerminal("check"));
   reg("infernoflow.cliDoctor",        () => runInTerminal("doctor"));
-  reg("infernoflow.cliScan",          () => runInTerminal("scan"));
   reg("infernoflow.cliInitAdopt",     () => runInTerminal("init --adopt"));
   reg("infernoflow.cliSetup",         () => runInTerminal("setup"));
   reg("infernoflow.cliAiSetup",       () => runInTerminal("ai setup"));
   reg("infernoflow.cliInstallCursor", () => runInTerminal("install-cursor-hooks"));
-  reg("infernoflow.cliWatch",         () => runInTerminal("watch"));
-  reg("infernoflow.cliCodeMap",       () => runInTerminal("contract graph --html"));
   reg("infernoflow.cliContext",       () => runInTerminal("context"));
 }
