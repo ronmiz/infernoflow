@@ -174,7 +174,7 @@ function memoryProtocolLines(): string[] {
     "",
     "| When you see… | Call `amp_write` with… |",
     "|---|---|",
-    "| User types `!!!`, `not working`, `still broken`, `no change`, `same error`, repeated frustration | `{type: 'attempt', msg: '<one-line: what was tried and how it failed>', file: '<active file>'}` |",
+    "| User types `!!`, `!!!`, `not working`, `still broken`, `no change`, `same error`, `retry` / `retrying`, repeated frustration | `{type: 'attempt', msg: '<one-line: what was tried and how it failed>', file: '<active file>'}` |",
     "| You generate a plan, numbered steps, or `Plan:` / `Approach:` block | `{type: 'note', msg: 'Plan: <one-line summary>', file: '<focus file>'}` |",
     "| User picks X over Y, decides an architectural approach, or you both agree on a direction | `{type: 'decision', msg: '<X> chosen over <Y> because <reason>', file: '<file>'}` |",
     "| Discovered non-obvious behavior, API quirk, or `aha — turns out…` moment | `{type: 'gotcha', msg: '<one-line>', file: '<file>', line: <line if known>}` |",
@@ -248,7 +248,7 @@ function buildSection(scored: ScoredEntry[], activeFile: string | undefined, com
       lines.push("### Most relevant memory");
       for (const { entry: e } of top) {
         const fileRef = e.file ? ` (\`${e.file}${e.line ? ":" + e.line : ""}\`)` : "";
-        lines.push(`- ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${e.msg.replace(/\n/g, " ")}`);
+        lines.push(`- 🔥 ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${e.msg.replace(/\n/g, " ")}`);
       }
       lines.push("");
     }
@@ -261,7 +261,7 @@ function buildSection(scored: ScoredEntry[], activeFile: string | undefined, com
       lines.push("");
       for (const { entry: e } of rest) {
         const fileRef = e.file ? ` (\`${e.file}${e.line ? ":" + e.line : ""}\`)` : "";
-        lines.push(`- ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${e.msg.replace(/\n/g, " ").slice(0, 140)}${e.msg.length > 140 ? "…" : ""}`);
+        lines.push(`- 🔥 ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${e.msg.replace(/\n/g, " ").slice(0, 140)}${e.msg.length > 140 ? "…" : ""}`);
       }
       lines.push("");
       lines.push(`</details>`);
