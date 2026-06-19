@@ -11,6 +11,10 @@
   unchanged.) Makes the extension the single thing you manage.
 - **More capture triggers.** The Memory-protocol block the extension injects now
   also fires on `!!` and `retry`/`retrying`.
+- **Visible in every project.** Added `onStartupFinished` activation so the
+  infernoflow sidebar shows up in any workspace, not only ones that already
+  contain `.ai-memory/`. Install/update/setup prompts stay gated to actual
+  infernoflow projects, so unrelated projects are never nagged.
 
 ### Changed
 - **Injected memory is tagged 🔥.** Every memory line the extension writes into

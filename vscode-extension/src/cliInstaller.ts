@@ -193,6 +193,18 @@ export async function ensureCliAndSetup(context: vscode.ExtensionContext): Promi
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (!folder) return; // No workspace open — nothing to set up against
 
+  // With `onStartupFinished` the extension now activates in EVERY workspace so
+  // its sidebar is discoverable everywhere — not just where infernoflow files
+  // already exist. But we must NOT nag with CLI-install / update / setup
+  // prompts in projects that don't use infernoflow. Only run the wiring once a
+  // project is actually an infernoflow project (.ai-memory/ or inferno/). A
+  // fresh project becomes one the moment you log via the sidebar (ampIO writes
+  // .ai-memory/ with no CLI needed), and the CLI offer follows on next activate.
+  const isInfernoProject =
+    fs.existsSync(path.join(folder.uri.fsPath, ".ai-memory")) ||
+    fs.existsSync(path.join(folder.uri.fsPath, "inferno"));
+  if (!isInfernoProject) return;
+
   const probe = await probeCli();
 
   // ── 1. Install CLI if missing ────────────────────────────────────────────

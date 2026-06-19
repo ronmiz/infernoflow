@@ -38,6 +38,7 @@
   ],
   "icon": "media/icon.png",
   "activationEvents": [
+    "onStartupFinished",
     "workspaceContains:.ai-memory/sessions.jsonl",
     "workspaceContains:inferno/contract.json",
     "workspaceContains:inferno/sessions.jsonl"
