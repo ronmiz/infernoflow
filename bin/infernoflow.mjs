@@ -19,13 +19,22 @@
   };
   const RE = new RegExp(Object.keys(MAP).join("|"), "g");
 
+  // Box-drawing + status glyphs above get readable ASCII. Emoji have no
+  // sensible ASCII equivalent and render as mojibake (🔥 → "ΓöÉ") in legacy
+  // PowerShell, so strip whatever the MAP didn't already convert. MAP runs
+  // FIRST so glyphs we DO want to keep (✔ → [OK], ⚠ → [!]) are converted
+  // before this catch-all removes the rest. The emoji and ONE trailing space
+  // are removed together so "  🔥 infernoflow" → "  infernoflow" keeps its
+  // 2-space indent (a bare strip would leave a stray leading space).
+  const EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{200D}]\u{FE0F}? ?/gu;
+  const scrub = (s) => s.replace(RE, c => MAP[c]).replace(EMOJI_RE, "");
+
   function patch(stream) {
     const orig = stream.write.bind(stream);
     stream.write = function(chunk, ...args) {
-      if (typeof chunk === "string") chunk = chunk.replace(RE, c => MAP[c]);
+      if (typeof chunk === "string") chunk = scrub(chunk);
       else if (Buffer.isBuffer(chunk)) {
-        const s = chunk.toString("utf8").replace(RE, c => MAP[c]);
-        chunk = Buffer.from(s, "utf8");
+        chunk = Buffer.from(scrub(chunk.toString("utf8")), "utf8");
       }
       return orig(chunk, ...args);
     };
