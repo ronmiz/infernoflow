@@ -16,6 +16,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { spawnSync } from "node:child_process";
 
 /** Keep in sync with templates/scripts/inferno-promote-draft.mjs */
 const DRAFT_HEADER = `# CONTEXT draft (gitignored)
@@ -132,6 +133,83 @@ async function readStdin() {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+// ── Deterministic trigger capture (beforeSubmitPrompt) ──────────────────────
+// Cursor's beforeSubmitPrompt hook hands us the USER's prompt text before it
+// goes to the model. The Memory-protocol block already asks the AI to log on
+// these signals, but the AI doesn't always obey — so this is a deterministic
+// backstop: if the prompt itself contains a trouble signal (!!, retry, "not
+// working", …) we write an `attempt` entry ourselves. Bounded hard against
+// noise: a 90s cooldown + identical-prompt dedupe, so a frustrated burst of
+// "still broken!! retry!!" produces ONE entry, not ten.
+const TRIGGER_RES = [
+  /(?:^|\s)!!+/,
+  /\bretry(?:ing)?\b/i,
+  /\bnot working\b/i,
+  /\bstill (?:broken|failing|not working|doesn['’]?t)\b/i,
+  /\bsame (?:error|issue|problem)\b/i,
+  /\bno change\b/i,
+  /\bdoesn['’]?t work\b/i,
+];
+
+function memoryRootExists() {
+  return fs.existsSync(path.join(projectRoot(), ".ai-memory")) ||
+         fs.existsSync(path.join(projectRoot(), "inferno"));
+}
+
+function triggerStatePath() {
+  return path.join(projectRoot(), ".ai-memory", ".trigger-state.json");
+}
+
+function cheapHash(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return String(h);
+}
+
+function handleUserPrompt(text) {
+  const trimmed = (text || "").trim();
+  if (!trimmed) return;
+  if (!memoryRootExists()) return;                 // only inside infernoflow projects
+  if (!TRIGGER_RES.some((re) => re.test(trimmed))) return;
+
+  const now = Date.now();
+  const stateFile = triggerStatePath();
+  let state = {};
+  try { state = JSON.parse(fs.readFileSync(stateFile, "utf8")); } catch {}
+  const h = cheapHash(trimmed.slice(0, 200));
+  const COOLDOWN_MS = 90_000;
+  if (state.lastHash === h) return;                // exact same prompt — skip
+  if (state.lastTs && now - state.lastTs < COOLDOWN_MS) return; // rate-limit
+
+  const msg = "Auto-trigger — user signalled trouble: " +
+    trimmed.replace(/\s+/g, " ").slice(0, 180);
+
+  // Prefer the CLI (correct id / branch routing / AMP shape); fall back to a
+  // direct sessions.jsonl append so capture still works without a global CLI.
+  let wrote = false;
+  try {
+    const bin = process.platform === "win32" ? "infernoflow.cmd" : "infernoflow";
+    const r = spawnSync(bin, ["log", msg, "--type", "attempt", "--source", "cursor-trigger", "--tags", "auto-trigger"], {
+      cwd: projectRoot(), encoding: "utf8", timeout: 8000, shell: process.platform === "win32",
+    });
+    wrote = r.status === 0;
+  } catch { /* fall through to direct write */ }
+  if (!wrote) {
+    try {
+      const sess = path.join(projectRoot(), ".ai-memory", "sessions.jsonl");
+      fs.mkdirSync(path.dirname(sess), { recursive: true });
+      const entry = { type: "attempt", msg, ts: now, id: "amp_hook_" + now.toString(36), source: "cursor-trigger", tags: ["auto-trigger"], meta: { agent: "cursor-hook" } };
+      fs.appendFileSync(sess, JSON.stringify(entry) + "\n", "utf8");
+      wrote = true;
+    } catch { /* best effort */ }
+  }
+
+  if (wrote) {
+    try { fs.writeFileSync(stateFile, JSON.stringify({ lastTs: now, lastHash: h }), "utf8"); } catch {}
+    process.stderr.write("[inferno-session-draft] auto-captured trigger to memory\n");
+  }
+}
+
 // ── main ───────────────────────────────────────────────────────────────────
 
 function main() {
@@ -144,6 +222,16 @@ function main() {
         data = raw.trim() ? JSON.parse(raw) : {};
       } catch (e) {
         console.error("[inferno-session-draft] stdin JSON parse:", e.message);
+        console.log("{}");
+        process.exit(0);
+        return;
+      }
+
+      // beforeSubmitPrompt: deterministic trigger capture on the USER's prompt.
+      if (process.argv.includes("--user-prompt")) {
+        const t = typeof data.prompt === "string" ? data.prompt
+                : typeof data.text === "string"   ? data.text : "";
+        try { handleUserPrompt(t); } catch (e) { console.error("[inferno-session-draft] trigger:", e?.message); }
         console.log("{}");
         process.exit(0);
         return;

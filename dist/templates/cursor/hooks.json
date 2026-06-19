@@ -1,6 +1,11 @@
 {
   "version": 1,
   "hooks": {
+    "beforeSubmitPrompt": [
+      {
+        "command": "node .cursor/hooks/inferno-session-draft.mjs --user-prompt"
+      }
+    ],
     "afterAgentResponse": [
       {
         "command": "node .cursor/hooks/inferno-session-draft.mjs"
