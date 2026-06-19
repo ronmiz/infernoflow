@@ -23,6 +23,29 @@ import * as path from "path";
 
 const CLI_BIN = "infernoflow";
 
+// The CLI version this extension build pairs with. The extension and the CLI
+// ship on separate registries (Marketplace vs npm) and updating one never
+// updates the other — so when an OLDER CLI is already installed, we offer a
+// one-click `npm install -g infernoflow@latest`. Bump this in lockstep with the
+// CLI whenever a release adds behavior the extension expects. Keep it a plain
+// x.y.z string (compared numerically below).
+const RECOMMENDED_CLI_VERSION = "0.44.4";
+
+/** True if installed version a is strictly older than b (both "x.y.z"). */
+function isOlderVersion(a: string, b: string): boolean {
+  // Dev/source builds (0.0.0-source, 0.0.0-unknown) are never "old" — don't
+  // nag contributors running from a local checkout.
+  if (!a || a.startsWith("0.0.0")) return false;
+  const pa = a.split(".").map(n => parseInt(n, 10) || 0);
+  const pb = b.split(".").map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x < y) return true;
+    if (x > y) return false;
+  }
+  return false;
+}
+
 interface CliProbe {
   installed: boolean;
   version?: string;
@@ -201,6 +224,24 @@ export async function ensureCliAndSetup(context: vscode.ExtensionContext): Promi
     if (choice !== "Install") return;
     const ok = await installCli();
     if (!ok) return;
+  } else if (probe.version && isOlderVersion(probe.version, RECOMMENDED_CLI_VERSION)) {
+    // ── 1b. Offer to update an out-of-date CLI ──────────────────────────────
+    // The extension just updated (that's why this code is running), but the npm
+    // CLI doesn't update with it. If the installed CLI is behind, offer a
+    // one-click upgrade — once per target version, so we never nag.
+    const offerKey = `infernoflow.cliUpdateOffered:${RECOMMENDED_CLI_VERSION}`;
+    if (!context.globalState.get<boolean>(offerKey, false)) {
+      await context.globalState.update(offerKey, true);
+      const UPDATE = "Update";
+      const choice = await vscode.window.showInformationMessage(
+        `infernoflow CLI v${probe.version} is installed, but v${RECOMMENDED_CLI_VERSION} is available with the latest fixes. Update now?`,
+        UPDATE,
+        "Not now",
+      );
+      if (choice === UPDATE) {
+        await installCli(); // npm install -g infernoflow@latest
+      }
+    }
   }
 
   // ── 2. Run silent setup per-workspace, once ──────────────────────────────

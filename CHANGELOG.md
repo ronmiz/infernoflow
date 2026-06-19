@@ -1,5 +1,14 @@
 # Changelog — infernoflow
 
+## 0.44.4 — 2026-06-19 — capture triggers, from-infernoflow tag, deterministic hook
+
+### New
+- **More capture triggers.** The Memory-protocol block's attempt row now also fires on `!!` and `retry`/`retrying` (kept `!!!`, `not working`, `still broken`, `same error`, `no change`). Written into CLAUDE.md / .cursorrules / copilot-instructions.md so every AI sees them.
+- **Deterministic trigger capture (Cursor).** A new `beforeSubmitPrompt` hook scans your prompt *before* it reaches the model and auto-writes an `attempt` entry on a trouble signal — a backstop for when the AI doesn't log on its own. Bounded against noise with a 90s cooldown + identical-prompt dedupe; writes via the CLI when present, else a direct `sessions.jsonl` append. Re-run `infernoflow install-cursor-hooks --force` (or `setup`) to pick it up on existing projects.
+
+### Changed
+- **Injected memory is tagged 🔥.** Every memory line written into the rule files is now prefixed with 🔥, so the AI (and you) can tell at a glance that a line came from infernoflow even when it's quoted out of the managed block.
+
 ## 0.44.3 — 2026-05-26 — cold-install P0s + auto-capture reliability (PointerFleetV2 field review)
 
 Fixes the issues a developer hits in the first few minutes of a real setup,

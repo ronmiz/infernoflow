@@ -1,5 +1,21 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.12 — 2026-06-19 — keep the CLI in step + capture triggers + 🔥 tag
+
+### New
+- **CLI update prompt.** The extension and the npm CLI ship on separate
+  registries, so updating the extension never updated the CLI. On activation,
+  if an *older* CLI is installed than this build pairs with (0.44.4), the
+  extension offers a one-click `npm install -g infernoflow@latest` — once per
+  target version, never nags, never forced. (Missing-CLI and missing-Node paths
+  unchanged.) Makes the extension the single thing you manage.
+- **More capture triggers.** The Memory-protocol block the extension injects now
+  also fires on `!!` and `retry`/`retrying`.
+
+### Changed
+- **Injected memory is tagged 🔥.** Every memory line the extension writes into
+  the rule files is prefixed with 🔥 so its infernoflow origin is unmistakable.
+
 ## 0.7.11 — 2026-05-26 — auto-capture reliability + Node-free sidebar
 
 Pairs with CLI 0.44.3. Focus: the extension is useful the moment it's installed,
