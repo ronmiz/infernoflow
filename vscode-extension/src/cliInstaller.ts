@@ -220,5 +220,13 @@ export async function ensureCliAndSetup(context: vscode.ExtensionContext): Promi
   if (needsSetup) {
     await runSetup(folder.uri.fsPath);
     await context.globalState.update(key, true);
+
+    // Auto-capture link 4: the AI tool loads MCP servers at startup and won't
+    // see the freshly-registered infernoflow server until it's restarted. This
+    // is the single most common "why isn't the AI logging anything?" cause, and
+    // it's otherwise invisible — so say it explicitly, once, right after wiring.
+    void vscode.window.showInformationMessage(
+      "infernoflow auto-capture is wired. Restart your AI tool (Cursor / Claude / Copilot Chat) once so it picks up the memory server.",
+    );
   }
 }

@@ -26,14 +26,27 @@ describe("vscode-extension watcher pattern", () => {
   })
 })
 
-describe("vscode-extension delegates rule-file writes to the CLI", () => {
-  it("does NOT call rebuildAiRuleFiles from the auto-refresh path", () => {
-    const text = fs.readFileSync(EXTENSION_TS, "utf8")
-    // The auto-refresh path used to call rebuildAiRuleFiles(activeFile)
-    // on every memory change. v0.44.1 removed that — only an explicit
-    // user-triggered command (in commands.ts) still calls the writer.
-    // We assert the auto path is no longer active by checking the import
-    // is commented out at module top.
-    expect(text).toMatch(/\/\/.*import\s+\{\s*rebuildAiRuleFiles\s*\}/)
+describe("vscode-extension rule-file write policy (v0.44.3)", () => {
+  // v0.44.1 banned the extension from writing rule files at all (CLI was the
+  // single writer). v0.44.3 narrows that: the extension writes ONCE on
+  // activation so auto-capture link 1 (the Memory-protocol block) lands even
+  // when the CLI was never installed — but the per-edit/debounced path stays
+  // inert, since per-edit writes were what blocked branch switches in v0.43.
+  const text = fs.readFileSync(EXTENSION_TS, "utf8")
+
+  it("imports rebuildAiRuleFiles as an ACTIVE import (not commented out)", () => {
+    expect(text).toMatch(/^\s*import\s+\{\s*rebuildAiRuleFiles\s*\}\s+from\s+["']\.\/contextSync["']/m)
+  })
+
+  it("calls rebuildAiRuleFiles exactly once, gated behind isInitialised() (one-time bootstrap, not per-edit)", () => {
+    const calls = text.match(/rebuildAiRuleFiles\s*\(\s*\)/g) || []
+    expect(calls.length).toBe(1)
+    expect(text).toContain("ampIO.isInitialised()")
+  })
+
+  it("does NOT rebuild rule files from the debounced per-edit scheduleRebuild path", () => {
+    const m = text.match(/const scheduleRebuild = \(\) => \{([\s\S]*?)\n {2}\};/)
+    expect(m).toBeTruthy()
+    expect(m[1]).not.toContain("rebuildAiRuleFiles(")
   })
 })
