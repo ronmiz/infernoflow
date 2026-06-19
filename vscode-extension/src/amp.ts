@@ -161,6 +161,17 @@ class AmpIO {
     }
   }
 
+  /**
+   * Generate a handoff markdown doc from current memory — entirely in-process
+   * via the bundled infernoflow-amp lib, so `switch` works with no CLI and no
+   * system Node (the extension host provides the runtime). The CLI's handoff is
+   * richer (git hot-files, theme), but this is the graceful-degradation path.
+   */
+  handoff(): string | undefined {
+    if (!this.amp) return undefined;
+    try { return this.amp.handoff({ format: "markdown" }); } catch { return undefined; }
+  }
+
   /** Aggregate counts + health score for the status bar / sidebar header. */
   summary(): MemorySummary {
     const entries = this.readEntries();

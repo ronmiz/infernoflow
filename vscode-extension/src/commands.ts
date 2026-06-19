@@ -10,7 +10,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import { spawnSync } from "child_process";
 import { ampIO } from "./amp";
 import { rebuildAiRuleFiles } from "./contextSync";
 import { summarizeSessionCommand } from "./summarize";
@@ -45,24 +44,6 @@ function activeFileContext(): { file?: string; line?: number } {
   const file = root ? path.relative(root, abs).replace(/\\/g, "/") : abs;
   const line = editor.selection.active.line + 1;
   return { file, line };
-}
-
-function runCli(args: string[], options: { capture?: boolean } = {}): { stdout: string; stderr: string; status: number } {
-  const cwd = workspaceRoot();
-  if (!cwd) return { stdout: "", stderr: "no workspace", status: 1 };
-  const cli = vscode.workspace.getConfiguration("infernoflow").get<string>("cliPath", "infernoflow");
-  const result = spawnSync(cli, args, {
-    cwd,
-    encoding: "utf8",
-    env: { ...process.env, NO_COLOR: "1" },
-    timeout: 30_000,
-    shell: process.platform === "win32",
-  });
-  return {
-    stdout: result.stdout || "",
-    stderr: result.stderr || "",
-    status: result.status ?? 1,
-  };
 }
 
 // ── Reusable terminal for CLI commands ──────────────────────────────────────
@@ -184,39 +165,68 @@ async function switchCommand(): Promise<void> {
     vscode.window.showInformationMessage("No memory yet — log a gotcha first.");
     return;
   }
-  const result = runCli(["switch", "--copy"]);
-  if (result.status !== 0) {
-    vscode.window.showErrorMessage(`infernoflow switch failed: ${result.stderr || result.stdout}`);
+  const root = workspaceRoot();
+  const md   = ampIO.handoff();
+  if (!root || !md) {
+    vscode.window.showErrorMessage("infernoflow: could not generate handoff.");
     return;
   }
-  // Open the handoff in a side editor for review
-  const cwd = workspaceRoot();
-  if (cwd) {
-    const ampPath    = path.join(cwd, ".ai-memory", "handoff.md");
-    const legacyPath = path.join(cwd, "inferno", "HANDOFF.md");
-    const target = fs.existsSync(ampPath) ? ampPath : (fs.existsSync(legacyPath) ? legacyPath : undefined);
-    if (target) {
-      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(target));
-      vscode.window.showTextDocument(doc, { preview: true, viewColumn: vscode.ViewColumn.Beside });
-    }
-  }
+  // Persist to .ai-memory/handoff.md (best effort) like the CLI does — but
+  // generated in-process, so this works with no CLI and no system Node.
+  const handoffPath = path.join(root, ".ai-memory", "handoff.md");
+  let wrote = false;
+  try {
+    fs.mkdirSync(path.dirname(handoffPath), { recursive: true });
+    fs.writeFileSync(handoffPath, md, "utf8");
+    wrote = true;
+  } catch { /* non-fatal — we still copy + preview below */ }
+
+  await vscode.env.clipboard.writeText(md);
+
+  const doc = wrote
+    ? await vscode.workspace.openTextDocument(vscode.Uri.file(handoffPath))
+    : await vscode.workspace.openTextDocument({ content: md, language: "markdown" });
+  vscode.window.showTextDocument(doc, { preview: true, viewColumn: vscode.ViewColumn.Beside });
+
   notifyImportant("📋 Handoff copied to clipboard — paste into your next AI chat");
 }
 
 // ── Recap (shell out to CLI, render in a temp Markdown editor) ──────────────
 
 async function recapCommand(): Promise<void> {
-  const result = runCli(["recap"]);
-  if (result.status !== 0) {
-    vscode.window.showErrorMessage(`infernoflow recap failed: ${result.stderr || result.stdout}`);
+  if (!ampIO.isInitialised()) {
+    vscode.window.showInformationMessage("No memory yet — log a gotcha first.");
     return;
   }
-  // Strip ANSI escapes for clean markdown view
-  const clean = result.stdout.replace(/\[[0-9;]*[A-Za-z]/g, "");
-  const doc = await vscode.workspace.openTextDocument({
-    content: clean,
-    language: "markdown",
-  });
+  const s       = ampIO.summary();
+  const entries = ampIO.readEntries();
+  const since   = Date.now() - 24 * 60 * 60 * 1000;
+  const recent  = entries.filter(e => e.ts >= since).sort((a, b) => b.ts - a.ts);
+
+  const ICON: Record<string, string> = {
+    gotcha: "⚠", decision: "✓", attempt: "✗", note: "·", detection: "○", pattern: "◇",
+  };
+
+  const lines: string[] = [];
+  lines.push("# infernoflow recap");
+  lines.push("");
+  lines.push(`**Session health:** ${s.health.grade} (${s.health.score}/100)`);
+  lines.push(`**Memory:** ${s.total} entries — ${s.gotchas} gotcha · ${s.decisions} decision · ${s.attempts} attempt · ${s.notes} note`);
+  lines.push("");
+  lines.push(`## Logged in the last 24h (${recent.length})`);
+  lines.push("");
+  if (recent.length === 0) {
+    lines.push("_Nothing logged in the last 24h._");
+  } else {
+    for (const e of recent) {
+      const ref = e.file ? ` (\`${e.file}${e.line ? ":" + e.line : ""}\`)` : "";
+      lines.push(`- ${ICON[e.type] || "·"} **${e.type}**${ref}: ${e.msg.replace(/\n/g, " ")}`);
+    }
+  }
+  lines.push("");
+  lines.push("_Generated in-process by the infernoflow extension (no CLI required)._");
+
+  const doc = await vscode.workspace.openTextDocument({ content: lines.join("\n"), language: "markdown" });
   vscode.window.showTextDocument(doc, { preview: true, viewColumn: vscode.ViewColumn.Beside });
 }
 
