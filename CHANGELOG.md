@@ -1,5 +1,27 @@
 # Changelog — infernoflow
 
+## 0.44.3 — 2026-05-26 — cold-install P0s + auto-capture reliability (PointerFleetV2 field review)
+
+Fixes the issues a developer hits in the first few minutes of a real setup,
+from a field review on a .NET + React repo. The theme: the AI auto-capture path
+("the AI logs gotchas itself via the amp_write MCP tool") must reliably run.
+
+### Fixed — cold-install P0s
+- **`init` no longer lies about "already set up".** It checked `exists(.ai-memory/) || exists(inferno/)`, so a bare `inferno/` dir made init print "already set up" while `amp status` said "not initialised" and entries stayed 0. Now anchored on the sessions file, so a half-state creates the store instead.
+- **doc-gate skips when `inferno/` is gitignored.** Memory-only mode (the default) gitignores `inferno/`, which made the git-diff gate unsatisfiable — `infernoflow check` exited 1 on every commit forever. It now probes `git check-ignore` and skips with a clear message.
+- **Emoji no longer render as mojibake in legacy PowerShell.** The unicode patcher handled box-drawing glyphs but not emoji; an emoji-strip pass now runs after the ASCII map (preserving indentation).
+
+### Fixed — auto-capture reliability
+- **`doctor` now shows the auto-capture chain.** New "Auto-capture protocol" check verifies the `amp_write` Memory-protocol block is present in a rule file (link 1), alongside the existing MCP-server (link 2) and MCP-runtime (link 3) checks — so "why isn't the AI logging?" has a visible answer.
+- **`--mode full` adopts real capabilities** instead of seeding a generic todo-app contract (CreateTask, ReadTasks, …) unrelated to the project.
+
+### New
+- **`amp` subverb aliases** — `infernoflow amp read | write | search | handoff | health` route to the same handlers as the bare commands, so the CLI surface matches the MCP `amp_*` tool names.
+- **`infernoflow forget <id|prefix>`** (and `--last`) — delete a memory entry without hand-editing JSONL. Strips the id from every memory file (entries are mirrored across the branch file and legacy sessions.jsonl).
+
+### Note
+The reviewer's "`amp migrate` imports duplicates from CLAUDE.md" report was investigated and is not reproducible — `migrateLegacy` only reads `inferno/sessions.jsonl` and never parses CLAUDE.md.
+
 ## 0.44.2 — 2026-05-20 — fix the four first-impression bugs in `recap`, `switch`, `doctor`, and the MCP boot stamp
 
 Polish release. Every fix targets something a first-time user hits in the first 5 minutes of a cold install — none of them were caught by the unit tests because they each cross a seam the tests don't exercise (a fresh handoff entry written seconds ago, the actual on-disk file path vs. the message text, the new memory-only init layout vs. the legacy `inferno/` shape, the template's runtime context vs. the package source).

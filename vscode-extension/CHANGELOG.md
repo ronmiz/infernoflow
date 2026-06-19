@@ -1,5 +1,18 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.11 — 2026-05-26 — auto-capture reliability + Node-free sidebar
+
+Pairs with CLI 0.44.3. Focus: the extension is useful the moment it's installed,
+and the AI auto-capture path is reliable rather than silently broken.
+
+### Fixed
+- **No more npm dead-end when Node.js is missing.** The CLI install and the MCP server both need Node, but the old flow offered `npm install -g infernoflow` unconditionally and dead-ended on `spawn npm ENOENT` — telling the user to run the exact command that just failed. Now it detects Node first; if missing, it shows an upfront message ("auto-capture needs Node.js; the sidebar works without it") with an **Install Node.js** button.
+- **The AI now learns the capture protocol even without the CLI.** The Memory-protocol block (which tells the AI when to call `amp_write`) was written only by the CLI, so an extension-only install left the AI with no capture instructions. The extension now writes it natively once on activation (idempotent, shared markers — no duplicate block, no per-edit churn).
+- **`switch` and `recap` work with no CLI / no system Node.** They shelled out to the CLI before; they now run in-process via the bundled `infernoflow-amp`, so the sidebar degrades gracefully.
+
+### New
+- **Restart reminder after wiring.** Once MCP is registered, a one-time toast tells you to restart your AI tool so it loads the memory server — the most common silent cause of "installed it, the AI does nothing."
+
 ## 0.7.10 — 2026-05-25 — drop sidebar/palette entries for CLI commands deleted in v0.44
 
 The CLI v0.44 surface cull deleted `scan`, `watch`, `freeze`, `impact`, `graph`, and the whole `contract` subsystem. The extension still registered four palette commands and a sidebar "Code Map" section that invoked them — clicking any of these in v0.7.9 against CLI v0.44+ produced "Unknown command" errors in the terminal.
