@@ -73,6 +73,7 @@ const COMMAND_DESCRIPTIONS = {
   recap:  "End-of-session summary + health score + unlogged-change surfacing",
   status: "Quick health check — entries, gotchas, decisions, last activity",
   refresh: "Rebuild CLAUDE.md / .cursorrules / copilot-instructions.md from memory",
+  forget: "Delete a memory entry by id or unique prefix (--last for the newest)",
 
   // ── Setup / scaffolding ────────────────────────────────────────────────
   init:    "Scaffold .ai-memory/ and wire the current IDE in one command",
@@ -108,6 +109,7 @@ const COMMAND_HANDLERS = {
   recap:   async (args) => (await import("../lib/commands/recap.mjs")).recapCommand(args),
   status:  async (args) => (await import("../lib/commands/status.mjs")).statusCommand(args),
   refresh: async (args) => (await import("../lib/commands/refresh.mjs")).refreshCommand(args),
+  forget:  async (args) => (await import("../lib/commands/forget.mjs")).forgetCommand(args),
 
   // setup
   init:    async (args) => (await import("../lib/commands/init.mjs")).initCommand(args),
@@ -144,7 +146,7 @@ function formatCommandsHelp() {
 }
 
 const COMMAND_GROUPS = {
-  "Memory (the 5-command core)":  ["log", "ask", "switch", "recap", "status", "refresh"],
+  "Memory (the 5-command core)":  ["log", "ask", "switch", "recap", "status", "refresh", "forget"],
   "Setup":                        ["init", "setup", "doctor", "context"],
   "IDE wiring":                   ["install-cursor-hooks", "install-vscode-copilot-hooks", "generate-skills"],
   "Configuration":                ["ai", "telemetry", "sync", "uninstall"],
