@@ -31,6 +31,24 @@ interface CliProbe {
 }
 
 /**
+ * Is Node.js available on PATH? The MCP server that powers AI auto-capture is
+ * a Node process the AI tool spawns, and `npm install -g infernoflow` needs
+ * Node too — so if Node is missing, attempting the npm install just dead-ends
+ * on ENOENT and tells the user to run a command they can't run. Detect it
+ * first so we can guide them to nodejs.org instead.
+ */
+function probeNode(): Promise<boolean> {
+  return new Promise(resolve => {
+    let done = false;
+    const finish = (v: boolean) => { if (!done) { done = true; resolve(v); } };
+    const child = cp.spawn("node", ["--version"], { shell: true, windowsHide: true });
+    child.on("error", () => finish(false));
+    child.on("close", code => finish(code === 0));
+    setTimeout(() => { try { child.kill(); } catch { /* ignore */ } finish(false); }, 4000);
+  });
+}
+
+/**
  * Cheap detection — runs `infernoflow --version` and times out fast.
  * Works on Windows (looks up via PATHEXT) and on POSIX shells.
  */
@@ -156,8 +174,27 @@ export async function ensureCliAndSetup(context: vscode.ExtensionContext): Promi
 
   // ── 1. Install CLI if missing ────────────────────────────────────────────
   if (!probe.installed) {
+    // The CLI install (npm) AND the MCP server both need Node.js. If it's
+    // missing, don't offer an npm install that can only fail — be upfront that
+    // auto-capture needs Node, point them at the installer, and stop. The
+    // sidebar still works (it runs on VS Code's own runtime via infernoflow-amp).
+    const hasNode = await probeNode();
+    if (!hasNode) {
+      const INSTALL = "Install Node.js";
+      const pick = await vscode.window.showWarningMessage(
+        "infernoflow's AI auto-capture needs Node.js — it runs the memory (MCP) server your AI logs through. " +
+        "The sidebar works without it, but the AI can't log gotchas automatically until Node.js is installed, then reload VS Code.",
+        INSTALL,
+        "Not now",
+      );
+      if (pick === INSTALL) {
+        void vscode.env.openExternal(vscode.Uri.parse("https://nodejs.org/en/download"));
+      }
+      return;
+    }
+
     const choice = await vscode.window.showInformationMessage(
-      "infernoflow CLI is not installed. Install it now so the AI can use the `amp_write` MCP tool?",
+      "infernoflow CLI is not installed. Install it now so the AI can auto-capture gotchas via the `amp_write` MCP tool?",
       "Install",
       "Not now",
     );

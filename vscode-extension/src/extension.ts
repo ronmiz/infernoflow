@@ -25,12 +25,15 @@ import { InfernoStatusBar }        from "./statusBar";
 import { InfernoDiagnostics }      from "./diagnostics";
 import { InfernoCodeLensProvider } from "./codeLens";
 import { AutoCapture }             from "./autoCapture";
-// v0.44.1: rebuildAiRuleFiles is no longer called from the extension —
-// the CLI is the single canonical writer of CLAUDE.md / .cursorrules /
-// copilot-instructions.md (see lib/ruleFiles.mjs in the infernoflow npm
-// package). The extension now ONLY reads memory and renders the sidebar;
-// rule files refresh at MCP-server boot and via `infernoflow refresh`.
-// import { rebuildAiRuleFiles }      from "./contextSync";
+// v0.44.3: the extension writes the rule files' Memory-protocol block ONCE on
+// activation again — but only once, never per-edit. Rationale: auto-capture
+// link 1 ("AI knows WHEN to log") lived only in the CLI's writer, so a user who
+// installed the extension WITHOUT the CLI (no Node) got `.ai-memory/` but no
+// protocol block → the AI never learned to call amp_write. A single idempotent
+// activation write (shared `<!-- infernoflow:start -->` markers, so the CLI's
+// richer write still replaces it cleanly — no duplicate block) closes that gap
+// without bringing back the v0.43 per-edit churn that blocked branch switches.
+import { rebuildAiRuleFiles }      from "./contextSync";
 import { registerCommands }        from "./commands";
 import { ensureCliAndSetup }       from "./cliInstaller";
 
@@ -128,7 +131,14 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   );
 
-  // Initial sync on activation so files are current from the first chat
+  // Auto-capture link 1: ensure the rule files carry the Memory-protocol block
+  // so the AI knows WHEN to call amp_write — even if the CLI was never installed
+  // (no Node). One-time write on activation only; idempotent and shared-marker
+  // so a later CLI write replaces it without duplicating. Never blocks activation.
+  if (isAutoSyncEnabled() && ampIO.isInitialised()) {
+    try { rebuildAiRuleFiles(); } catch { /* non-fatal — sidebar still works */ }
+  }
+  // Keep the (currently no-op) debounced hook registered for future use.
   scheduleRebuild();
 
   // Re-render on settings changes that affect surfaces
