@@ -12,7 +12,7 @@
 
 Every new AI session today starts cold. The agent re-reads your code, re-derives the obvious, and often re-makes the same wrong move someone else made yesterday. infernoflow closes that loop in four stages:
 
-1. **Capture** — while you and the agent work, certain moments are worth saving: a gotcha hit, a decision made, an attempted fix that failed, a pattern noticed. The agent writes them down automatically via the `amp_write` MCP tool — no copy/paste, no `git commit -m`.
+1. **Capture** — while you and the agent work, certain moments are worth saving: a gotcha hit, a decision made, an attempted fix that failed, a pattern noticed. The agent writes them down automatically via the `amp_write` MCP tool — no copy/paste, no `git commit -m`. A protocol block injected into the rule files teaches the AI exactly when to log — e.g. when you type `!!`, `retry`, `not working`, `still broken`, or describe a `Plan:` — and a Cursor `beforeSubmitPrompt` hook backstops the AI by scanning your prompt for those triggers and writing the entry deterministically when the AI doesn't.
 2. **Link** — each captured moment becomes a structured AMP entry (`gotcha | decision | attempt | note | detection | pattern`) with timestamp, file:line, tags, and a stable AMP id. Linked into the project, not your scratchpad.
 3. **Persist** — entries land in `.ai-memory/branches/<branch>.jsonl` (git-tracked, travels with your branch — teammates inherit it) plus `.ai-memory/global.jsonl` (personal preferences, gitignored, synced across your machines via any OS-synced folder).
 4. **Restore** — when a new session starts, the agent reads `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` at boot. The most relevant entries are already there. Warm start; no cold derivation.
@@ -46,10 +46,43 @@ These cover 95% of usage:
 | `infernoflow recap` | End-of-session summary with health score + unlogged-change detection |
 | `infernoflow status` | Quick health check — entries, gotchas, decisions, last activity |
 | `infernoflow refresh` | Manually rebuild `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` from memory |
+| `infernoflow forget <id|prefix>` | Delete a memory entry without hand-editing JSONL. `--last` for the newest. |
+| `infernoflow prune` | Archive stale `note` / `attempt` entries older than 30 days. Gotchas/decisions never auto-pruned. Default dry-run; `--apply` to act. |
 
 In practice you barely run any of these — the MCP-aware AI does it for you. The CLI is for grep-style introspection.
 
-`infernoflow commands` shows the full list (17 commands, grouped by purpose).
+`infernoflow commands` shows the full list (~20 commands, grouped by purpose).
+
+## Keeping it lean: token budget + rotation
+
+The injected memory block is paid for on every AI turn (and twice when a tool loads both `CLAUDE.md` and `copilot-instructions.md`). infernoflow ships lean defaults — 4 entries, 5 commits, 200-char per-entry truncation — and gives you knobs to tune further. Set once in `.ai-memory/amp.json`:
+
+```jsonc
+"config": {
+  "injection": {
+    "maxEntries": 4,                          // memory entries injected
+    "maxCommits": 5,                          // git commits injected
+    "maxEntryChars": 200,                     // per-entry truncation
+    "targets": ["CLAUDE.md", ".cursorrules"], // drop a file from the list and its stale block is stripped automatically
+    "includeProtocol": true                   // false drops the ~17-line capture protocol (advanced)
+  },
+  "rotation": {
+    "archiveAfterDays": 30,
+    "archivableTypes": ["note", "attempt", "detection"],
+    "auto": false                             // true → silent prune on every `log`
+  }
+}
+```
+
+Or write the same values via CLI flags:
+
+```bash
+infernoflow setup   --max-memory 3 --max-commits 5 --max-entry-chars 200 --no-protocol
+infernoflow refresh --max-memory 3                   # same; persists into amp.json
+infernoflow prune --apply --max-age-days 14          # one-off cleanup
+```
+
+**Rotation** archives stale `note` / `attempt` / `detection` entries to `.ai-memory/archive/sessions-YYYY-MM.jsonl` — invisible to the merged read (so the AI, sidebar, `ask`, and `refresh` stop surfacing them) but still on disk if you want them back. `gotcha`, `decision`, and `pattern` entries are **never auto-pruned** — that's the knowledge you logged infernoflow FOR.
 
 ## Branch-aware memory + cross-machine sync
 
@@ -101,7 +134,9 @@ When the MCP server is wired, your AI agent can call these directly in chat:
 | `infernoflow_context` | Generate AI-ready context for a task |
 | `infernoflow_git_drift` | Detect which capabilities recent commits affected |
 
-The `amp_*` tools follow the [AMP MCP spec §7.3](docs/protocol/PROTOCOL.md#73-mcp-tool-interface) — vendor-neutral. Any AMP-Full client only needs to know those five names.
+The `amp_*` tools follow the [AMP MCP spec §7.3](docs/protocol/PROTOCOL.md#73-mcp-tool-interface) — vendor-neutral. Any AMP-Full client only needs to know those five names. The same five are also available as CLI aliases (`infernoflow amp read | write | search | handoff | health`) so the CLI and MCP surfaces match name-for-name.
+
+Every memory line injected into the rule files is prefixed with `🔥` so the AI (and you) can tell at a glance that a line came from infernoflow even when it's quoted out of the managed block.
 
 ## What it has caught (real dogfood)
 

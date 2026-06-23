@@ -1,5 +1,14 @@
 # Changelog — infernoflow
 
+## 0.44.7 — 2026-06-23 — README catch-up
+
+Docs-only patch. The npm README hadn't been touched since the v0.44 base
+release — so all of 0.44.1 through 0.44.6's user-visible features (capture
+triggers, the 🔥 from-infernoflow tag on injected memory, `infernoflow forget`,
+`infernoflow prune`, `config.injection` / `config.rotation` knobs, `setup`/
+`refresh` flags, `amp_*` CLI aliases) were invisible to anyone reading the
+package page. README updated to describe them. No code changes.
+
 ## 0.44.6 — 2026-06-19 — token budget + memory rotation (ships together)
 
 Builds on the token-budget controls below by adding the missing half: **active
