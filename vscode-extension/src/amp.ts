@@ -12,7 +12,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import { AMP, AMPEntry, EntryType, HealthScore } from "infernoflow-amp";
+import { AMP, AMPEntry, AMPConfig, EntryType, HealthScore } from "infernoflow-amp";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -170,6 +170,12 @@ class AmpIO {
   handoff(): string | undefined {
     if (!this.amp) return undefined;
     try { return this.amp.handoff({ format: "markdown" }); } catch { return undefined; }
+  }
+
+  /** Read amp.json config (injection token-budget limits etc.), or null. */
+  getConfig(): AMPConfig | null {
+    if (!this.amp) return null;
+    try { return this.amp.getConfig(); } catch { return null; }
   }
 
   /** Aggregate counts + health score for the status bar / sidebar header. */

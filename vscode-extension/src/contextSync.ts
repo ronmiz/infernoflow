@@ -46,6 +46,51 @@ const RULE_FILES = [
 const SECTION_START = "<!-- infernoflow:start -->";
 const SECTION_END   = "<!-- infernoflow:end -->";
 
+// ── Injection token budget (mirror of lib/ruleFiles.mjs) ────────────────────
+// Separate codebase from the CLI — can't share the import — so keep these
+// defaults identical to lib/ruleFiles.mjs so whichever writer runs last
+// produces a matching block (no churn).
+const DEFAULT_ENTRY_CAP   = 4;
+const DEFAULT_COMMIT_CAP  = 5;
+const DEFAULT_ENTRY_CHARS = 200;
+
+interface InjectionSettings {
+  maxEntries: number;
+  maxCommits: number;
+  maxEntryChars: number;
+  targets: string[];
+  includeProtocol: boolean;
+}
+
+function resolveInjectionSettings(cfg: { config?: Record<string, unknown> } | null | undefined): InjectionSettings {
+  const c   = (cfg && cfg.config) || {};
+  const inj = (c.injection && typeof c.injection === "object" ? c.injection : {}) as Record<string, unknown>;
+  const injArr = Array.isArray((c as Record<string, unknown>).inject) ? (c as Record<string, unknown>).inject as string[] : null;
+  const legacyTargets = injArr && !injArr.includes("all") ? injArr : null;
+  const int = (v: unknown, def: number, min: number) => (Number.isInteger(v) && (v as number) >= min ? (v as number) : def);
+  return {
+    maxEntries:    int(inj.maxEntries,    DEFAULT_ENTRY_CAP,   0),
+    maxCommits:    int(inj.maxCommits,    DEFAULT_COMMIT_CAP,  0),
+    maxEntryChars: int(inj.maxEntryChars, DEFAULT_ENTRY_CHARS, 1),
+    targets:       Array.isArray(inj.targets) && (inj.targets as string[]).length ? (inj.targets as string[]) : (legacyTargets || RULE_FILES),
+    includeProtocol: inj.includeProtocol !== false,
+  };
+}
+
+/** Remove the infernoflow-managed block from a de-selected target file. */
+function stripManagedBlock(absPath: string): boolean {
+  if (!fs.existsSync(absPath)) return false;
+  const text = fs.readFileSync(absPath, "utf8");
+  const s = text.indexOf(SECTION_START);
+  const e = text.indexOf(SECTION_END);
+  if (s === -1 || e === -1 || e <= s) return false;
+  const before = text.slice(0, s).replace(/\s+$/, "");
+  const after  = text.slice(e + SECTION_END.length).replace(/^\s+/, "");
+  const next   = before && after ? before + "\n\n" + after : (before || after);
+  fs.writeFileSync(absPath, next ? next.replace(/\s*$/, "") + "\n" : "", "utf8");
+  return true;
+}
+
 // ── Ranking ──────────────────────────────────────────────────────────────────
 
 interface ScoredEntry {
@@ -186,20 +231,19 @@ function memoryProtocolLines(): string[] {
   ];
 }
 
-function buildSection(scored: ScoredEntry[], activeFile: string | undefined, commits: GitCommit[]): string {
+function buildSection(scored: ScoredEntry[], activeFile: string | undefined, commits: GitCommit[], settings: InjectionSettings): string {
   const haveMemory  = scored.length > 0;
   const haveCommits = commits.length > 0;
 
-  // Empty project: STILL emit the protocol block. It's auto-capture link 1 —
-  // the AI must learn the protocol on day one, before any entry exists.
+  // Empty project: STILL emit the protocol block (unless disabled). It's
+  // auto-capture link 1 — the AI must learn the protocol before any entry exists.
   if (!haveMemory && !haveCommits) {
     return [
       SECTION_START,
       "<!-- Auto-managed by infernoflow. Don't edit between these markers. -->",
       "## Project memory (infernoflow)",
       "",
-      ...memoryProtocolLines(),
-      "",
+      ...(settings.includeProtocol ? [...memoryProtocolLines(), ""] : []),
       "_No entries yet. They'll appear here as you and your AI tools log them — run `infernoflow log` or use `Ctrl+Alt+G` in VS Code._",
       SECTION_END,
     ].join("\n");
@@ -210,8 +254,10 @@ function buildSection(scored: ScoredEntry[], activeFile: string | undefined, com
   lines.push("<!-- Auto-managed by infernoflow. Don't edit between these markers. -->");
   lines.push("## Project memory (infernoflow)");
   lines.push("");
-  lines.push(...memoryProtocolLines());
-  lines.push("");
+  if (settings.includeProtocol) {
+    lines.push(...memoryProtocolLines());
+    lines.push("");
+  }
 
   if (haveMemory) {
     lines.push("_Memory entries below are sorted by relevance to the file you're currently editing._");
@@ -242,26 +288,32 @@ function buildSection(scored: ScoredEntry[], activeFile: string | undefined, com
       pattern:   "◇",
     };
 
-    // Top 5 in full
-    const top = scored.slice(0, 5);
+    const cap = settings.maxEntryChars;
+    const trunc = (s: string) => {
+      const t = s.replace(/\n/g, " ");
+      return cap && t.length > cap ? t.slice(0, cap).trimEnd() + "…" : t;
+    };
+
+    // Full tier — up to 5, but never more than the configured maxEntries.
+    const top = scored.slice(0, Math.min(5, settings.maxEntries));
     if (top.length > 0) {
       lines.push("### Most relevant memory");
       for (const { entry: e } of top) {
         const fileRef = e.file ? ` (\`${e.file}${e.line ? ":" + e.line : ""}\`)` : "";
-        lines.push(`- 🔥 ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${e.msg.replace(/\n/g, " ")}`);
+        lines.push(`- 🔥 ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${trunc(e.msg)}`);
       }
       lines.push("");
     }
 
-    // Rest collapsed in <details>
-    const rest = scored.slice(5);
+    // Rest collapsed — only up to the configured maxEntries total.
+    const rest = scored.slice(top.length, settings.maxEntries);
     if (rest.length > 0) {
       lines.push(`<details>`);
       lines.push(`<summary>Older context (${rest.length} more)</summary>`);
       lines.push("");
       for (const { entry: e } of rest) {
         const fileRef = e.file ? ` (\`${e.file}${e.line ? ":" + e.line : ""}\`)` : "";
-        lines.push(`- 🔥 ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${e.msg.replace(/\n/g, " ").slice(0, 140)}${e.msg.length > 140 ? "…" : ""}`);
+        lines.push(`- 🔥 ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${trunc(e.msg)}`);
       }
       lines.push("");
       lines.push(`</details>`);
@@ -311,16 +363,24 @@ export function rebuildAiRuleFiles(activeFile?: string): { updated: number; tota
   const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!root) return { updated: 0, total: 0 };
 
+  const settings  = resolveInjectionSettings(ampIO.getConfig());
   const scored    = rankedForFile(activeFile);
-  const commits   = getRecentCommits(root, 10);
-  const sectionMd = buildSection(scored, activeFile, commits);
+  const commits   = getRecentCommits(root, settings.maxCommits);
+  const sectionMd = buildSection(scored, activeFile, commits, settings);
+
+  const norm = (s: string) => s.replace(/\\/g, "/");
+  const targetSet = new Set(settings.targets.map(norm));
 
   let updated = 0;
   for (const rel of RULE_FILES) {
     const abs = path.join(root, rel);
     const before = fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : "";
-    updateRuleFile(abs, sectionMd);
-    const after = fs.readFileSync(abs, "utf8");
+    if (targetSet.has(norm(rel))) {
+      updateRuleFile(abs, sectionMd);
+    } else {
+      stripManagedBlock(abs); // de-selected target — don't leave a stale block
+    }
+    const after = fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : "";
     if (after !== before) updated++;
   }
   return { updated, total: RULE_FILES.length };

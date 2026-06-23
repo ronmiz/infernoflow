@@ -1,5 +1,38 @@
 # Changelog — infernoflow
 
+## 0.44.5 — 2026-06-19 — token-budget controls for the rule-file memory block
+
+The injected "Project memory" block is paid for on every AI turn (and twice when
+a tool loads both CLAUDE.md and copilot-instructions.md). It was hardcoded at 10
+entries + 10 commits + the full protocol table. This release makes it
+config-driven and leaner by default — bringing a downstream patch-package
+workaround upstream so nobody has to patch.
+
+### Changed (one-time diff on upgrade)
+- **Leaner defaults:** injected memory drops from 10→**4 entries**, 10→**5 commits**, and each entry is now truncated to **200 chars** (full text stays in `sessions.jsonl`). Verbose notes were the real bloat; this is where most of the ~80% token saving comes from. On the next CLI run your tracked `CLAUDE.md` / `.cursorrules` regenerate leaner — a one-time, intended diff.
+
+### New — `config.injection` in `.ai-memory/amp.json`
+```jsonc
+"config": { "injection": {
+  "maxEntries": 4, "maxCommits": 5, "maxEntryChars": 200,
+  "targets": ["CLAUDE.md", ".cursorrules", ".github/copilot-instructions.md"],
+  "includeProtocol": true
+}}
+```
+- `targets` controls which rule files receive the block (default all 3). Drop one — e.g. `copilot-instructions.md`, which Copilot loads redundantly alongside `CLAUDE.md` — and its stale block is **stripped automatically**.
+- `includeProtocol: false` stops injecting the ~17-line protocol table (advanced; you lose the auto-capture trigger reminders).
+- Legacy `config.inject: ["CLAUDE.md"]` (non-`all`) is honored as a target subset for backward compat.
+
+### New — CLI flags (write the config for you)
+`infernoflow setup` and `infernoflow refresh` accept `--max-memory N`,
+`--max-commits N`, `--max-entry-chars N`, and `--no-protocol`. They persist into
+`amp.json`, so it's set-once.
+
+### Other
+- `doctor`'s "Auto-capture protocol" check now honors `targets`/`includeProtocol` (reports `N/<configured>` instead of a fixed `/3`, no false "missing" warning for a deliberately-dropped target).
+- Backward compatible: projects with no `injection` config get the new lean defaults; missing/corrupt `amp.json` falls back without error.
+- 9 new tests in `tests/injection-config.test.mjs`; full suite 196 green.
+
 ## 0.44.4 — 2026-06-19 — capture triggers, from-infernoflow tag, deterministic hook
 
 ### New

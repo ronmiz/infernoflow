@@ -29,7 +29,7 @@ const CLI_BIN = "infernoflow";
 // one-click `npm install -g infernoflow@latest`. Bump this in lockstep with the
 // CLI whenever a release adds behavior the extension expects. Keep it a plain
 // x.y.z string (compared numerically below).
-const RECOMMENDED_CLI_VERSION = "0.44.4";
+const RECOMMENDED_CLI_VERSION = "0.44.5";
 
 /** True if installed version a is strictly older than b (both "x.y.z"). */
 function isOlderVersion(a: string, b: string): boolean {

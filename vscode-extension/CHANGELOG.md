@@ -1,5 +1,18 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.13 — 2026-06-19 — honor injection token-budget config
+
+Pairs with CLI 0.44.5. The extension's rule-file writer now reads
+`config.injection` from `.ai-memory/amp.json` (via `AMP.getConfig()`), so it
+applies the same token-budget limits as the CLI instead of always writing the
+old way.
+
+### Changed
+- Honors `maxEntries`, `maxCommits`, `maxEntryChars`, `targets`, and
+  `includeProtocol` — same lean defaults as the CLI (4 / 5 / 200). Memory entries
+  are truncated to `maxEntryChars`; non-target files have their managed block
+  stripped instead of left stale.
+
 ## 0.7.12 — 2026-06-19 — keep the CLI in step + capture triggers + 🔥 tag
 
 ### New
