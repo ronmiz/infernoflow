@@ -228,6 +228,7 @@ function memoryProtocolLines(): string[] {
     "**Do NOT log:** typos, syntax errors, obvious bugs visible in the code, anything the next AI can infer by re-reading the file.",
     "**Do log:** anything that taught you something non-derivable from code.",
     "**Be concise:** entries should be one sentence. Future-you will skim them.",
+    "**When you use a 🔥 memory entry in your reply, briefly cite it** — e.g. `🔥 (from infernoflow memory) gotcha at src/api.js:42: ...` — so the user can see which guidance came from project memory vs. your own inference.",
   ];
 }
 

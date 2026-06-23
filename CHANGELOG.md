@@ -1,5 +1,16 @@
 # Changelog — infernoflow
 
+## 0.44.8 — 2026-06-23 — AI cites 🔥 memory it uses
+
+One line added to the Memory-protocol block: when the AI uses a 🔥 entry in
+its reply, it now briefly cites it — e.g. *🔥 (from infernoflow memory) gotcha
+at src/api.js:42: API returns 202 not 200*. Closes the visibility gap where
+the AI absorbed memory silently; now you see infernoflow working every turn
+it works. Byte-identical in both writers (CLI + extension). Cost: ~80 tokens
+of protocol instruction loaded once per turn, plus ~30-50 tokens per cited
+entry. Can be silenced via `injection.includeProtocol: false` like the rest
+of the protocol block.
+
 ## 0.44.7 — 2026-06-23 — README catch-up
 
 Docs-only patch. The npm README hadn't been touched since the v0.44 base

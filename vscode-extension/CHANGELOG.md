@@ -1,5 +1,11 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.15 — 2026-06-23 — pair with CLI 0.44.8 (AI cites 🔥 memory)
+
+The Memory-protocol block the extension writes now includes the one-line
+"cite a 🔥 memory entry when you use it" instruction. Kept byte-identical
+with the CLI's writer. Also bumps `RECOMMENDED_CLI_VERSION` to 0.44.8.
+
 ## 0.7.14 — 2026-06-19 — pair with CLI 0.44.6 (memory rotation)
 
 CLI 0.44.6 adds `infernoflow prune` and a rotation policy that archives stale
