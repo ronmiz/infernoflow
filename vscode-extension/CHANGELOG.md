@@ -1,5 +1,14 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.14 — 2026-06-19 — pair with CLI 0.44.6 (memory rotation)
+
+CLI 0.44.6 adds `infernoflow prune` and a rotation policy that archives stale
+entries out of the active store. The extension needs no code change — it reads
+via the merged-read path, which doesn't see the archive/ dir, so pruned entries
+disappear from the sidebar / health score / "AI Context for [current file]"
+automatically. This bump updates `RECOMMENDED_CLI_VERSION` so the extension
+prompts users on 0.44.5 to upgrade.
+
 ## 0.7.13 — 2026-06-19 — honor injection token-budget config
 
 Pairs with CLI 0.44.5. The extension's rule-file writer now reads

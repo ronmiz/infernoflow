@@ -1,5 +1,50 @@
 # Changelog — infernoflow
 
+## 0.44.6 — 2026-06-19 — token budget + memory rotation (ships together)
+
+Builds on the token-budget controls below by adding the missing half: **active
+store cleanup**. Lean injection limits + a tidy store = the 4 entries the AI
+sees are actually the *right* 4, not "the freshest among 200 stale ones."
+
+### New — `infernoflow prune`
+Archive stale `note` / `attempt` / `detection` entries older than 30 days (configurable).
+Gotchas, decisions, and patterns are **NEVER auto-pruned** — that's the knowledge
+you logged infernoflow FOR.
+
+```bash
+infernoflow prune                    # dry-run — see what would archive
+infernoflow prune --apply            # do it
+infernoflow prune --max-age-days 14  # tighter window
+infernoflow prune --types note       # only notes (e.g., keep attempts)
+infernoflow prune --no-archive --yes # hard delete (DANGER)
+```
+
+"Archive" = move lines to `.ai-memory/archive/sessions-YYYY-MM.jsonl`. The
+merged reader doesn't see archive/ → AI injection, sidebar, and `ask` all stop
+surfacing archived entries — but they're still on disk if you want them back.
+
+### New — `config.rotation` in `.ai-memory/amp.json`
+```jsonc
+"rotation": {
+  "archiveAfterDays": 30,
+  "archivableTypes": ["note", "attempt", "detection"],
+  "auto": false   // set true to silently archive on every `log`
+}
+```
+Opt-in `auto: true` enables silent background rotation on every `log` so users
+who set-and-forget never need to think about it. Off by default.
+
+### Bug fix found by the new tests
+`pruneEntries` (and by extension `forget`'s line-deletion path it shares logic with)
+walks every mirror file — each entry exists in both the branch file and the
+legacy `sessions.jsonl`. The first cut counted each entry **twice** (once per
+mirror) in the user-facing report and wrote duplicate lines to the archive.
+Fixed: dedup-by-id on counts + archive writes; the rewrite still touches every
+mirror so the entry truly disappears from the active store.
+
+### Tests
+13 new tests in `tests/prune-rotation.test.mjs`; full suite **210 green**.
+
 ## 0.44.5 — 2026-06-19 — token-budget controls for the rule-file memory block
 
 The injected "Project memory" block is paid for on every AI turn (and twice when

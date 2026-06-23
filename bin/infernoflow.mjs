@@ -74,6 +74,7 @@ const COMMAND_DESCRIPTIONS = {
   status: "Quick health check — entries, gotchas, decisions, last activity",
   refresh: "Rebuild CLAUDE.md / .cursorrules / copilot-instructions.md from memory",
   forget: "Delete a memory entry by id or unique prefix (--last for the newest)",
+  prune:  "Archive stale notes/attempts (gotchas/decisions never touched) — see --apply",
 
   // ── Setup / scaffolding ────────────────────────────────────────────────
   init:    "Scaffold .ai-memory/ and wire the current IDE in one command",
@@ -110,6 +111,7 @@ const COMMAND_HANDLERS = {
   status:  async (args) => (await import("../lib/commands/status.mjs")).statusCommand(args),
   refresh: async (args) => (await import("../lib/commands/refresh.mjs")).refreshCommand(args),
   forget:  async (args) => (await import("../lib/commands/forget.mjs")).forgetCommand(args),
+  prune:   async (args) => (await import("../lib/commands/prune.mjs")).pruneCommand(args),
 
   // setup
   init:    async (args) => (await import("../lib/commands/init.mjs")).initCommand(args),
@@ -146,7 +148,7 @@ function formatCommandsHelp() {
 }
 
 const COMMAND_GROUPS = {
-  "Memory (the 5-command core)":  ["log", "ask", "switch", "recap", "status", "refresh", "forget"],
+  "Memory (the 5-command core)":  ["log", "ask", "switch", "recap", "status", "refresh", "forget", "prune"],
   "Setup":                        ["init", "setup", "doctor", "context"],
   "IDE wiring":                   ["install-cursor-hooks", "install-vscode-copilot-hooks", "generate-skills"],
   "Configuration":                ["ai", "telemetry", "sync", "uninstall"],
