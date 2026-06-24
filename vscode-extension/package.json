@@ -2,7 +2,7 @@
   "name": "infernoflow",
   "displayName": "infernoflow",
   "description": "Persistent memory for AI coding sessions \u2014 live sidebar over .ai-memory/ (AMP). Captures gotchas, decisions, dead ends and replays them into Cursor / Copilot / Claude / Windsurf.",
-  "version": "0.7.16",
+  "version": "0.7.18",
   "publisher": "infernoflow",
   "license": "MIT",
   "repository": {
@@ -10,7 +10,7 @@
     "url": "https://github.com/ronmiz/infernoflow.git"
   },
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.95.0"
   },
   "categories": [
     "AI",
@@ -342,18 +342,90 @@
         "key": "ctrl+alt+r",
         "mac": "cmd+alt+r"
       }
+    ],
+    "languageModelTools": [
+      {
+        "name": "amp_write",
+        "displayName": "Log to infernoflow memory",
+        "userDescription": "Append an entry to this project's infernoflow memory log (gotcha, decision, attempt, note, detection, or pattern).",
+        "modelDescription": "Append a single one-sentence entry to the project's persistent infernoflow memory log. Use proactively when the user expresses frustration ('!!', 'not working', 'still broken', 'retry'), agrees on a decision, or you discover a non-obvious gotcha. Each call appends ONE entry. Required: 'type' (gotcha|decision|attempt|note|detection|pattern) and 'msg' (one sentence). Optional: 'file' (relative path the entry relates to), 'line' (line number), 'tags' (string array). Do NOT log typos, syntax errors, or anything visible by re-reading the file.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "amp_write",
+        "icon": "$(flame)",
+        "tags": ["infernoflow", "memory", "ai-context"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["gotcha", "decision", "attempt", "note", "detection", "pattern"],
+              "description": "Entry category. 'gotcha' = non-obvious behavior or API quirk. 'decision' = architectural pick (X over Y). 'attempt' = failed try with reason. 'note' = plan / session snapshot. 'pattern' = reusable shape. 'detection' = inferred condition."
+            },
+            "msg": {
+              "type": "string",
+              "description": "One-sentence summary of the lesson, decision, or gotcha. Keep it terse — future-you will skim it."
+            },
+            "file": {
+              "type": "string",
+              "description": "Workspace-relative path the entry pertains to (e.g. 'src/api.js'). Optional but strongly recommended for file-scoped entries."
+            },
+            "line": {
+              "type": "number",
+              "description": "Line number, when the entry pertains to a specific spot in the file."
+            },
+            "tags": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Optional free-form tags for grouping (e.g. ['auth', 'race-condition'])."
+            }
+          },
+          "required": ["type", "msg"]
+        }
+      },
+      {
+        "name": "amp_read",
+        "displayName": "Read infernoflow memory",
+        "userDescription": "Read recent entries from this project's infernoflow memory log.",
+        "modelDescription": "Read recent entries from the project's persistent infernoflow memory log (gotchas, decisions, attempts, notes, patterns) captured during prior sessions. Use to recall past context BEFORE proposing a fix that may already have been tried, or when the user references prior work. Returns newest-first. Optional: 'limit' (1-50, default 10), 'type' to filter by category, 'file' to filter by workspace-relative path.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "amp_read",
+        "icon": "$(book)",
+        "tags": ["infernoflow", "memory", "ai-context"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "Maximum entries to return, newest first. Default 10."
+            },
+            "type": {
+              "type": "string",
+              "enum": ["gotcha", "decision", "attempt", "note", "detection", "pattern"],
+              "description": "Filter by entry category."
+            },
+            "file": {
+              "type": "string",
+              "description": "Filter by workspace-relative file path."
+            }
+          }
+        }
+      }
     ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node scripts/lm-tools-smoke.cjs",
+    "test:lmtools": "node scripts/lm-tools-smoke.cjs",
     "package": "vsce package",
     "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.95.0",
     "@vscode/vsce": "^2.22.0",
     "typescript": "^5.3.0"
   },

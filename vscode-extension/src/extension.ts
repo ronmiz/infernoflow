@@ -36,6 +36,7 @@ import { AutoCapture }             from "./autoCapture";
 import { rebuildAiRuleFiles }      from "./contextSync";
 import { registerCommands }        from "./commands";
 import { ensureCliAndSetup }       from "./cliInstaller";
+import { registerLmTools }         from "./lmTools";
 
 let statusBar:   InfernoStatusBar        | undefined;
 let diagnostics: InfernoDiagnostics      | undefined;
@@ -152,6 +153,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Commands + keybindings
   registerCommands(context, () => treeProvider.refresh());
+
+  // Language Model Tools — gives Copilot Chat a direct (non-MCP) path to
+  // amp_write / amp_read. Copilot doesn't speak MCP, so without this the
+  // protocol block's "use amp_write" instruction was dead text. Now Copilot
+  // sees the tools natively. Cursor / Claude Code still use the MCP server.
+  registerLmTools(context);
 
   // One-time-per-workspace bootstrap: install the CLI if missing, then run
   // setup so MCP servers are wired up for Cursor / VS Code Copilot / Claude

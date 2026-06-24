@@ -1,5 +1,33 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.18 — 2026-06-24 — Copilot Chat can finally auto-capture (LM Tools)
+
+### New
+- **Native Copilot path.** GitHub Copilot Chat doesn't speak MCP, so the
+  rule-file protocol's "call `amp_write`" instruction was dead text there —
+  the tool simply wasn't in Copilot's tool list. The extension now registers
+  `amp_write` and `amp_read` as VS Code **Language Model Tools**
+  (`vscode.lm.registerTool` + a `contributes.languageModelTools` manifest
+  entry). Copilot Chat sees them natively, no MCP server and no Node required.
+  Cursor / Claude Code keep their existing MCP path. (`src/lmTools.ts`)
+- The tools are `#`-referenceable in the Copilot prompt
+  (`#amp_write`, `#amp_read`) and appear in the Copilot Tools picker.
+
+### Changed
+- **`engines.vscode` raised to `^1.95.0`** — the Language Model Tools API is
+  stable only from 1.95 (Nov 2024). Registration is capability-guarded, so
+  even if an older host loads the build the rest of the extension still works.
+
+## 0.7.17 — 2026-06-24 — silent CLI auto-update (one installation)
+
+### Changed
+- **The CLI now updates itself, silently.** When the extension activates and
+  finds an *older* npm CLI than it pairs with, it just runs
+  `npm install -g infernoflow@latest` in the background — no toast, no
+  "Update?" button, no per-version gate. Failures still surface as a warning
+  with the manual command. "Install the extension" is now genuinely the only
+  step; the CLI rides along. (Dev/source `0.0.0-*` builds are never touched.)
+
 ## 0.7.16 — 2026-06-23 — pair with CLI 0.44.9 (deferred-MCP load instruction)
 
 The Memory-protocol block the extension writes now includes the one-line

@@ -237,23 +237,12 @@ export async function ensureCliAndSetup(context: vscode.ExtensionContext): Promi
     const ok = await installCli();
     if (!ok) return;
   } else if (probe.version && isOlderVersion(probe.version, RECOMMENDED_CLI_VERSION)) {
-    // ── 1b. Offer to update an out-of-date CLI ──────────────────────────────
-    // The extension just updated (that's why this code is running), but the npm
-    // CLI doesn't update with it. If the installed CLI is behind, offer a
-    // one-click upgrade — once per target version, so we never nag.
-    const offerKey = `infernoflow.cliUpdateOffered:${RECOMMENDED_CLI_VERSION}`;
-    if (!context.globalState.get<boolean>(offerKey, false)) {
-      await context.globalState.update(offerKey, true);
-      const UPDATE = "Update";
-      const choice = await vscode.window.showInformationMessage(
-        `infernoflow CLI v${probe.version} is installed, but v${RECOMMENDED_CLI_VERSION} is available with the latest fixes. Update now?`,
-        UPDATE,
-        "Not now",
-      );
-      if (choice === UPDATE) {
-        await installCli(); // npm install -g infernoflow@latest
-      }
-    }
+    // ── 1b. Auto-update the CLI when behind the paired version ─────────────
+    // The extension updated via Marketplace; the npm CLI doesn't update with
+    // it. Run the update silently — no prompt. This is "one installation":
+    // the user installed the extension and should never need a separate npm step.
+    // installCli() surfaces failures as a warning toast with a manual fallback.
+    await installCli();
   }
 
   // ── 2. Run silent setup per-workspace, once ──────────────────────────────

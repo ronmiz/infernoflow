@@ -8,6 +8,12 @@ This extension is the visual surface over [**AMP — the AI Memory Protocol**](h
 
 ## Features
 
+### 🤖 Copilot Chat captures memory for you — no MCP, no setup
+
+GitHub Copilot Chat doesn't support MCP, so other memory tools can't hook into it. infernoflow registers `amp_write` and `amp_read` as native **VS Code Language Model Tools** — so Copilot can log a gotcha or recall a past decision *on its own*, mid-conversation, the moment it notices something worth remembering. Nothing to wire up: install the extension and Copilot's tool picker shows `🔥 amp_write`. You can also call them by hand with `#amp_write` / `#amp_read` in the chat box.
+
+(Cursor and Claude Code get the same capability through the MCP server the CLI installs.)
+
 ### 🔥 Always-on session-memory sidebar
 
 A dedicated sidebar shows your session at a glance — health score, gotchas with file paths, decisions in effect, failed attempts to avoid. Click any entry to jump to the file:line where it was logged.
@@ -42,10 +48,11 @@ Always visible: `🔥 B 65 · ⚠3 · ✓2 · ❌1 · 📋 Switch`. Click the sc
 
 ## Requirements
 
-- Install the [`infernoflow` CLI](https://www.npmjs.com/package/infernoflow) (one-liner: `npm install -g infernoflow`).
-- Run `infernoflow init` in your project to create `.ai-memory/sessions.jsonl`.
+- **VS Code 1.95+** (the Language Model Tools API that powers Copilot auto-capture is stable from 1.95).
+- **Nothing else for Copilot.** The sidebar and Copilot's `amp_write` / `amp_read` tools run entirely inside the extension — no Node, no CLI.
+- **For Cursor / Claude Code auto-capture**, install the [`infernoflow` CLI](https://www.npmjs.com/package/infernoflow) (`npm install -g infernoflow`) so the MCP server those tools speak to gets wired up. The extension offers to install and keep the CLI current for you on first activation.
 
-That's it. The extension activates automatically as soon as your workspace contains the AMP layout (or the legacy `inferno/` folder).
+The extension activates automatically as soon as your workspace contains the AMP layout (or the legacy `inferno/` folder). `infernoflow init` (or logging once from the sidebar) creates `.ai-memory/sessions.jsonl`.
 
 ## Configuration
 
