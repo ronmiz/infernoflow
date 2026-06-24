@@ -217,6 +217,8 @@ function memoryProtocolLines(): string[] {
     "",
     "You have the `amp_write` MCP tool. **Use it proactively** (without the user asking) whenever you detect any of these moments. Capture the lesson in one sentence so the next AI session inherits it.",
     "",
+    "**If `amp_write` is not in your visible tools**, your client uses deferred MCP loading — call your tool-discovery mechanism (Claude Code: `ToolSearch` with query `infernoflow`) to load the `amp_*` tools BEFORE proceeding. Don't silently skip the protocol because the tool isn't visible yet.",
+    "",
     "| When you see… | Call `amp_write` with… |",
     "|---|---|",
     "| User types `!!`, `!!!`, `not working`, `still broken`, `no change`, `same error`, `retry` / `retrying`, repeated frustration | `{type: 'attempt', msg: '<one-line: what was tried and how it failed>', file: '<active file>'}` |",

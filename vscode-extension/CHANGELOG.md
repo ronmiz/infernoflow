@@ -1,5 +1,13 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.16 — 2026-06-23 — pair with CLI 0.44.9 (deferred-MCP load instruction)
+
+The Memory-protocol block the extension writes now includes the one-line
+"if `amp_write` isn't in your tools, call your tool-discovery mechanism
+first" instruction so deferred-MCP clients (Claude Code) don't silently
+skip the capture protocol. Kept byte-identical with the CLI's writer.
+Bumps `RECOMMENDED_CLI_VERSION` to 0.44.9.
+
 ## 0.7.15 — 2026-06-23 — pair with CLI 0.44.8 (AI cites 🔥 memory)
 
 The Memory-protocol block the extension writes now includes the one-line

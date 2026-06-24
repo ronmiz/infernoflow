@@ -1,5 +1,25 @@
 # Changelog — infernoflow
 
+## 0.44.9 — 2026-06-23 — tell the AI to load MCP tools first (Claude Code fix)
+
+Caught while dogfooding. In Claude Code and any client with deferred MCP
+loading, `amp_write` isn't in the AI's visible tool list until the agent
+calls `ToolSearch` to load it. The Memory-protocol block said "use
+`amp_write`" but didn't say "discover it first" — so the AI saw the
+instruction, checked its tools, didn't find `amp_write`, and silently
+skipped the capture protocol.
+
+One line added to the protocol block (both writers, byte-identical):
+
+> If `amp_write` is not in your visible tools, your client uses deferred
+> MCP loading — call your tool-discovery mechanism (Claude Code:
+> `ToolSearch` with query `infernoflow`) to load the `amp_*` tools BEFORE
+> proceeding. Don't silently skip the protocol because the tool isn't
+> visible yet.
+
+Closes the actual root cause of "the AI doesn't log anything" in Claude
+Code projects.
+
 ## 0.44.8 — 2026-06-23 — AI cites 🔥 memory it uses
 
 One line added to the Memory-protocol block: when the AI uses a 🔥 entry in
