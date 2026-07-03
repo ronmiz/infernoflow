@@ -48,6 +48,7 @@ These cover 95% of usage:
 | `infernoflow refresh` | Manually rebuild `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` from memory |
 | `infernoflow forget <id|prefix>` | Delete a memory entry without hand-editing JSONL. `--last` for the newest. |
 | `infernoflow prune` | Archive stale `note` / `attempt` entries older than 30 days. Gotchas/decisions never auto-pruned. Default dry-run; `--apply` to act. |
+| `infernoflow bookmark "..."` | Drop a named **resume point** — auto-captures the session transcript as its context. `list` / `show <id\|label>` to jump back; surfaces in `switch`. Never auto-pruned. |
 
 In practice you barely run any of these — the MCP-aware AI does it for you. The CLI is for grep-style introspection.
 

@@ -1,5 +1,34 @@
 # Changelog — infernoflow
 
+## 0.44.10 — 2026-07-03 — session bookmarks + two-tier memory
+
+The headline: **`infernoflow bookmark`** — named resume points you can jump back
+to, this session or the next. A bookmark is a `note` tagged `bookmark`; its
+captured context rides in a new **Tier-2 `detail` sidecar** so the always-on
+memory index stays lean.
+
+### New
+- **`infernoflow bookmark`** — `bookmark "<label>"` drops a resume point and
+  **auto-captures the current session transcript** as its context (Claude Code;
+  degrades to marker-only elsewhere). `--note` / `--detail-file <path|->` for
+  explicit context, `--marker` for a bare label. `list` / `show <id|label>` /
+  `rm` round it out. Bookmarks are **never auto-pruned**. They surface in
+  `switch` under a `## 🔖 Bookmarks — Resume Points` section (newest context
+  inlined).
+- **Two-tier `detail` bodies.** Any entry can carry a rich `detail` — stored in
+  `.ai-memory/details/<id>.md`, loaded on demand via `readDetail()`, and never
+  injected into rule files. `log --detail` / `--detail-file`, MCP `amp_write`
+  `detail`, and the new `amp_bookmark` tool all feed it. The lean index is
+  unchanged; you just pay for the body only when you open it.
+- **`amp_bookmark` MCP tool** — the AI drops a bookmark (and auto-captures the
+  session when no `note` is given) on "bookmark this" / when context fills up.
+  The Memory-protocol block now instructs it to.
+
+### Fixed
+- **`findProjectRoot` no longer treats a filesystem root as a project root.**
+  A stray `.ai-memory` at a drive root (`C:\`, `/`) used to hijack every
+  marker-less project on the volume. The upward walk now skips the root.
+
 ## 0.44.9 — 2026-06-23 — tell the AI to load MCP tools first (Claude Code fix)
 
 Caught while dogfooding. In Claude Code and any client with deferred MCP
