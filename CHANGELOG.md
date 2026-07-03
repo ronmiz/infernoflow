@@ -23,6 +23,11 @@ memory index stays lean.
 - **`amp_bookmark` MCP tool** — the AI drops a bookmark (and auto-captures the
   session when no `note` is given) on "bookmark this" / when context fills up.
   The Memory-protocol block now instructs it to.
+- **Deterministic bookmark trigger (Cursor hook).** When your prompt literally
+  says "bookmark this" / "mark this point" / "save this checkpoint", the
+  `beforeSubmitPrompt` hook drops a bookmark itself (label derived from the
+  prompt) — no reliance on the AI obeying. Sits alongside the existing `!!` /
+  "retry" trouble triggers, and takes precedence over them.
 
 ### Fixed
 - **`findProjectRoot` no longer treats a filesystem root as a project root.**
