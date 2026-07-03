@@ -17,6 +17,10 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+# Publish tokens / credentials handed to tooling — NEVER commit
+docs/npm publish.txt
+**/npm publish.txt
+*.token
 
 # Build artifacts that don't belong in git (dist/ IS tracked — see package.json files)
 *.tsbuildinfo
