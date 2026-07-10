@@ -1,6 +1,6 @@
 # 🔥 infernoflow — AI Session Memory
 
-> Your AI forgets everything between sessions. **infernoflow remembers.**
+> Every new AI session starts cold — the gotchas you found, the decisions you made, don't survive. **infernoflow makes them stick.**
 
 Persistent memory for AI coding sessions. Captures what agents can't infer from code — gotchas, decisions, dead ends — and replays them into your next AI chat (Copilot, Cursor, Claude, Windsurf) so the same mistake never happens twice.
 

@@ -1,5 +1,11 @@
 # Changelog — infernoflow
 
+## 0.44.11 — 2026-07-04 — landing / README rewrite
+
+Docs only — no code changes. Rewrote the npm README (and the extension README
+tagline) with a sharper cold-start hook. Cut as a new version because the README
+shown on npmjs.com only refreshes on a publish.
+
 ## 0.44.10 — 2026-07-03 — session bookmarks + two-tier memory
 
 The headline: **`infernoflow bookmark`** — named resume points you can jump back
