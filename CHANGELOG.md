@@ -1,5 +1,23 @@
 # Changelog — infernoflow
 
+## 0.44.12 — 2026-07-04 — leaner protocol block (token savings)
+
+Cuts the per-turn token cost of the injected memory block — the top item from
+the token-optimization report.
+
+### New
+- **`config.injection.protocolStyle`** — `"compact"` (new default), `"full"`,
+  or `"off"`. The full ~18-line "when to log" trigger table is redundant with
+  the `amp_write` / `amp_bookmark` tool descriptions the model already sees, so
+  `compact` ships a ~3-line summary instead. Measured: **~562 → ~132 tokens**
+  per file per turn (**~430 saved**, ~860/turn where Copilot loads both
+  `CLAUDE.md` and `copilot-instructions.md`). `"full"` restores the table for
+  non-MCP / cold-start setups; `"off"` (or the legacy `includeProtocol:false`)
+  omits it entirely. New projects are seeded `compact`.
+
+_No behavior change to what/when the AI logs — the triggers still live in the
+tool descriptions; this only trims the duplicated rule-file boilerplate._
+
 ## 0.44.11 — 2026-07-04 — landing / README rewrite
 
 Docs only — no code changes. Rewrote the npm README (and the extension README

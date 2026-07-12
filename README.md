@@ -101,7 +101,7 @@ Cursor and Claude Code get the same capability through the MCP server the CLI in
 
 ## Keeping it lean: token budget + rotation
 
-The injected memory block is paid for on every AI turn (and twice when a tool loads both `CLAUDE.md` and `copilot-instructions.md`). infernoflow ships lean defaults — 4 entries, 5 commits, 200-char per-entry truncation — and gives you knobs to tune further. Set once in `.ai-memory/amp.json`:
+The injected memory block is paid for on every AI turn (and twice when a tool loads both `CLAUDE.md` and `copilot-instructions.md`). infernoflow ships lean defaults — 4 entries, 5 commits, 200-char truncation, and a **compact ~3-line protocol** (the full trigger table is redundant with the `amp_*` tool descriptions, so it's off by default: ~430 tokens/file/turn saved). Tune further in `.ai-memory/amp.json`:
 
 ```jsonc
 "config": {
@@ -110,7 +110,7 @@ The injected memory block is paid for on every AI turn (and twice when a tool lo
     "maxCommits": 5,                          // git commits injected
     "maxEntryChars": 200,                     // per-entry truncation
     "targets": ["CLAUDE.md", ".cursorrules"], // drop a file from the list and its stale block is stripped automatically
-    "includeProtocol": true                   // false drops the ~17-line capture protocol (advanced)
+    "protocolStyle": "compact"                // "compact" (default) · "full" (restore the trigger table) · "off"
   },
   "rotation": {
     "archiveAfterDays": 30,

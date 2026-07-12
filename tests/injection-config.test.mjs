@@ -57,6 +57,26 @@ describe("resolveInjectionSettings (pure)", () => {
     const s = resolveInjectionSettings({ config: { inject: ["all"] } });
     expect(s.targets.length).toBe(3);
   });
+
+  it("defaults protocolStyle to compact", () => {
+    for (const cfg of [null, {}, { config: { injection: {} } }]) {
+      expect(resolveInjectionSettings(cfg).protocolStyle).toBe("compact");
+    }
+  });
+
+  it("honors protocolStyle full/off; includeProtocol:false maps to off", () => {
+    expect(resolveInjectionSettings({ config: { injection: { protocolStyle: "full" } } }).protocolStyle).toBe("full");
+    const off = resolveInjectionSettings({ config: { injection: { protocolStyle: "off" } } });
+    expect(off.protocolStyle).toBe("off");
+    expect(off.includeProtocol).toBe(false);
+    const legacyOff = resolveInjectionSettings({ config: { injection: { includeProtocol: false } } });
+    expect(legacyOff.protocolStyle).toBe("off");
+    expect(legacyOff.includeProtocol).toBe(false);
+  });
+
+  it("falls back to compact for an unknown protocolStyle", () => {
+    expect(resolveInjectionSettings({ config: { injection: { protocolStyle: "verbose" } } }).protocolStyle).toBe("compact");
+  });
 });
 
 describe("refreshRuleFilesFromMemory honors injection config", () => {
@@ -69,6 +89,33 @@ describe("refreshRuleFilesFromMemory honors injection config", () => {
     updateInjectionConfig(project, { maxEntries: 2 });
     refreshRuleFilesFromMemory(project);
     expect(memoryBullets(read(path.join(project, "CLAUDE.md")))).toBe(2);
+  });
+
+  it("emits the compact protocol by default (no full trigger table)", () => {
+    appendEntry(project, { type: "note", summary: "x", agent: "claude" });
+    refreshRuleFilesFromMemory(project);
+    const md = read(path.join(project, "CLAUDE.md"));
+    expect(md).toContain("### Memory protocol");
+    expect(md).toContain("amp_bookmark");         // compact names both tools
+    expect(md).not.toContain("| When you see");   // but NOT the full table
+  });
+
+  it("emits the full protocol table when protocolStyle=full", () => {
+    appendEntry(project, { type: "note", summary: "x", agent: "claude" });
+    updateInjectionConfig(project, { protocolStyle: "full" });
+    refreshRuleFilesFromMemory(project);
+    const md = read(path.join(project, "CLAUDE.md"));
+    expect(md).toContain("| When you see");       // full table present
+    expect(md).toContain("capture as you go");
+  });
+
+  it("omits the protocol entirely when protocolStyle=off (memory still injected)", () => {
+    appendEntry(project, { type: "note", summary: "keep-me", agent: "claude" });
+    updateInjectionConfig(project, { protocolStyle: "off" });
+    refreshRuleFilesFromMemory(project);
+    const md = read(path.join(project, "CLAUDE.md"));
+    expect(md).not.toContain("Memory protocol");
+    expect(md).toContain("keep-me");              // memory entry still there
   });
 
   it("truncates each injected entry to maxEntryChars with an ellipsis", () => {

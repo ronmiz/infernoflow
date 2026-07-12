@@ -1,5 +1,13 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.20 — 2026-07-04 — leaner injected protocol block
+
+Pairs with CLI 0.44.12. The rule-file writer now honors
+`config.injection.protocolStyle` (`compact` default / `full` / `off`) — the
+extension writes the same ~3-line compact protocol as the CLI instead of the
+full ~18-line trigger table, saving ~430 tokens per file per AI turn. Kept
+byte-identical with the CLI's block. Bumps `RECOMMENDED_CLI_VERSION` to 0.44.12.
+
 ## 0.7.19 — 2026-07-03 — Bookmarks in the sidebar (jump to resume points)
 
 ### New
