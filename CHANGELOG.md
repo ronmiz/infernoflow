@@ -1,5 +1,24 @@
 # Changelog — infernoflow
 
+## 0.44.13 — 2026-07-04 — `--targets` (kill the double-load) + `--protocol-style`
+
+The second half of the token-optimization work: stop writing the memory block to
+rule files for IDEs the project doesn't use.
+
+### New
+- **`setup` / `refresh --targets <a,b>`** — set `config.injection.targets` from
+  the CLI (was hand-edit-only). De-selected rule files have their managed block
+  **stripped**, so a single-IDE project stops carrying — and Copilot stops
+  double-loading — blocks in `CLAUDE.md` + `copilot-instructions.md` it never
+  reads. Saves the *whole* block's second copy (~580 tokens/turn for Copilot).
+- **`--targets auto`** — writes to the canonical file for the IDE you're running
+  from (Cursor → `.cursorrules`, VS Code Copilot → `copilot-instructions.md`,
+  Claude Code → `CLAUDE.md`); falls back to all three when it can't tell (safe).
+  The command prints which files it chose.
+- **`--protocol-style compact|full|off`** — the P1 knob, now a CLI flag too.
+
+Opt-in — the default is still all three files, so nothing regresses.
+
 ## 0.44.12 — 2026-07-04 — leaner protocol block (token savings)
 
 Cuts the per-turn token cost of the injected memory block — the top item from

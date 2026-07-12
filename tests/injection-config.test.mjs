@@ -14,6 +14,7 @@ import * as path from "node:path";
 
 import { refreshRuleFilesFromMemory, resolveInjectionSettings } from "../lib/ruleFiles.mjs";
 import { appendEntry, updateInjectionConfig } from "../lib/amp/io.mjs";
+import { injectionPatchFromArgs } from "../lib/commands/refresh.mjs";
 import { _resetProjectRootCache } from "../lib/projectRoot.mjs";
 
 function mkProject() {
@@ -157,5 +158,41 @@ describe("refreshRuleFilesFromMemory honors injection config", () => {
     for (const rel of [".cursorrules", "CLAUDE.md", ".github/copilot-instructions.md"]) {
       expect(read(path.join(project, rel))).toMatch(/infernoflow:start/);
     }
+  });
+
+  it("--targets writes the block to only the listed files; drops the rest (no double-load)", () => {
+    appendEntry(project, { type: "gotcha", summary: "watch-out-here", agent: "claude" });
+    refreshRuleFilesFromMemory(project);                          // all 3 get the block
+    updateInjectionConfig(project, { targets: ["CLAUDE.md"] });
+    refreshRuleFilesFromMemory(project);                          // strips the de-selected two
+    expect(read(path.join(project, "CLAUDE.md"))).toContain("watch-out-here");
+    expect(read(path.join(project, ".cursorrules"))).not.toContain("watch-out-here");
+    expect(read(path.join(project, ".github", "copilot-instructions.md"))).not.toContain("infernoflow:start");
+  });
+});
+
+describe("injection CLI flags (injectionPatchFromArgs)", () => {
+  it("parses an explicit --targets list + --protocol-style", () => {
+    const p = injectionPatchFromArgs(["--targets", "CLAUDE.md,.cursorrules", "--protocol-style", "full"]);
+    expect(p.targets).toEqual(["CLAUDE.md", ".cursorrules"]);
+    expect(p.protocolStyle).toBe("full");
+  });
+
+  it("ignores an invalid --protocol-style value", () => {
+    expect(injectionPatchFromArgs(["--protocol-style", "nope"]).protocolStyle).toBeUndefined();
+  });
+
+  it("--targets auto resolves to CLAUDE.md under Claude Code", () => {
+    const prev = process.env.CLAUDE_CODE_SESSION;
+    process.env.CLAUDE_CODE_SESSION = "1";
+    try {
+      expect(injectionPatchFromArgs(["--targets", "auto"]).targets).toEqual(["CLAUDE.md"]);
+    } finally {
+      if (prev === undefined) delete process.env.CLAUDE_CODE_SESSION; else process.env.CLAUDE_CODE_SESSION = prev;
+    }
+  });
+
+  it("no injection flags → empty patch", () => {
+    expect(injectionPatchFromArgs(["--json", "--dry-run"])).toEqual({});
   });
 });

@@ -123,8 +123,9 @@ The injected memory block is paid for on every AI turn (and twice when a tool lo
 Or write the same values via CLI flags:
 
 ```bash
-infernoflow setup   --max-memory 3 --max-commits 5 --max-entry-chars 200 --no-protocol
-infernoflow refresh --max-memory 3                   # same; persists into amp.json
+infernoflow setup   --max-memory 3 --max-commits 5 --max-entry-chars 200 --protocol-style compact
+infernoflow refresh --targets CLAUDE.md,.cursorrules # only these get the block; the rest are stripped
+infernoflow refresh --targets auto                   # canonical file for the IDE you're in (kills Copilot's double-load)
 infernoflow prune --apply --max-age-days 14          # one-off cleanup
 ```
 
