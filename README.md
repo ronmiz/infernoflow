@@ -89,13 +89,14 @@ In practice you barely run any of these — the MCP-aware AI does it for you. Th
 
 ---
 
-## Works with GitHub Copilot Chat (via VS Code LMT — not MCP)
+## Works with GitHub Copilot Chat — via LMT + MCP
 
-**GitHub Copilot Chat doesn't support MCP.** Every other AI memory tool assumes MCP is the transport, so none of them work with Copilot Chat.
+Copilot Chat has supported MCP servers since VS Code 1.102 (GA July 2025), so any MCP-based memory tool can plug in. infernoflow ships **two transports side by side** so Copilot picks up the same six `amp_*` tools whichever path is available:
 
-The infernoflow **VS Code extension** registers `amp_write` and `amp_read` as native **VS Code Language Model Tools** — Copilot's supported extension surface. So Copilot can log a gotcha or recall a past decision **on its own**, mid-conversation, the moment it notices something worth remembering. Nothing to wire up: install the extension and Copilot's tool picker shows `🔥 amp_write`. Call by hand with `#amp_write` / `#amp_read` in the chat box.
+- **VS Code Language Model Tools (LMT).** The infernoflow VS Code extension registers `amp_write` and `amp_read` as native LMT tools. No per-project config, no MCP client setup — install the extension and Copilot's tool picker shows `🔥 amp_write`. Call by hand with `#amp_write` / `#amp_read` in the chat box.
+- **MCP server.** `infernoflow init` wires the MCP server into `.vscode/mcp.json` too, so Copilot's MCP client can call the same tools if you prefer that route (or want them available to agent mode).
 
-Cursor and Claude Code get the same capability through the MCP server the CLI installs. **Same protocol, same disk file, three transports** — MCP for Cursor/Claude, LMT for Copilot, native Node in the extension.
+Cursor, Claude Code, and any MCP-capable client use the same MCP server. **One product, one disk file, multiple transports** — pick whichever fits your setup; both write to the same `.ai-memory/`.
 
 ---
 
@@ -167,7 +168,7 @@ infernoflow prune --apply --max-age-days 14          # one-off cleanup
 |---|---|---|
 | Claude Code | `CLAUDE.md` | MCP (`amp_write`) |
 | Cursor | `.cursorrules` | MCP (`amp_write`) + `beforeSubmitPrompt` hook |
-| GitHub Copilot Chat (VS Code) | `.github/copilot-instructions.md` | **VS Code LMT** (`amp_write`) — extension only, no MCP |
+| GitHub Copilot Chat (VS Code) | `.github/copilot-instructions.md` | **VS Code LMT** (from the extension) + MCP (from `init`) — both wired |
 | GitHub Copilot (JetBrains) | `.github/copilot-instructions.md` | rule files only (read-only surface) |
 | Windsurf | `.windsurfrules` | MCP (planned) |
 
@@ -220,7 +221,7 @@ The companion extension is the visual surface over your memory:
 - **Live sidebar** — ranked-by-relevance gotchas / decisions / attempts for whatever file you're editing.
 - **Gotchas as Problems** — logged with a `file:line`? They appear as yellow squigglies in the editor and rows in the **Problems panel**, right next to your TypeScript errors. Both *you* and *Copilot* see the warning before making the same mistake again.
 - **Status bar health score** — always visible: `🔥 B 65 · ⚠3 · ✓2 · ❌1 · 📋 Switch`. Click `Switch` to copy the handoff.
-- **Copilot Chat integration** — `#amp_write` / `#amp_read` in the chat box; Copilot picks them up automatically via VS Code LMT (see above).
+- **Copilot Chat integration** — `#amp_write` / `#amp_read` in the chat box; Copilot picks them up via VS Code Language Model Tools registered by the extension (works even without an MCP client configured).
 - **Keyboard-first logging** — `Ctrl+Alt+G` (gotcha) / `Ctrl+Alt+D` (decision) / `Ctrl+Alt+A` (ask) / `Ctrl+Alt+S` (switch) / `Ctrl+Alt+R` (recap). Right-click in the editor to log a gotcha for the current line.
 
 ```
