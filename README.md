@@ -269,13 +269,21 @@ Full policy: [SECURITY.md](./SECURITY.md). Vulnerability reports: `hello@inferno
 
 ---
 
+## Community
+
+- 💬 [**GitHub Discussions**](https://github.com/ronmiz/infernoflow/discussions) — Q&A, ideas, show and tell. First stop for questions.
+- 🐛 [**Issues**](https://github.com/ronmiz/infernoflow/issues) — bugs only. Feature requests go in Discussions → Ideas.
+- 🔒 [**Security Advisories**](https://github.com/ronmiz/infernoflow/security/advisories/new) — private disclosure for vulnerabilities.
+
+---
+
 ## License
 
-MIT
+MIT — see [`LICENSE`](./LICENSE).
 
 ## Links
 
-- [GitHub](https://github.com/ronmiz/infernoflow) · [npm](https://www.npmjs.com/package/infernoflow) · [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow) · [Issues](https://github.com/ronmiz/infernoflow/issues) · [infernoflow.dev](https://www.infernoflow.dev)
+- [GitHub](https://github.com/ronmiz/infernoflow) · [Discussions](https://github.com/ronmiz/infernoflow/discussions) · [npm](https://www.npmjs.com/package/infernoflow) · [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow) · [infernoflow.dev](https://www.infernoflow.dev)
 - [AMP protocol spec](docs/protocol/PROTOCOL.md) — vendor-neutral memory format
 - [Dogfood: what infernoflow caught while building infernotest_01](docs/dogfood-infernotest_01.md)
 - [Why your AI coding assistant has amnesia](docs/BLOG_POST.md) — the case for the protocol
