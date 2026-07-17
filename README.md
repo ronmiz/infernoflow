@@ -169,8 +169,8 @@ infernoflow prune --apply --max-age-days 14          # one-off cleanup
 | Claude Code | `CLAUDE.md` | MCP (`amp_write`) |
 | Cursor | `.cursorrules` | MCP (`amp_write`) + `beforeSubmitPrompt` hook |
 | GitHub Copilot Chat (VS Code) | `.github/copilot-instructions.md` | **VS Code LMT** (from the extension) + MCP (from `init`) — both wired |
-| GitHub Copilot (JetBrains) | `.github/copilot-instructions.md` | rule files only (read-only surface) |
-| Windsurf | `.windsurfrules` | MCP (planned) |
+| GitHub Copilot (JetBrains) | `.github/copilot-instructions.md` | MCP (`amp_write`, manual wiring) — JetBrains Copilot supports MCP (agent mode GA); `init` auto-wiring planned |
+| Windsurf | `.windsurfrules` | MCP (`amp_write`, manual wiring) — Windsurf/Cascade supports MCP; `init` auto-wiring planned |
 
 The MCP server is wired by `infernoflow setup` / `init` into each tool's config file. No per-tool setup.
 
@@ -286,5 +286,4 @@ MIT — see [`LICENSE`](./LICENSE).
 
 - [GitHub](https://github.com/ronmiz/infernoflow) · [Discussions](https://github.com/ronmiz/infernoflow/discussions) · [npm](https://www.npmjs.com/package/infernoflow) · [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow) · [infernoflow.dev](https://www.infernoflow.dev)
 - [AMP protocol spec](docs/protocol/PROTOCOL.md) — vendor-neutral memory format
-- [Dogfood: what infernoflow caught while building infernotest_01](docs/dogfood-infernotest_01.md)
-- [Why your AI coding assistant has amnesia](docs/BLOG_POST.md) — the case for the protocol
+- [Dogfood: what infernoflow caught 
