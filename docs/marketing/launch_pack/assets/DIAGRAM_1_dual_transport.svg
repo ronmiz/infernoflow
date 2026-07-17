@@ -110,8 +110,8 @@
     <rect width="180" height="140" rx="10" fill="#0d1117" stroke="#2a3040"/>
     <text x="90" y="35" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="15" font-weight="700">Windsurf</text>
     <rect x="35" y="60" width="110" height="26" rx="6" fill="rgba(90,100,120,0.15)" stroke="#5b6172"/>
-    <text x="90" y="77" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">MCP planned</text>
-    <text x="90" y="110" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11">rule files today</text>
+    <text x="90" y="77" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">MCP · manual</text>
+    <text x="90" y="110" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11">init wiring planned</text>
     <text x="90" y="125" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="10">(.windsurfrules)</text>
   </g>
 
@@ -119,8 +119,8 @@
     <rect width="180" height="140" rx="10" fill="#0d1117" stroke="#2a3040"/>
     <text x="90" y="35" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="15" font-weight="700">Copilot (JetBrains)</text>
     <rect x="35" y="60" width="110" height="26" rx="6" fill="rgba(90,100,120,0.15)" stroke="#5b6172"/>
-    <text x="90" y="77" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">Read-only</text>
-    <text x="90" y="110" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11">rule files today</text>
-    <text x="90" y="125" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="10">(no interactive tools)</text>
+    <text x="90" y="77" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">MCP · manual</text>
+    <text x="90" y="110" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11">agent mode (GA)</text>
+    <text x="90" y="125" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="10">(init wiring planned)</text>
   </g>
 </svg>
