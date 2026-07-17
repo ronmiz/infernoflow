@@ -1,5 +1,82 @@
 # Changelog — infernoflow
 
+## 0.44.13 — 2026-07-04 — `--targets` (kill the double-load) + `--protocol-style`
+
+The second half of the token-optimization work: stop writing the memory block to
+rule files for IDEs the project doesn't use.
+
+### New
+- **`setup` / `refresh --targets <a,b>`** — set `config.injection.targets` from
+  the CLI (was hand-edit-only). De-selected rule files have their managed block
+  **stripped**, so a single-IDE project stops carrying — and Copilot stops
+  double-loading — blocks in `CLAUDE.md` + `copilot-instructions.md` it never
+  reads. Saves the *whole* block's second copy (~580 tokens/turn for Copilot).
+- **`--targets auto`** — writes to the canonical file for the IDE you're running
+  from (Cursor → `.cursorrules`, VS Code Copilot → `copilot-instructions.md`,
+  Claude Code → `CLAUDE.md`); falls back to all three when it can't tell (safe).
+  The command prints which files it chose.
+- **`--protocol-style compact|full|off`** — the P1 knob, now a CLI flag too.
+
+Opt-in — the default is still all three files, so nothing regresses.
+
+## 0.44.12 — 2026-07-04 — leaner protocol block (token savings)
+
+Cuts the per-turn token cost of the injected memory block — the top item from
+the token-optimization report.
+
+### New
+- **`config.injection.protocolStyle`** — `"compact"` (new default), `"full"`,
+  or `"off"`. The full ~18-line "when to log" trigger table is redundant with
+  the `amp_write` / `amp_bookmark` tool descriptions the model already sees, so
+  `compact` ships a ~3-line summary instead. Measured: **~562 → ~132 tokens**
+  per file per turn (**~430 saved**, ~860/turn where Copilot loads both
+  `CLAUDE.md` and `copilot-instructions.md`). `"full"` restores the table for
+  non-MCP / cold-start setups; `"off"` (or the legacy `includeProtocol:false`)
+  omits it entirely. New projects are seeded `compact`.
+
+_No behavior change to what/when the AI logs — the triggers still live in the
+tool descriptions; this only trims the duplicated rule-file boilerplate._
+
+## 0.44.11 — 2026-07-04 — landing / README rewrite
+
+Docs only — no code changes. Rewrote the npm README (and the extension README
+tagline) with a sharper cold-start hook. Cut as a new version because the README
+shown on npmjs.com only refreshes on a publish.
+
+## 0.44.10 — 2026-07-03 — session bookmarks + two-tier memory
+
+The headline: **`infernoflow bookmark`** — named resume points you can jump back
+to, this session or the next. A bookmark is a `note` tagged `bookmark`; its
+captured context rides in a new **Tier-2 `detail` sidecar** so the always-on
+memory index stays lean.
+
+### New
+- **`infernoflow bookmark`** — `bookmark "<label>"` drops a resume point and
+  **auto-captures the current session transcript** as its context (Claude Code;
+  degrades to marker-only elsewhere). `--note` / `--detail-file <path|->` for
+  explicit context, `--marker` for a bare label. `list` / `show <id|label>` /
+  `rm` round it out. Bookmarks are **never auto-pruned**. They surface in
+  `switch` under a `## 🔖 Bookmarks — Resume Points` section (newest context
+  inlined).
+- **Two-tier `detail` bodies.** Any entry can carry a rich `detail` — stored in
+  `.ai-memory/details/<id>.md`, loaded on demand via `readDetail()`, and never
+  injected into rule files. `log --detail` / `--detail-file`, MCP `amp_write`
+  `detail`, and the new `amp_bookmark` tool all feed it. The lean index is
+  unchanged; you just pay for the body only when you open it.
+- **`amp_bookmark` MCP tool** — the AI drops a bookmark (and auto-captures the
+  session when no `note` is given) on "bookmark this" / when context fills up.
+  The Memory-protocol block now instructs it to.
+- **Deterministic bookmark trigger (Cursor hook).** When your prompt literally
+  says "bookmark this" / "mark this point" / "save this checkpoint", the
+  `beforeSubmitPrompt` hook drops a bookmark itself (label derived from the
+  prompt) — no reliance on the AI obeying. Sits alongside the existing `!!` /
+  "retry" trouble triggers, and takes precedence over them.
+
+### Fixed
+- **`findProjectRoot` no longer treats a filesystem root as a project root.**
+  A stray `.ai-memory` at a drive root (`C:\`, `/`) used to hijack every
+  marker-less project on the volume. The upward walk now skips the root.
+
 ## 0.44.9 — 2026-06-23 — tell the AI to load MCP tools first (Claude Code fix)
 
 Caught while dogfooding. In Claude Code and any client with deferred MCP

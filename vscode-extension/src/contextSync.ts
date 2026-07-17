@@ -54,11 +54,14 @@ const DEFAULT_ENTRY_CAP   = 4;
 const DEFAULT_COMMIT_CAP  = 5;
 const DEFAULT_ENTRY_CHARS = 200;
 
+type ProtocolStyle = "full" | "compact" | "off";
+
 interface InjectionSettings {
   maxEntries: number;
   maxCommits: number;
   maxEntryChars: number;
   targets: string[];
+  protocolStyle: ProtocolStyle;
   includeProtocol: boolean;
 }
 
@@ -68,12 +71,18 @@ function resolveInjectionSettings(cfg: { config?: Record<string, unknown> } | nu
   const injArr = Array.isArray((c as Record<string, unknown>).inject) ? (c as Record<string, unknown>).inject as string[] : null;
   const legacyTargets = injArr && !injArr.includes("all") ? injArr : null;
   const int = (v: unknown, def: number, min: number) => (Number.isInteger(v) && (v as number) >= min ? (v as number) : def);
+  // Default "compact": the full trigger table is redundant with the amp_* tool
+  // descriptions, so we don't re-pay for it every turn. Keep in sync with the
+  // CLI's resolveInjectionSettings in lib/ruleFiles.mjs.
+  const styleRaw = (["full", "compact", "off"] as string[]).includes(inj.protocolStyle as string) ? (inj.protocolStyle as ProtocolStyle) : "compact";
+  const protocolStyle: ProtocolStyle = inj.includeProtocol === false ? "off" : styleRaw;
   return {
     maxEntries:    int(inj.maxEntries,    DEFAULT_ENTRY_CAP,   0),
     maxCommits:    int(inj.maxCommits,    DEFAULT_COMMIT_CAP,  0),
     maxEntryChars: int(inj.maxEntryChars, DEFAULT_ENTRY_CHARS, 1),
     targets:       Array.isArray(inj.targets) && (inj.targets as string[]).length ? (inj.targets as string[]) : (legacyTargets || RULE_FILES),
-    includeProtocol: inj.includeProtocol !== false,
+    protocolStyle,
+    includeProtocol: protocolStyle !== "off",
   };
 }
 
@@ -211,7 +220,23 @@ function getRecentCommits(root: string, limit = 10): GitCommit[] {
 // protocol and never logs. Works across Cursor, Claude Code, Copilot, Windsurf.
 // Kept byte-identical to the CLI's lib/ruleFiles.mjs block so whichever writer
 // runs last produces the same managed section (no churn, no duplicates).
-function memoryProtocolLines(): string[] {
+function memoryProtocolLines(style: ProtocolStyle = "compact"): string[] {
+  if (style === "off") return [];
+  return style === "full" ? memoryProtocolLinesFull() : memoryProtocolLinesCompact();
+}
+
+// Compact (default): the full trigger table is redundant with the amp_* tool
+// descriptions the model already sees, so we don't re-pay for it every turn.
+// Kept byte-identical with the CLI's memoryProtocolBlockCompact().
+function memoryProtocolLinesCompact(): string[] {
+  return [
+    "### Memory protocol",
+    "",
+    "Use the `amp_write` and `amp_bookmark` MCP tools **proactively** (without being asked): log a one-sentence entry when the user hits frustration (`!!` / \"not working\" / \"retry\" → `attempt`), a `decision` is made, or you learn a non-obvious `gotcha`; drop a bookmark on \"bookmark this\". Don't log what's re-derivable from the code. The full trigger list and field shapes are in the tool descriptions — if the `amp_*` tools aren't visible, load them first (Claude Code: `ToolSearch` with query `infernoflow`).",
+  ];
+}
+
+function memoryProtocolLinesFull(): string[] {
   return [
     "### Memory protocol — capture as you go",
     "",
@@ -230,6 +255,7 @@ function memoryProtocolLines(): string[] {
     "**Do NOT log:** typos, syntax errors, obvious bugs visible in the code, anything the next AI can infer by re-reading the file.",
     "**Do log:** anything that taught you something non-derivable from code.",
     "**Be concise:** entries should be one sentence. Future-you will skim them.",
+    "**Bookmark resume points:** when the user says `bookmark this` / `mark this point`, or the context window is filling up while work is mid-flight, call `amp_bookmark` with a short `label` (omit `note` to auto-capture the session transcript) — so they can jump back to that exact point in the next session.",
     "**When you use a 🔥 memory entry in your reply, briefly cite it** — e.g. `🔥 (from infernoflow memory) gotcha at src/api.js:42: ...` — so the user can see which guidance came from project memory vs. your own inference.",
   ];
 }
@@ -246,7 +272,7 @@ function buildSection(scored: ScoredEntry[], activeFile: string | undefined, com
       "<!-- Auto-managed by infernoflow. Don't edit between these markers. -->",
       "## Project memory (infernoflow)",
       "",
-      ...(settings.includeProtocol ? [...memoryProtocolLines(), ""] : []),
+      ...(settings.includeProtocol ? [...memoryProtocolLines(settings.protocolStyle), ""] : []),
       "_No entries yet. They'll appear here as you and your AI tools log them — run `infernoflow log` or use `Ctrl+Alt+G` in VS Code._",
       SECTION_END,
     ].join("\n");
@@ -258,7 +284,7 @@ function buildSection(scored: ScoredEntry[], activeFile: string | undefined, com
   lines.push("## Project memory (infernoflow)");
   lines.push("");
   if (settings.includeProtocol) {
-    lines.push(...memoryProtocolLines());
+    lines.push(...memoryProtocolLines(settings.protocolStyle));
     lines.push("");
   }
 

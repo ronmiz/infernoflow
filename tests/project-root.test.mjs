@@ -129,21 +129,25 @@ describe("findProjectRoot — marker resolution", () => {
   });
 
   it("_resetProjectRootCache clears the memo", () => {
+    // Deterministic: a parent with .git and a child with its own .git. This
+    // avoids depending on whatever markers happen to exist upstream on the
+    // dev machine (which made this test flaky — and masked a drive-root
+    // pollution bug in findProjectRoot).
     root = mkTmp();
-    fs.mkdirSync(path.join(root, ".git"));
-    const first = findProjectRoot(root);
-    expect(first).toBe(fs.realpathSync(root));    // cached at root
+    fs.mkdirSync(path.join(root, ".git"));                       // parent marker
+    const child = path.join(root, "child");
+    fs.mkdirSync(path.join(child, ".git"), { recursive: true }); // child marker
+
+    const first = findProjectRoot(child);
+    expect(first).toBe(fs.realpathSync(child));                  // cached at child
 
     _resetProjectRootCache();
-    fs.rmSync(path.join(root, ".git"), { recursive: true });
+    fs.rmSync(path.join(child, ".git"), { recursive: true });    // remove child marker
 
-    // Cache cleared, .git removed → must re-walk. Returned value won't be
-    // `root` anymore (no markers there); we don't know what's upstream on
-    // any dev machine, so just verify the result is an ancestor of root
-    // (which is what walking up MUST produce) — not the cached value.
-    const after = findProjectRoot(root);
-    expect(after).not.toBe(first);
-    expect(fs.realpathSync(root).startsWith(after)).toBe(true);
+    // Cache cleared + child marker gone → must re-walk UP to the parent's .git.
+    const after = findProjectRoot(child);
+    expect(after).toBe(fs.realpathSync(root));                   // walked up to parent
+    expect(after).not.toBe(first);                              // proves the memo was cleared
   });
 });
 

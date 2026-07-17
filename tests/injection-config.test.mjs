@@ -14,6 +14,7 @@ import * as path from "node:path";
 
 import { refreshRuleFilesFromMemory, resolveInjectionSettings } from "../lib/ruleFiles.mjs";
 import { appendEntry, updateInjectionConfig } from "../lib/amp/io.mjs";
+import { injectionPatchFromArgs } from "../lib/commands/refresh.mjs";
 import { _resetProjectRootCache } from "../lib/projectRoot.mjs";
 
 function mkProject() {
@@ -57,6 +58,26 @@ describe("resolveInjectionSettings (pure)", () => {
     const s = resolveInjectionSettings({ config: { inject: ["all"] } });
     expect(s.targets.length).toBe(3);
   });
+
+  it("defaults protocolStyle to compact", () => {
+    for (const cfg of [null, {}, { config: { injection: {} } }]) {
+      expect(resolveInjectionSettings(cfg).protocolStyle).toBe("compact");
+    }
+  });
+
+  it("honors protocolStyle full/off; includeProtocol:false maps to off", () => {
+    expect(resolveInjectionSettings({ config: { injection: { protocolStyle: "full" } } }).protocolStyle).toBe("full");
+    const off = resolveInjectionSettings({ config: { injection: { protocolStyle: "off" } } });
+    expect(off.protocolStyle).toBe("off");
+    expect(off.includeProtocol).toBe(false);
+    const legacyOff = resolveInjectionSettings({ config: { injection: { includeProtocol: false } } });
+    expect(legacyOff.protocolStyle).toBe("off");
+    expect(legacyOff.includeProtocol).toBe(false);
+  });
+
+  it("falls back to compact for an unknown protocolStyle", () => {
+    expect(resolveInjectionSettings({ config: { injection: { protocolStyle: "verbose" } } }).protocolStyle).toBe("compact");
+  });
 });
 
 describe("refreshRuleFilesFromMemory honors injection config", () => {
@@ -69,6 +90,33 @@ describe("refreshRuleFilesFromMemory honors injection config", () => {
     updateInjectionConfig(project, { maxEntries: 2 });
     refreshRuleFilesFromMemory(project);
     expect(memoryBullets(read(path.join(project, "CLAUDE.md")))).toBe(2);
+  });
+
+  it("emits the compact protocol by default (no full trigger table)", () => {
+    appendEntry(project, { type: "note", summary: "x", agent: "claude" });
+    refreshRuleFilesFromMemory(project);
+    const md = read(path.join(project, "CLAUDE.md"));
+    expect(md).toContain("### Memory protocol");
+    expect(md).toContain("amp_bookmark");         // compact names both tools
+    expect(md).not.toContain("| When you see");   // but NOT the full table
+  });
+
+  it("emits the full protocol table when protocolStyle=full", () => {
+    appendEntry(project, { type: "note", summary: "x", agent: "claude" });
+    updateInjectionConfig(project, { protocolStyle: "full" });
+    refreshRuleFilesFromMemory(project);
+    const md = read(path.join(project, "CLAUDE.md"));
+    expect(md).toContain("| When you see");       // full table present
+    expect(md).toContain("capture as you go");
+  });
+
+  it("omits the protocol entirely when protocolStyle=off (memory still injected)", () => {
+    appendEntry(project, { type: "note", summary: "keep-me", agent: "claude" });
+    updateInjectionConfig(project, { protocolStyle: "off" });
+    refreshRuleFilesFromMemory(project);
+    const md = read(path.join(project, "CLAUDE.md"));
+    expect(md).not.toContain("Memory protocol");
+    expect(md).toContain("keep-me");              // memory entry still there
   });
 
   it("truncates each injected entry to maxEntryChars with an ellipsis", () => {
@@ -110,5 +158,41 @@ describe("refreshRuleFilesFromMemory honors injection config", () => {
     for (const rel of [".cursorrules", "CLAUDE.md", ".github/copilot-instructions.md"]) {
       expect(read(path.join(project, rel))).toMatch(/infernoflow:start/);
     }
+  });
+
+  it("--targets writes the block to only the listed files; drops the rest (no double-load)", () => {
+    appendEntry(project, { type: "gotcha", summary: "watch-out-here", agent: "claude" });
+    refreshRuleFilesFromMemory(project);                          // all 3 get the block
+    updateInjectionConfig(project, { targets: ["CLAUDE.md"] });
+    refreshRuleFilesFromMemory(project);                          // strips the de-selected two
+    expect(read(path.join(project, "CLAUDE.md"))).toContain("watch-out-here");
+    expect(read(path.join(project, ".cursorrules"))).not.toContain("watch-out-here");
+    expect(read(path.join(project, ".github", "copilot-instructions.md"))).not.toContain("infernoflow:start");
+  });
+});
+
+describe("injection CLI flags (injectionPatchFromArgs)", () => {
+  it("parses an explicit --targets list + --protocol-style", () => {
+    const p = injectionPatchFromArgs(["--targets", "CLAUDE.md,.cursorrules", "--protocol-style", "full"]);
+    expect(p.targets).toEqual(["CLAUDE.md", ".cursorrules"]);
+    expect(p.protocolStyle).toBe("full");
+  });
+
+  it("ignores an invalid --protocol-style value", () => {
+    expect(injectionPatchFromArgs(["--protocol-style", "nope"]).protocolStyle).toBeUndefined();
+  });
+
+  it("--targets auto resolves to CLAUDE.md under Claude Code", () => {
+    const prev = process.env.CLAUDE_CODE_SESSION;
+    process.env.CLAUDE_CODE_SESSION = "1";
+    try {
+      expect(injectionPatchFromArgs(["--targets", "auto"]).targets).toEqual(["CLAUDE.md"]);
+    } finally {
+      if (prev === undefined) delete process.env.CLAUDE_CODE_SESSION; else process.env.CLAUDE_CODE_SESSION = prev;
+    }
+  });
+
+  it("no injection flags → empty patch", () => {
+    expect(injectionPatchFromArgs(["--json", "--dry-run"])).toEqual({});
   });
 });

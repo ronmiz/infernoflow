@@ -1,6 +1,8 @@
 # 🔥 infernoflow
 
-> Persistent memory for AI coding sessions. Capture what agents can't infer from code — the gotchas, the decisions, the failed approaches — and replay it into your next chat so you stop re-deriving context every time you open Cursor / Claude Code / Copilot.
+> **Every new AI session starts cold — the gotchas you found, the decisions you made, don't survive. infernoflow makes them stick.**
+>
+> Persistent memory for AI coding sessions. Captures the gotchas, decisions and dead ends your code can't tell an agent — and replays them into your next Cursor / Claude Code / Copilot chat so the same wrong turn never happens twice.
 
 [![npm version](https://img.shields.io/npm/v/infernoflow.svg?color=orange)](https://www.npmjs.com/package/infernoflow)
 [![npm downloads](https://img.shields.io/npm/dw/infernoflow.svg?color=orange)](https://www.npmjs.com/package/infernoflow)
@@ -8,16 +10,45 @@
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/infernoflow.infernoflow?label=VS%20Code&color=orange)](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
+You spent 90 minutes yesterday teaching Claude that your auth API returns `200` even on errors — check the response body, not the status code. Today you ask the same kind of question and watch it write `if (response.ok) { return data }` all over again. The AI didn't get worse overnight. **It just doesn't have memory.**
+
+infernoflow is a local-first CLI + VS Code extension + open protocol (AMP) that gives your AI persistent context across sessions. No SaaS. JSONL on disk. Three rule files your IDE already reads.
+
+---
+
+## What's new — 🆕 v0.44.10: session bookmarks
+
+Drop a **named resume point** mid-session. When the context window fills up or you're about to make a risky change, one command captures the current session's transcript and stores it as a jumpable checkpoint:
+
+```bash
+infernoflow bookmark "before the SP refactor"
+```
+
+Or just say it in chat — the Cursor `beforeSubmitPrompt` hook catches phrases like `"bookmark this"` / `"mark this point"` / `"save this checkpoint"` and drops the bookmark itself, no AI cooperation required. Or let the AI do it via the `amp_bookmark` MCP tool when it notices the session is getting long.
+
+**No `--note`?** infernoflow reads Claude Code's own on-disk transcript (`~/.claude/projects/…/*.jsonl`), distills the last 40 turns to markdown, and stores it as the bookmark's context. Fully deterministic — no model call. Recall any time:
+
+```bash
+infernoflow bookmark list                # ● has context, ○ marker only
+infernoflow bookmark show "SP refactor"  # jump back — see the whole snapshot
+```
+
+Bookmarks are **never auto-pruned**, and they surface in `infernoflow switch` under a `## 🔖 Bookmarks — Resume Points` section so the next session opens right where work paused.
+
+---
+
 ## The loop
 
-Every new AI session today starts cold. The agent re-reads your code, re-derives the obvious, and often re-makes the same wrong move someone else made yesterday. infernoflow closes that loop in four stages:
+Every new AI session today starts cold. The agent re-reads your code, re-derives the obvious, and re-makes the same wrong move someone else made yesterday. infernoflow closes that loop in four stages:
 
-1. **Capture** — while you and the agent work, certain moments are worth saving: a gotcha hit, a decision made, an attempted fix that failed, a pattern noticed. The agent writes them down automatically via the `amp_write` MCP tool — no copy/paste, no `git commit -m`. A protocol block injected into the rule files teaches the AI exactly when to log — e.g. when you type `!!`, `retry`, `not working`, `still broken`, or describe a `Plan:` — and a Cursor `beforeSubmitPrompt` hook backstops the AI by scanning your prompt for those triggers and writing the entry deterministically when the AI doesn't.
-2. **Link** — each captured moment becomes a structured AMP entry (`gotcha | decision | attempt | note | detection | pattern`) with timestamp, file:line, tags, and a stable AMP id. Linked into the project, not your scratchpad.
+1. **Capture** — while you and the agent work, moments worth saving get logged automatically: a gotcha hit, a decision made, an attempted fix that failed, a pattern noticed, a resume point marked. The AI writes them via the `amp_write` MCP tool. A protocol block injected into the rule files teaches it exactly when. A Cursor `beforeSubmitPrompt` hook backstops the AI by scanning your prompt for triggers (`!!`, `retry`, `not working`, `still broken`, `bookmark this`) and writing the entry deterministically when the AI doesn't.
+2. **Link** — each captured moment becomes a structured AMP entry (`gotcha | decision | attempt | note | detection | pattern | bookmark`) with timestamp, `file:line`, tags, and a stable AMP id.
 3. **Persist** — entries land in `.ai-memory/branches/<branch>.jsonl` (git-tracked, travels with your branch — teammates inherit it) plus `.ai-memory/global.jsonl` (personal preferences, gitignored, synced across your machines via any OS-synced folder).
-4. **Restore** — when a new session starts, the agent reads `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` at boot. The most relevant entries are already there. Warm start; no cold derivation.
+4. **Restore** — when a new session starts, the agent reads `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` at boot. The most relevant entries are already there. **Warm start; no cold derivation.**
 
-That's it. No service to log into. No SaaS. JSONL on disk, an MCP server, and three rule files your IDE already reads.
+No service to log into. No SaaS. JSONL on disk, an MCP server, and three rule files your IDE already reads.
+
+---
 
 ## Install
 
@@ -28,13 +59,15 @@ infernoflow init --yes
 
 Zero runtime dependencies. Works on Node ≥ 18 — macOS, Linux, Windows.
 
-`init --yes` does the whole setup: creates `.ai-memory/`, writes rule files for every supported IDE, wires the MCP server for Cursor / VS Code Copilot / Claude Code in one shot, applies the clean-tree git policy, and drops a visible demo entry so you can confirm the loop is alive with one command:
+`init --yes` does the whole setup: creates `.ai-memory/`, writes rule files for every supported IDE, wires the MCP server for Cursor / VS Code Copilot / Claude Code in one shot, applies the clean-tree git policy, and drops a visible demo entry so you can confirm the loop is alive with:
 
 ```bash
 infernoflow status
 ```
 
-## The 5-command core + 1
+---
+
+## The 5-command core + 4
 
 These cover 95% of usage:
 
@@ -45,17 +78,31 @@ These cover 95% of usage:
 | `infernoflow switch` | Generate a handoff for the next session. `--copy` puts it on your clipboard |
 | `infernoflow recap` | End-of-session summary with health score + unlogged-change detection |
 | `infernoflow status` | Quick health check — entries, gotchas, decisions, last activity |
+| `infernoflow bookmark "..."` | **🆕** Drop a named resume point — auto-captures the session transcript as its context. `list` / `show <id\|label>` / `rm` round it out. Surfaces in `switch`. Never auto-pruned. |
 | `infernoflow refresh` | Manually rebuild `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` from memory |
-| `infernoflow forget <id|prefix>` | Delete a memory entry without hand-editing JSONL. `--last` for the newest. |
-| `infernoflow prune` | Archive stale `note` / `attempt` entries older than 30 days. Gotchas/decisions never auto-pruned. Default dry-run; `--apply` to act. |
+| `infernoflow forget <id\|prefix>` | Delete a memory entry without hand-editing JSONL. `--last` for the newest |
+| `infernoflow prune` | Archive stale `note` / `attempt` entries older than 30 days. Gotchas/decisions/bookmarks never auto-pruned. Default dry-run; `--apply` to act |
 
 In practice you barely run any of these — the MCP-aware AI does it for you. The CLI is for grep-style introspection.
 
-`infernoflow commands` shows the full list (~20 commands, grouped by purpose).
+`infernoflow commands` shows the full list (~23 commands, grouped by purpose).
+
+---
+
+## Works with GitHub Copilot Chat — via LMT + MCP
+
+Copilot Chat has supported MCP servers since VS Code 1.102 (GA July 2025), so any MCP-based memory tool can plug in. infernoflow ships **two transports side by side** so Copilot picks up the same six `amp_*` tools whichever path is available:
+
+- **VS Code Language Model Tools (LMT).** The infernoflow VS Code extension registers `amp_write` and `amp_read` as native LMT tools. No per-project config, no MCP client setup — install the extension and Copilot's tool picker shows `🔥 amp_write`. Call by hand with `#amp_write` / `#amp_read` in the chat box.
+- **MCP server.** `infernoflow init` wires the MCP server into `.vscode/mcp.json` too, so Copilot's MCP client can call the same tools if you prefer that route (or want them available to agent mode).
+
+Cursor, Claude Code, and any MCP-capable client use the same MCP server. **One product, one disk file, multiple transports** — pick whichever fits your setup; both write to the same `.ai-memory/`.
+
+---
 
 ## Keeping it lean: token budget + rotation
 
-The injected memory block is paid for on every AI turn (and twice when a tool loads both `CLAUDE.md` and `copilot-instructions.md`). infernoflow ships lean defaults — 4 entries, 5 commits, 200-char per-entry truncation — and gives you knobs to tune further. Set once in `.ai-memory/amp.json`:
+The injected memory block is paid for on every AI turn (and twice when a tool loads both `CLAUDE.md` and `copilot-instructions.md`). infernoflow ships lean defaults — 4 entries, 5 commits, 200-char truncation, and a **compact ~3-line protocol** (the full trigger table is redundant with the `amp_*` tool descriptions, so it's off by default: ~430 tokens/file/turn saved). Tune further in `.ai-memory/amp.json`:
 
 ```jsonc
 "config": {
@@ -64,7 +111,7 @@ The injected memory block is paid for on every AI turn (and twice when a tool lo
     "maxCommits": 5,                          // git commits injected
     "maxEntryChars": 200,                     // per-entry truncation
     "targets": ["CLAUDE.md", ".cursorrules"], // drop a file from the list and its stale block is stripped automatically
-    "includeProtocol": true                   // false drops the ~17-line capture protocol (advanced)
+    "protocolStyle": "compact"                // "compact" (default) · "full" (restore the trigger table) · "off"
   },
   "rotation": {
     "archiveAfterDays": 30,
@@ -77,12 +124,17 @@ The injected memory block is paid for on every AI turn (and twice when a tool lo
 Or write the same values via CLI flags:
 
 ```bash
-infernoflow setup   --max-memory 3 --max-commits 5 --max-entry-chars 200 --no-protocol
-infernoflow refresh --max-memory 3                   # same; persists into amp.json
+infernoflow setup   --max-memory 3 --max-commits 5 --max-entry-chars 200 --protocol-style compact
+infernoflow refresh --targets CLAUDE.md,.cursorrules # only these get the block; the rest are stripped
+infernoflow refresh --targets auto                   # canonical file for the IDE you're in (kills Copilot's double-load)
 infernoflow prune --apply --max-age-days 14          # one-off cleanup
 ```
 
-**Rotation** archives stale `note` / `attempt` / `detection` entries to `.ai-memory/archive/sessions-YYYY-MM.jsonl` — invisible to the merged read (so the AI, sidebar, `ask`, and `refresh` stop surfacing them) but still on disk if you want them back. `gotcha`, `decision`, and `pattern` entries are **never auto-pruned** — that's the knowledge you logged infernoflow FOR.
+**Rotation** archives stale `note` / `attempt` / `detection` entries to `.ai-memory/archive/sessions-YYYY-MM.jsonl` — invisible to the merged read (so the AI, sidebar, `ask`, and `refresh` stop surfacing them) but still on disk if you want them back. `gotcha`, `decision`, `pattern`, and `bookmark` entries are **never auto-pruned** — that's the knowledge you logged infernoflow FOR.
+
+**Two-tier bodies (new in 0.44.10):** any entry can carry a rich `detail` — stored in `.ai-memory/details/<id>.md`, loaded on demand via `readDetail()`, and **never injected into rule files**. The lean index stays lean; you pay for the body only when you open it. `log --detail`, `--detail-file`, MCP `amp_write` `detail`, and the new `amp_bookmark` tool all feed it.
+
+---
 
 ## Branch-aware memory + cross-machine sync
 
@@ -93,6 +145,8 @@ infernoflow prune --apply --max-age-days 14          # one-off cleanup
 ├── branches/
 │   ├── main.jsonl              ← project-wide truths (git-tracked)
 │   └── feature-auth.jsonl      ← your current branch's work (git-tracked)
+├── details/                    ← Tier-2 rich bodies (loaded on demand)
+│   └── amp_01HXYZ....md
 ├── global.jsonl                ← your personal preferences (gitignored)
 └── sessions.jsonl              ← legacy flat file (still read)
 ```
@@ -106,17 +160,21 @@ infernoflow prune --apply --max-age-days 14          # one-off cleanup
 - **`merge=union` on branch JSONLs** means concurrent commits from different machines merge cleanly — no manual conflict resolution.
 - **Branch switching never blocked.** Rule files refresh only at MCP server boot or via explicit `infernoflow refresh`, not on every entry — your working tree stays clean while you log.
 
+---
+
 ## Cross-IDE — same memory, every tool
 
-The rule files at the top level of your project are what every AI agent reads on boot. infernoflow writes the same canonical block to all three:
+| Tool | Reads from | Writes via |
+|---|---|---|
+| Claude Code | `CLAUDE.md` | MCP (`amp_write`) |
+| Cursor | `.cursorrules` | MCP (`amp_write`) + `beforeSubmitPrompt` hook |
+| GitHub Copilot Chat (VS Code) | `.github/copilot-instructions.md` | **VS Code LMT** (from the extension) + MCP (from `init`) — both wired |
+| GitHub Copilot (JetBrains) | `.github/copilot-instructions.md` | MCP (`amp_write`, manual wiring) — JetBrains Copilot supports MCP (agent mode GA); `init` auto-wiring planned |
+| Windsurf | `.windsurfrules` | MCP (`amp_write`, manual wiring) — Windsurf/Cascade supports MCP; `init` auto-wiring planned |
 
-| Tool | Reads from |
-|---|---|
-| Claude Code | `CLAUDE.md` |
-| Cursor | `.cursorrules` |
-| GitHub Copilot (VS Code, JetBrains) | `.github/copilot-instructions.md` |
+The MCP server is wired by `infernoflow setup` / `init` into each tool's config file. No per-tool setup.
 
-Plus MCP for tools that speak it — Cursor, Claude Code, VS Code Copilot Chat. The MCP server is wired by `infernoflow setup` / `init` into each tool's config file. No per-tool setup.
+---
 
 ## MCP tools (for AI agents)
 
@@ -124,9 +182,10 @@ When the MCP server is wired, your AI agent can call these directly in chat:
 
 | Tool | What it does |
 |---|---|
-| `amp_write` | Log an entry (`type`, `msg`, optional `file` / `line` / `tags`) |
+| `amp_write` | Log an entry (`type`, `msg`, optional `file` / `line` / `tags` / `detail`) |
 | `amp_read` | Read entries with optional filters |
 | `amp_search` | Keyword search across entries |
+| `amp_bookmark` | **🆕** Drop a named resume point — auto-captures the current session transcript when no `note` is given |
 | `amp_handoff` | Generate the handoff document for the next AI session |
 | `amp_health` | Session health score (A–F) |
 | `infernoflow_status` | Memory + project health at a glance |
@@ -134,9 +193,11 @@ When the MCP server is wired, your AI agent can call these directly in chat:
 | `infernoflow_context` | Generate AI-ready context for a task |
 | `infernoflow_git_drift` | Detect which capabilities recent commits affected |
 
-The `amp_*` tools follow the [AMP MCP spec §7.3](docs/protocol/PROTOCOL.md#73-mcp-tool-interface) — vendor-neutral. Any AMP-Full client only needs to know those five names. The same five are also available as CLI aliases (`infernoflow amp read | write | search | handoff | health`) so the CLI and MCP surfaces match name-for-name.
+The `amp_*` tools follow the [AMP MCP spec §7.3](docs/protocol/PROTOCOL.md#73-mcp-tool-interface) — vendor-neutral. Any AMP-Full client only needs to know those six names. The same six are also available as CLI aliases (`infernoflow amp read | write | search | bookmark | handoff | health`) so the CLI and MCP surfaces match name-for-name.
 
-Every memory line injected into the rule files is prefixed with `🔥` so the AI (and you) can tell at a glance that a line came from infernoflow even when it's quoted out of the managed block.
+Every memory line injected into the rule files is prefixed with `🔥` so the AI (and you) can tell at a glance that a line came from infernoflow even when it's quoted out of the managed block. When the AI uses one, the protocol tells it to briefly cite the source — e.g. *🔥 (from infernoflow memory) gotcha at src/api.js:42: API returns 202 not 200*.
+
+---
 
 ## What it has caught (real dogfood)
 
@@ -151,9 +212,17 @@ infernoflow was developed by building a multi-tenant kanban (`infernotest_01`) a
 
 These are the things you'd otherwise forget by next Tuesday and re-derive at 11pm on a Friday. They live in `.ai-memory/branches/*.jsonl` forever.
 
+---
+
 ## VS Code extension
 
-The companion extension renders your memory as a live sidebar — ranked-by-relevance gotchas/decisions for whatever file you're editing, status bar health score, inline CodeLens annotations at gotcha locations.
+The companion extension is the visual surface over your memory:
+
+- **Live sidebar** — ranked-by-relevance gotchas / decisions / attempts for whatever file you're editing.
+- **Gotchas as Problems** — logged with a `file:line`? They appear as yellow squigglies in the editor and rows in the **Problems panel**, right next to your TypeScript errors. Both *you* and *Copilot* see the warning before making the same mistake again.
+- **Status bar health score** — always visible: `🔥 B 65 · ⚠3 · ✓2 · ❌1 · 📋 Switch`. Click `Switch` to copy the handoff.
+- **Copilot Chat integration** — `#amp_write` / `#amp_read` in the chat box; Copilot picks them up via VS Code Language Model Tools registered by the extension (works even without an MCP client configured).
+- **Keyboard-first logging** — `Ctrl+Alt+G` (gotcha) / `Ctrl+Alt+D` (decision) / `Ctrl+Alt+A` (ask) / `Ctrl+Alt+S` (switch) / `Ctrl+Alt+R` (recap). Right-click in the editor to log a gotcha for the current line.
 
 ```
 ext install infernoflow.infernoflow
@@ -163,26 +232,58 @@ Or in the Marketplace: [infernoflow.infernoflow](https://marketplace.visualstudi
 
 The extension is **window only** in v0.7.9+ — the CLI is the single canonical writer of rule files. No race between extension and CLI; the extension watches `.ai-memory/**/*.jsonl` and renders.
 
+---
+
 ## Troubleshooting
 
 - **I upgraded infernoflow but `amp_write` entries still look wrong.** Your IDE's MCP server is loaded into memory at session start and doesn't reload from disk. **Quit and reopen Cursor / Claude Code / VS Code.** `infernoflow doctor` will flag this with a "MCP runtime v… but CLI v…" warning.
 - **`infernoflow` not found.** Use `npx infernoflow` until the global install resolves on your PATH.
 - **PowerShell script execution blocked.** `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
-- **Box-drawing chars look broken.** Should auto-fall-back to ASCII on legacy PowerShell. If not, open an issue.
+- **Box-drawing chars look broken.** Force UTF-8 first: `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8`. Should auto-fall-back to ASCII on legacy PowerShell. If not, open an issue.
 - **`infernoflow doctor`** — full diagnostic if anything looks wrong. Includes the MCP runtime stamp check + AI provider detection + git hooks status.
+
+---
 
 ## Why this matters
 
 Code changes daily. What the system *actually does* under all those edits — the invariants, the constraints, the things that bit you last week — code can't tell you. infernoflow keeps that current and feeds it to the agent so the agent stops re-deriving from scratch.
 
-That's the whole product. No vendor lock-in (it's JSONL on disk). No SaaS. One CLI, one MCP server, three rule files your IDE was reading anyway.
+That's the whole product. No vendor lock-in (it's JSONL on disk). No SaaS. One CLI, one VS Code extension, one open protocol, three rule files your IDE was reading anyway.
+
+---
+
+## Security & privacy
+
+Local-first by design:
+
+- 🚫 **No telemetry.** No analytics, no error reporting, no install pings.
+- 🚫 **No `postinstall` script.** `npm install -g infernoflow` runs no code — it only copies files.
+- 🚫 **No network calls in any default command path.** Everything runs on your machine.
+- 🚫 **No auto-updates, no background processes, no cloud sync.**
+- ✅ **Reads and writes only inside your project directory** (`.ai-memory/`, plus the three rule files at repo root).
+- ✅ **Auto-injected content is wrapped in markers** (`<!-- infernoflow:start -->` / `<!-- infernoflow:end -->`) — your manual edits outside the block are never touched.
+- ✅ **Secret patterns rejected on capture** — entries matching `sk-`, `ghp_`, `-----BEGIN` are refused at the AMP writer.
+
+The optional `infernoflow ai setup` command wires an AI provider (Anthropic / OpenAI / Google / Ollama) for a few enrichment commands — same trust model as using that provider directly. Off by default.
+
+Full policy: [SECURITY.md](./SECURITY.md). Vulnerability reports: `hello@infernoflow.dev` or [GitHub Security Advisory](https://github.com/ronmiz/infernoflow/security/advisories/new).
+
+---
+
+## Community
+
+- 💬 [**GitHub Discussions**](https://github.com/ronmiz/infernoflow/discussions) — Q&A, ideas, show and tell. First stop for questions.
+- 🐛 [**Issues**](https://github.com/ronmiz/infernoflow/issues) — bugs only. Feature requests go in Discussions → Ideas.
+- 🔒 [**Security Advisories**](https://github.com/ronmiz/infernoflow/security/advisories/new) — private disclosure for vulnerabilities.
+
+---
 
 ## License
 
-MIT
+MIT — see [`LICENSE`](./LICENSE).
 
 ## Links
 
-- [GitHub](https://github.com/ronmiz/infernoflow) · [npm](https://www.npmjs.com/package/infernoflow) · [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow) · [Issues](https://github.com/ronmiz/infernoflow/issues)
+- [GitHub](https://github.com/ronmiz/infernoflow) · [Discussions](https://github.com/ronmiz/infernoflow/discussions) · [npm](https://www.npmjs.com/package/infernoflow) · [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow) · [infernoflow.dev](https://www.infernoflow.dev)
 - [AMP protocol spec](docs/protocol/PROTOCOL.md) — vendor-neutral memory format
-- [Dogfood: what infernoflow caught while building infernotest_01](docs/dogfood-infernotest_01.md)
+- [Dogfood: what infernoflow caught 

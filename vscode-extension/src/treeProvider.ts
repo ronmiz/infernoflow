@@ -139,6 +139,40 @@ function makeEntryItem(entry: AMPEntry, icon: string): InfernoItem {
   return item;
 }
 
+// ── Bookmarks ────────────────────────────────────────────────────────────────
+// A bookmark is a `note` entry tagged "bookmark". Its captured context (if any)
+// lives in the Tier-2 sidecar `.ai-memory/details/<id>.md` — a DETERMINISTIC
+// path, so we read it directly without needing the bundled infernoflow-amp
+// package to expose detailRef. Clicking a bookmark "jumps" to it: opens the
+// saved context, and/or reveals its file:line.
+
+function isBookmark(e: AMPEntry): boolean {
+  return Array.isArray(e.tags) && e.tags.includes("bookmark");
+}
+
+/** True iff a bookmark carries a saved Tier-2 context body on disk. */
+function bookmarkHasContext(entry: AMPEntry): boolean {
+  const root = workspaceRoot();
+  if (!root || !entry.id) return false;
+  return fs.existsSync(path.join(root, ".ai-memory", "details", `${entry.id}.md`));
+}
+
+function makeBookmarkItem(entry: AMPEntry): InfernoItem {
+  const item = new InfernoItem(entry.msg, "entry", vscode.TreeItemCollapsibleState.None, "bookmark", entry);
+  const hasCtx = bookmarkHasContext(entry);
+  const loc = entry.file ? `${shortFile(entry.file)}${entry.line ? ":" + entry.line : ""} · ` : "";
+  item.description = `${hasCtx ? "● " : ""}${loc}${timeAgo(entry.ts)}`;
+  item.contextValue = "bookmark";
+  item.tooltip = new vscode.MarkdownString(
+    `**🔖 ${entry.msg}** — ${timeAgo(entry.ts)}\n\n` +
+    (hasCtx ? "_Click to open the saved context._"
+     : entry.file ? "_Click to jump to the file._"
+     : "_Marker only — no saved context._"),
+  );
+  item.command = { command: "infernoflow.jumpToBookmark", title: "Jump to bookmark", arguments: [entry] };
+  return item;
+}
+
 // ── Provider ─────────────────────────────────────────────────────────────────
 
 export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem> {
@@ -197,6 +231,8 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
             "Architectural choices recorded so future sessions know why X was picked over Y."),
           this.section(`Failed Attempts (${s.attempts})`, "error", false,
             "Approaches that didn't work — surfaced as blue Information squiggles in the editor."),
+          this.section(`Bookmarks (${ampIO.readEntries().filter(isBookmark).length})`, "bookmark", false,
+            "Named resume points. Click one to open its saved context — or jump to its file:line."),
           this.section("Memory Actions", "zap", true,
             "The core memory loop: log entries, search memory, generate handoff for the next AI."),
         ];
@@ -208,6 +244,7 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
       if (label.startsWith("Gotchas"))           return this.entriesByType("gotcha",   "warning");
       if (label.startsWith("Decisions"))         return this.entriesByType("decision", "check");
       if (label.startsWith("Failed Attempts"))   return this.entriesByType("attempt",  "error");
+      if (label.startsWith("Bookmarks"))         return this.bookmarkRows();
       if (label === "Memory Actions")            return this.memoryActions();
       return [];
     } catch (err) {
@@ -255,6 +292,14 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
     return rows;
   }
 
+  private bookmarkRows(): InfernoItem[] {
+    const bms = ampIO.readEntries().filter(isBookmark);
+    if (bms.length === 0) {
+      return [this.infoRow("No bookmarks yet — drop one with “Bookmark this point…”", "circle-outline")];
+    }
+    return bms.slice().sort((a, b) => b.ts - a.ts).map(e => makeBookmarkItem(e)); // newest first
+  }
+
   private entriesByType(type: EntryType, icon: string): InfernoItem[] {
     const filtered = ampIO.readEntries().filter(e => e.type === type);
     if (filtered.length === 0) {
@@ -297,6 +342,11 @@ export class InfernoTreeProvider implements vscode.TreeDataProvider<InfernoItem>
         "Search memory by keyword, file, or error fragment.\n\n" +
         "Click a match to jump to its file:line.\n" +
         "Shortcut: Ctrl+Alt+A"),
+      this.action(
+        "Bookmark this point…", "bookmark", "infernoflow.bookmarkThis",
+        "Drop a named resume point at the current file:line.\n\n" +
+        "When: a spot you'll want to return to. Recall it from the Bookmarks section above, " +
+        "or in a new session's handoff. Rich context can be attached via the CLI/AI."),
       this.action(
         "Manage entries…", "checklist", "infernoflow.manageEntries",
         "Bulk select and delete entries (orphaned + manual).\n\n" +
