@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="1200" height="400">
+  <rect width="1200" height="400" fill="#1a1a1a"/>
+  <text x="600" y="180" text-anchor="middle" fill="#FF6B35" font-family="-apple-system, sans-serif" font-size="28" font-weight="700">⚠ DEPRECATED — see DIAGRAM_1_dual_transport.svg</text>
+  <text x="600" y="230" text-anchor="middle" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="16">This file contained an inaccurate "Copilot Chat doesn't support MCP" claim.</text>
+  <text x="600" y="255" text-anchor="middle" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="16">MCP support in Copilot Chat has been GA since VS Code 1.102 (July 2025).</text>
+  <text x="600" y="290" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="14">Use DIAGRAM_1_dual_transport.svg instead.</text>
+</svg>

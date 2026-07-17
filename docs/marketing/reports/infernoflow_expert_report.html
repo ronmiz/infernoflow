@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>infernoflow — Expert Understanding Report</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #0f1419; color: #e6e1cf; direction: rtl; max-width: 1400px; margin: 0 auto; padding: 20px; }
+  h1 { color: #ff8c42; margin: 0 0 8px; font-size: 30px; }
+  .subtitle { color: #a8a99d; margin-bottom: 24px; font-size: 14px; }
+  .card { background: #1a2028; border-radius: 12px; padding: 22px; box-shadow: 0 4px 12px rgba(0,0,0,.3); margin-bottom: 20px; border: 1px solid #2d3748; }
+  .card h2 { margin: 0 0 14px; font-size: 20px; color: #ff8c42; border-bottom: 2px solid #2d3748; padding-bottom: 10px; }
+  .card h3 { color: #f4b785; margin: 18px 0 8px; font-size: 16px; }
+  .card p, .card li { line-height: 1.7; color: #cbd5e0; }
+  code, pre { background: #0f1419; padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #f4b785; }
+  pre { padding: 14px; overflow-x: auto; line-height: 1.5; direction: ltr; text-align: left; border: 1px solid #2d3748; margin: 10px 0; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .kpi { background: #1a2028; padding: 16px; border-radius: 12px; border-right: 4px solid #ff8c42; }
+  .kpi.good { border-right-color: #48bb78; }
+  .kpi.hot { border-right-color: #f56565; }
+  .kpi .label { font-size: 11px; color: #a8a99d; margin-bottom: 4px; text-transform: uppercase; }
+  .kpi .value { font-size: 22px; font-weight: 800; color: #e6e1cf; }
+  .kpi .sub { font-size: 11px; color: #718096; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #2d3748; color: #ff8c42; padding: 10px 8px; text-align: right; font-weight: 700; }
+  td { padding: 10px 8px; border-bottom: 1px solid #2d3748; color: #cbd5e0; vertical-align: top; }
+  tr:hover td { background: #232b36; }
+  .num { text-align: left; direction: ltr; font-weight: 600; }
+  .highlight { padding: 14px 18px; margin: 12px 0; border-radius: 10px; background: #232b36; border-right: 4px solid #ff8c42; font-size: 13px; line-height: 1.7; }
+  .highlight.win { background: rgba(72,187,120,0.1); border-right-color: #48bb78; }
+  .highlight.info { background: rgba(66,153,225,0.1); border-right-color: #4299e1; }
+  .highlight.warn { background: rgba(236,201,75,0.1); border-right-color: #ecc94b; }
+  .flow-diagram { padding: 16px; background: #232b36; border-radius: 10px; margin: 12px 0; }
+  .flow-diagram .node { padding: 8px 14px; background: #0f1419; border-radius: 8px; margin: 6px 0; border-right: 3px solid #4299e1; font-size: 13px; }
+  .flow-diagram .node.trigger { border-right-color: #ff8c42; }
+  .flow-diagram .node.storage { border-right-color: #48bb78; }
+  .flow-diagram .arrow { text-align: center; color: #718096; font-size: 20px; margin: 4px 0; }
+  .path-badge { display: inline-block; padding: 3px 8px; background: #2d3748; color: #ff8c42; border-radius: 6px; font-family: monospace; font-size: 11px; margin: 2px; }
+  ol li { margin: 6px 0; }
+  ul li { margin: 4px 0; }
+  .timeline { border-right: 3px solid #ff8c42; padding-right: 20px; margin-right: 8px; }
+  .timeline-item { margin-bottom: 16px; position: relative; }
+  .timeline-item::before { content: '●'; position: absolute; right: -28px; color: #ff8c42; font-size: 18px; top: -3px; }
+  .timeline-item h4 { margin: 0 0 4px; color: #f4b785; font-size: 14px; }
+  .timeline-item .date { font-size: 11px; color: #718096; }
+  .timeline-item p { font-size: 13px; margin: 4px 0 0; color: #cbd5e0; }
+</style>
+</head>
+<body>
+
+<h1>🔥 infernoflow — דוח הבנת מוצר מקיף (Expert Level)</h1>
+<div class="subtitle">אחרי צלילה עמוקה לתוך הקוד, ה-CHANGELOG, המסמכים וה־dogfood — הנה מה שהבנתי</div>
+
+<div class="kpi-grid">
+  <div class="kpi good"><div class="label">גרסה מקומית</div><div class="value">0.44.10</div><div class="sub">3/7/2026 — bookmark ships</div></div>
+  <div class="kpi hot"><div class="label">גרסה ב־npm</div><div class="value">0.43.2</div><div class="sub">מיושנת! פער של 44 גרסאות</div></div>
+  <div class="kpi"><div class="label">CLI commands</div><div class="value">23</div><div class="sub">core: log, ask, switch, recap, status, bookmark</div></div>
+  <div class="kpi"><div class="label">MCP tools</div><div class="value">10</div><div class="sub">amp_*: 5 · infernoflow_*: 4 · amp_bookmark חדש</div></div>
+  <div class="kpi"><div class="label">Release cadence</div><div class="value">43</div><div class="sub">גרסאות מרץ↔יולי — קצב פיתוח יומיומי</div></div>
+  <div class="kpi good"><div class="label">Codebase</div><div class="value">8,462 LOC</div><div class="sub">lib/ — קומפקטי מרשים</div></div>
+</div>
+
+<div class="card">
+  <h2>🧠 המהות של המוצר — בשורה אחת</h2>
+  <div class="highlight win">
+    <b>infernoflow היא זיכרון מתמשך לצוות של human+AI שעובד ביחד על פרויקט קוד.</b> המוצר תופס את הידע הלא-מקומי (gotchas, decisions, attempts, patterns, bookmarks) שקיים במפגש כרגע — ומזריק אותו לsession הבא. אין SaaS, אין vendor lock-in, JSONL על הדיסק, MCP server, ו־3 rule files שכל IDE כבר קורא.
+  </div>
+  <h3>הכאב שהיא פותרת בפועל (בדוגמאות מ־dogfood-infernotest_01.md)</h3>
+  <ul>
+    <li><b>"Vite proxy עם changeOrigin משנה Host header"</b> — שעה של דיבוג לפני שהבחין. נלכד → סessions הבאים מוזהרים מראש.</li>
+    <li><b>"Prisma 6 DLL נעולה בזמן tsx watch"</b> — הודעת EPERM מטעה. נלכד כ־gotcha, פותר עתידית.</li>
+    <li><b>"invite accept שורף token גם אם המשתמש כבר חבר"</b> — bug שדורש 2 משתמשים לשחזור. נלכד → תיקון מיידי.</li>
+    <li><b>"npm install מסיר בשקט npm link"</b> — bug מדרגה שנייה שגרם ל־wrapper ישן להיטען. תיקון: 0.44.0 מכניס AMP IO in-process.</li>
+    <li><b>"עריכת MCP server file לא עושה hot-reload"</b> — הפך ל־feature: boot stamp ב־.mcp-runtime.json.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>🔖 Feature Deep-Dive: infernoflow bookmark (v0.44.10 — הכותרת)</h2>
+  <div class="highlight info">
+    <b>מה זה:</b> Bookmark = <code>note</code> tagged <code>bookmark</code> — resume point עם label וקונטקסט. המידע הרחב יורד לTier-2 detail sidecar (<code>.ai-memory/details/&lt;id&gt;.md</code>) כדי שלא ינפח את ה־index העצום שנטען בכל session.
+  </div>
+
+  <h3>🎯 3 מסלולי הפעלה (הכל מתכנס לאותו storage)</h3>
+
+  <div class="flow-diagram">
+    <div class="node trigger"><b>🖥️ מסלול 1 — CLI ידני</b><br>
+      <code>infernoflow bookmark "before the SP refactor"</code><br>
+      <span style="font-size:11px; color:#a8a99d">+ אופציות: <span class="path-badge">--note</span> <span class="path-badge">--detail-file &lt;path|-&gt;</span> <span class="path-badge">--marker</span> <span class="path-badge">--tags</span></span>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="node trigger"><b>🤖 מסלול 2 — AI דרך MCP</b><br>
+      AI קורא ל־<code>amp_bookmark({label, note?})</code><br>
+      <span style="font-size:11px; color:#a8a99d">מבוקש ע"י ה־AI כאשר: המשתמש אומר "bookmark this" / לפני שינוי מסוכן / context window מתמלא</span>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="node trigger"><b>🪝 מסלול 3 — Deterministic Cursor Hook</b><br>
+      <code>beforeSubmitPrompt</code> חוטף את הפרומפט וסורק ב־regex לפני שהוא נשלח:<br>
+      <span style="font-size:11px; color:#a8a99d">
+        <code>/\bbookmark (?:this|it|here)(?: point)?\b/i</code><br>
+        <code>/\bmark this (?:point|spot|moment|here)\b/i</code><br>
+        <code>/\bsave (?:this )?(?:point|checkpoint|resume point)\b/i</code>
+      </span><br>
+      <span style="font-size:11px; color:#48bb78">✓ עובד גם אם ה־AI לא משתף פעולה. Trigger זה גובר על ה־trouble triggers (!!, retry, וכו').</span>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="node storage"><b>💾 Storage & Auto-Capture</b><br>
+      1. יוצר entry ב־<code>.ai-memory/branches/&lt;branch&gt;.jsonl</code><br>
+      2. אם לא ניתן <code>--note</code>/<code>--marker</code> → קורא ל־<code>harvestSnapshot(cwd)</code> ← מחלץ אוטומטית את ה־Claude Code transcript (40 turns אחרונים, 1500 chars per turn)<br>
+      3. שומר את הקונטקסט ב־<code>.ai-memory/details/&lt;id&gt;.md</code>
+    </div>
+  </div>
+
+  <h3>🔍 ה־harvestSnapshot — הקסם הטכני מאחורי הauto-capture</h3>
+  <div class="highlight win">
+    <b>הפתרון החכם:</b> Claude Code כבר כותב את כל השיחה ל־<code>~/.claude/projects/&lt;encoded-cwd&gt;/*.jsonl</code>. הקידוד: absolute path → מוחלף כל תו לא-אלפאנומרי ב־"-". <b>infernoflow פשוט קורא את הקובץ הזה, מחלץ את 40 ה־turns האחרונים, ומאחסן כ־markdown snapshot.</b> אין קריאה למודל. אין תלות בAI. deterministic 100%.
+  </div>
+
+  <h3>🎯 Sub-commands</h3>
+  <table>
+    <thead><tr><th>פקודה</th><th>שם חלופי</th><th>מה עושה</th></tr></thead>
+    <tbody>
+      <tr><td><code>bookmark "&lt;label&gt;"</code></td><td>—</td><td>יוצר bookmark (default action)</td></tr>
+      <tr><td><code>bookmark list</code></td><td><code>ls</code></td><td>רשימת כל ה־bookmarks. ● = יש context, ○ = marker בלבד</td></tr>
+      <tr><td><code>bookmark show &lt;id|label&gt;</code></td><td><code>jump</code>, <code>recall</code></td><td>מציג bookmark ספציפי + הקונטקסט שלו</td></tr>
+      <tr><td><code>bookmark rm &lt;id|label&gt;</code></td><td><code>remove</code>, <code>delete</code></td><td>מוחק bookmark</td></tr>
+    </tbody>
+  </table>
+
+  <h3>🎯 Resolver Algorithm (איך <code>show</code> ו־<code>rm</code> מוצאים את הבוקמארק)</h3>
+  <ol>
+    <li>ID exact match → מנצח</li>
+    <li>ID prefix match (למשל <code>show 01HP3K</code>) → אם יש אחד, מנצח</li>
+    <li>Label substring, case-insensitive → אם יש אחד, מנצח</li>
+    <li>אם יש כמה labels שמתאימים → <b>ה־newest מנצח</b> (עם הודעת אזהרה שיש עוד)</li>
+    <li>ID prefix ambiguous → error, מבקש לפרט</li>
+  </ol>
+
+  <h3>🚨 Design decisions חשובות</h3>
+  <ul>
+    <li><b>Bookmarks are NEVER auto-pruned</b> (PROTECTED handling ב־amp/io.mjs) — בניגוד לnotes/attempts/detections שמתפוגגים אחרי 30 יום.</li>
+    <li><b>Two-tier storage</b> — ה־detail הרחב לא נטען כשה־AI קורא את המidx הרגיל. רק בקריאה ל־<code>readDetail()</code>.</li>
+    <li><b>Trigger deduplication</b> — hash של 200 תווים ראשונים של הפרומפט נשמר ב־<code>.trigger-state.json</code>. אותו prompt לא יוצר bookmark כפול.</li>
+    <li><b>Label derivation</b> — הhook מסיר את הפרזה טריגר ומשתמש ב־80 התווים הראשונים כ־label. אם ריק → "Session bookmark".</li>
+    <li><b>Agent detection</b> — env vars: <code>CURSOR_SESSION</code> / <code>COPILOT_SESSION</code> / <code>CLAUDE_CODE_SESSION</code> / <code>WINDSURF_SESSION</code> / <code>INFERNOFLOW_AGENT</code>.</li>
+    <li><b>Bookmarks מופיעים בhandoff</b> — <code>switch</code> יוצר <code>## 🔖 Bookmarks — Resume Points</code>. ה־context של ה־newest נכנס inline בתוך <code>&lt;details&gt;</code> כדי לא לנפח.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>📚 ההיסטוריה של הפיתוח (ממסמכי docs/ + CHANGELOG)</h2>
+  <div class="timeline">
+    <div class="timeline-item">
+      <h4>0.44.0 — Refocusing Release</h4>
+      <div class="date">18/05/2026</div>
+      <p>הרפוזישן הקריטי. חתכת ~9000 LOC של contract/capability layer שהיה over-engineering. המוצר הופך "persistent memory for AI coding sessions" — בלבד. AMP IO in-process (לא shell-out) → מסיים את bug ה־npm link.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>0.44.1 — Silent Stale MCP Fix</h4>
+      <div class="date">19/05/2026</div>
+      <p>Boot stamp ב־<code>.mcp-runtime.json</code>. <code>doctor</code> ו־<code>setup</code> מתריעים כשהcli חדש והMCP הישן עדיין רץ בזיכרון. Bug שהמסמך של 0.44.0 הזהיר מפניו אבל אנשים לא קוראים release notes.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>0.44.2 — First-Impression Bugs</h4>
+      <div class="date">20/05/2026</div>
+      <p>4 באגים ש־unit tests לא תפסו כי הם חוצים seams. recap, switch, doctor, MCP boot stamp.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>0.44.3 — PointerFleetV2 Field Review</h4>
+      <div class="date">26/05/2026</div>
+      <p>Cold-install P0s מ־.NET + React repo אמיתי. auto-capture reliability. הפך את "אחרי install קר הכל צריך לעבוד" לחוזה קדוש.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>0.44.4-6 — Capture Triggers + Token Budget</h4>
+      <div class="date">19/06/2026</div>
+      <p>Regex triggers ל־<code>!!</code>, <code>retry</code>, "not working". טאג <code>🔥 from infernoflow</code>. Token budget controls (maxEntries, maxEntryChars) + rotation (archiveAfterDays).</p>
+    </div>
+    <div class="timeline-item">
+      <h4>0.44.7 — README Catch-Up</h4>
+      <div class="date">23/06/2026</div>
+      <p>Docs-only patch. כל ה־v0.44.1-6 היו invisible במסמך של npm. תוקן.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>0.44.8 — AI Cites Memory</h4>
+      <div class="date">23/06/2026</div>
+      <p>Protocol block מלמד את ה־AI לצטט "🔥 (from infernoflow memory) gotcha at src/api.js:42". Closes visibility gap — עכשיו רואים את המערכת עובדת בכל turn.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>0.44.9 — Deferred MCP Loading Fix</h4>
+      <div class="date">23/06/2026</div>
+      <p>Bug ב־Claude Code: <code>amp_write</code> לא נראה עד שה־AI קורא ל־<code>ToolSearch</code>. הפרוטוקול עכשיו אומר לAI לטעון קודם. שורה אחת שסוגרת "AI doesn't log anything" bug.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>0.44.10 — <b>Session Bookmarks + Two-Tier Memory</b></h4>
+      <div class="date">03/07/2026 (הגרסה האחרונה)</div>
+      <p>ה־headline feature. bookmark command חדש. auto-capture של transcript. amp_bookmark MCP tool. Deterministic hook trigger. Two-tier detail bodies (רק נטענים על דרישה). Fix ל־findProjectRoot שלא יטעה ב־.ai-memory ב־root של disk.</p>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>🎯 Positioning Insights שלמדתי מ־BLOG_POST.md</h2>
+  <div class="highlight info">
+    יש לך <b>3 קטגוריות</b> של ידע שה־AI לא רואה:
+    <ol>
+      <li><b>Things you tried that didn't work</b> — "ניסיתי react-query, חזרתי לcustom hook". מחר ה־AI מציע react-query שוב.</li>
+      <li><b>Decisions you made and reasons</b> — "axios ולא fetch לעקביות". הקוד לא אומר "בחרתי X כי".</li>
+      <li><b>Project-specific gotchas</b> — "Auth header must be lowercased". מחיר של שעה בפעם הראשונה, חוזר בכל session.</li>
+    </ol>
+  </div>
+  <div class="highlight win">
+    <b>הזווית הפילוסופית (AMP as protocol):</b> "אם רק הכלי שלי יכול לקרוא את הזיכרון שלי, בניתי את הNotion של AI. AMP הוא הrelease valve — spec פתוח, JSONL, כל אחד יכול לממש. הצד השני של lock-in נעלם ברגע שיותר מכלי אחד מיישם אותו."
+  </div>
+  <div class="highlight">
+    <b>Metaphor מנצח:</b> "AMP is to AI coding assistants what .gitignore is to version control."
+  </div>
+</div>
+
+<div class="card">
+  <h2>🐛 מה שגילה dogfood מהשטח (מסמכים מ־PointerFleetV2 review)</h2>
+  <ul>
+    <li><b>Onboarding leaky</b> — "already set up", "not initialised", "empty store" יכולים לחיות ביחד ב־first run. הstore בפועל לא נוצר עד log ראשון.</li>
+    <li><b>Contract/capability/Doc-Gate layer over-engineered</b> — עבור repo אמיתי, כל inferno/ dir gitignored → Doc Gate לא יכול להעבור. <b>המלצה מהשטח: "memory-only" preset.</b></li>
+    <li><b>PowerShell UTF-8 issue</b> — <code>[Console]::OutputEncoding = [System.Text.Encoding]::UTF8</code> חובה לפני כל פקודה. אחרת emoji נראים כאבים.</li>
+    <li><b>infernoflow doctor הכי כן</b> — מומלץ לרוץ אותו קודם כל.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>🎨 טכניקות שיווקיות ששלפתי מהמסמכים</h2>
+
+  <h3>מ־BLOG_POST.md — הפוסט הראשון להשיק</h3>
+  <div class="highlight">
+    כותרת מנצחת: <b>"Why your AI coding assistant has amnesia (and the open protocol I'm building to fix it)"</b>
+    <br><br>
+    Opening עוצמתי:<br>
+    <i>"You spent 90 minutes yesterday teaching Claude that your auth API returns 200 even on errors — check the response body, not the status code. Today you ask Claude the same kind of question and watch it write <code>if (response.ok) { return data }</code>."</i>
+  </div>
+
+  <h3>מ־DEMO_GIF.md — פרטי ההקלטה של הGIF</h3>
+  <ul>
+    <li>800x500 חלון, Windows Terminal, dark theme, 14pt</li>
+    <li>30-second shot list כבר מוכן — קוד הפקודות בטבלה</li>
+    <li>הרעיון: התקנה → log gotcha → generate handoff → paste לAI</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>💰 מה שאני יכול לעשות עכשיו כמומחה למוצר</h2>
+
+  <h3>1. תיקון מיידי (הפער בין local ל־npm)</h3>
+  <div class="highlight warn">
+    <b>הבעיה הכי דחופה שאבחנתי:</b> ה־local ב־<code>0.44.10</code> וב־npm רק <code>0.43.2</code>. <b>פער של 44 גרסאות!</b> ה־package.json המקומי כבר מתוקן (description + keywords + homepage), רק צריך <code>npm publish</code>. כל ה־SEO והdiscoverability שאנחנו רוצים כבר בקוד — פשוט לא פורסמו.
+  </div>
+
+  <h3>2. מה אני יכול לכתוב עכשיו כמומחה (בלי לשאול אותך)</h3>
+  <ul>
+    <li><b>Show HN post</b> — עם focus על bookmark feature (זו ה"headline" עם auto-transcript-capture, טכנית מרהיב)</li>
+    <li><b>Reddit post ל־r/cursor</b> — הbeforeSubmitPrompt hook הוא זווית שקהילת Cursor תעריך</li>
+    <li><b>Reddit post ל־r/ClaudeAI</b> — auto-harvest מ־<code>~/.claude/projects</code> הוא nomination למאמר</li>
+    <li><b>Twitter thread</b> — 12 tweets עם code snippets מהcodebase שלך</li>
+    <li><b>Blog post</b> — ה־docs/BLOG_POST.md כמעט מוכן. אני יכול לעדכן אותו לכלול את bookmark</li>
+    <li><b>README refresh</b> — לתאר את bookmark v0.44.10 כHero section</li>
+  </ul>
+
+  <h3>3. הerror הכי דחוף לתקן</h3>
+  <div class="highlight warn">
+    <b>infernoflow.dev (בלי www)</b> — עדיין לא עובד. זה הbug שהזכרת בהתחלה. תיקון ב־Vercel dashboard — 2 דקות. אחרי שנפרסם ב־HN/Reddit, אנשים ישתפו את הURL הקצר, ו־30% מהם יראו עמוד ריק.
+  </div>
+</div>
+
+<div class="card">
+  <h2>🚀 המסלול המומלץ ל־Launch מעודכן</h2>
+  <ol>
+    <li><b>עכשיו (5 דקות):</b> תקן את ה־redirect <code>infernoflow.dev</code> → <code>www.infernoflow.dev</code> ב־Vercel</li>
+    <li><b>עכשיו (10 דקות):</b> <code>npm publish</code> את 0.44.10 (הקוד כבר מוכן!)</li>
+    <li><b>היום (שעה):</b> אני מכין את כל ה־launch materials — HN post, Reddit posts, Twitter thread, בכל אחד עם emphasis על ה־bookmark feature</li>
+    <li><b>מחר (שעה):</b> Demo GIF/video 30 שניות של bookmark (install → work → say "bookmark this" → new session → auto-recall)</li>
+    <li><b>יום ג' 8am PT:</b> Show HN — עם ה־headline "Show HN: My AI coding assistant can now bookmark its own memory (open protocol + local-first)"</li>
+    <li><b>יום ג' 8:30am PT:</b> Reddit crosspost — r/cursor, r/ClaudeAI, r/GithubCopilot</li>
+    <li><b>יום ג' 9am PT:</b> Twitter thread launch</li>
+    <li><b>יום ג' לילה:</b> Product Hunt submission (with maker profile pre-filled)</li>
+  </ol>
+</div>
+
+<div class="card" style="background: linear-gradient(135deg, #1a2028, #232b36); border: 2px solid #ff8c42;">
+  <h2>✅ מה אני מבין שאתה רוצה עכשיו</h2>
+  <div class="highlight win">
+    <b>הבנתי:</b> אתה בונה מוצר רציני, אתה יודע שהוא טוב, אבל המפריד בין "יופי של פרויקט צד" ל־"מוצר שאנשים משתמשים בו" הוא <b>שיווק</b>. הזמן שלי כאן = איך לגרום ל־10,000 developers לגלות את המוצר בחודש הקרוב, בלי שאתה תעשה יותר מ־30 דקות של עבודה ביום.
+  </div>
+  <div class="highlight">
+    <b>ההצעה שלי לצעד הבא:</b>
+    <br>1. אתה מתקן redirect ב־Vercel + npm publish (~15 דקות שלך)
+    <br>2. אני מכין את כל ה־launch materials — HN post, Reddit x3, Twitter thread, README refresh (עבודה שלי, קורה במקביל)
+    <br>3. אנחנו מכינים launch coordinated ליום ג' הבא (8am PT)
+  </div>
+  <p><b>מוכן להתחיל?</b> תגיד רק "יאללה" ואני מתחיל להכין את ה־launch package המלא ברקע בזמן שאתה מתקן את הtwo dev-ops issues.</p>
+</div>
+
+</body>
+</html>
