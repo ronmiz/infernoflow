@@ -150,7 +150,7 @@ function formatCommandsHelp() {
 }
 
 const COMMAND_GROUPS = {
-  "Memory (the 5-command core)":  ["log", "ask", "switch", "recap", "status", "refresh", "forget", "prune", "bookmark"],
+  "Memory":                       ["log", "ask", "switch", "recap", "status", "refresh", "forget", "prune", "bookmark"],
   "Setup":                        ["init", "setup", "doctor", "context"],
   "IDE wiring":                   ["install-cursor-hooks", "install-vscode-copilot-hooks", "generate-skills"],
   "Configuration":                ["ai", "telemetry", "sync", "uninstall"],
@@ -173,12 +173,14 @@ const HELP = `
   ${bold("Usage:")}
     infernoflow [command] [options]
 
-  ${bold("Memory")} ${gray("— the 5-command core")}
+  ${bold("Memory")} ${gray("— capture, recall & curate")}
     ${cyan("log")} ${gray('"..."')}         Add to session memory ${gray("(--type gotcha|decision|attempt)")}
     ${cyan("ask")} ${gray('"..."')}         Search your memory by keyword ${gray("(gotchas surface first)")}
     ${cyan("switch")}            Generate handoff for next AI agent
     ${cyan("recap")}             End-of-session health score + unlogged changes
     ${cyan("status")}            Quick health check
+    ${cyan("forget")}            Delete a bad entry ${gray("(--last for the newest, or by id/prefix)")}
+    ${cyan("prune")}             Archive stale notes/attempts ${gray("(dry-run; --apply to commit)")}
 
   ${bold("Setup")}
     ${cyan("init")}              60-second setup ${gray("(memory mode by default)")}
