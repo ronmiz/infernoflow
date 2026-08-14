@@ -1,5 +1,15 @@
 # Changelog — infernoflow
 
+## 0.44.17 — 2026-08-14 — skill + agent self-install on upgrade (zero-touch)
+
+Makes 0.44.16's skill + agent reach **existing** projects with no manual step.
+
+### Changed
+- **Skill + agent now self-heal into `.claude/`** on any `log` / `refresh` / MCP write, via a silent idempotent `ensureClaudeAssets()` in the rule-file refresh path. Upgrade the CLI, and the next time your AI logs anything the `infernoflow-memory` skill + `memory-keeper` agent appear — **no need to re-run `infernoflow init`** in already-initialized projects. Never overwrites existing files; only runs inside an initialized project; never blocks memory capture on failure.
+
+_Fresh `init` still installs them explicitly (with visible output). This closes the one manual step from 0.44.16 for upgraders._
+
+
 ## 0.44.16 — 2026-08-14 — ships a Claude skill + memory-keeper agent
 
 infernoflow now installs a Claude Code **skill** and a **subagent** so the AI keeps memory proactively — no manual prompting.
