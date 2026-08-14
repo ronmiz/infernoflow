@@ -48,7 +48,7 @@ The `CLAUDE.md` in every project init'd with infernoflow teaches Claude *when* t
 - Git-tracked, branch-aware — memory travels with the branch
 
 Site: https://www.infernoflow.dev
-npm: `infernoflow` (v0.44.10)
+npm: `infernoflow` (v0.44.15)
 Repo: `ronmiz/infernoflow`
 
 Quickstart:

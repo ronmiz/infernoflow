@@ -18,7 +18,7 @@
 | Local-first, JSONL on disk, no SaaS | Line 15 |
 | MIT license | Line 11, 282 |
 
-### What's new in v0.44.10 → v0.44.13 (bookmarks)
+### What's new in v0.44.10 → v0.44.15 (bookmarks)
 
 | Claim | README source |
 |---|---|

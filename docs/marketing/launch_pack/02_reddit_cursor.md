@@ -39,7 +39,7 @@ The `init` wires the MCP server into `.cursor/mcp.json`, drops the `beforeSubmit
 
 Bookmarks never auto-expire. `list` / `show <id|label>` / `rm` for management. It's a `note` entry tagged `bookmark` in `.ai-memory/branches/<branch>.jsonl` — vendor-neutral, JSONL on disk, MIT-licensed. If you use anything AMP-compatible you can read the same file.
 
-Site: https://www.infernoflow.dev — npm: `infernoflow` (v0.44.10) — repo: `ronmiz/infernoflow`
+Site: https://www.infernoflow.dev — npm: `infernoflow` (v0.44.15) — repo: `ronmiz/infernoflow`
 
 Interested in your feedback, especially edge cases in your Cursor setups.
 

@@ -62,7 +62,7 @@ The under-the-hood story has some genuinely surprising bits:
 - The `beforeSubmitPrompt` hook in Cursor is deterministic memory capture without AI cooperation.
 - Auto-writes marker-wrapped blocks into `CLAUDE.md` / `.cursorrules` / `.github/copilot-instructions.md`, so your manual rules survive.
 
-Local-first, no telemetry, MIT, on npm today (v0.44.10).
+Local-first, no telemetry, MIT, on npm today (v0.44.15).
 
 If you want to try it, `npm i -g infernoflow && infernoflow init --yes` gets you running. Happy to demo on a call or send code samples.
 

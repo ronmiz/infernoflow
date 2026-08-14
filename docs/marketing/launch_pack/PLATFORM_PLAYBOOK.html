@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>infernoflow — מדריך פרסום לכל הפלטפורמות</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#171a23; --panel2:#1e222d; --ink:#e8eaf0; --mut:#9aa3b2;
+    --line:#2a2f3c; --fire:#ff6a3d; --fire2:#ffb03a; --ok:#3ecf8e; --blue:#5aa2ff; --pur:#b98cff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI",Roboto,Arial,"Noto Sans Hebrew",sans-serif;line-height:1.6;font-size:16px}
+  .wrap{max-width:1020px;margin:0 auto;padding:32px 20px 80px}
+  header{background:linear-gradient(135deg,#1b1d27,#12131a);border:1px solid var(--line);border-radius:18px;padding:28px 26px;margin-bottom:26px;position:relative;overflow:hidden}
+  header::after{content:"🔥";position:absolute;left:-10px;top:-20px;font-size:120px;opacity:.06}
+  h1{margin:0 0 6px;font-size:30px;letter-spacing:-.5px}
+  h1 .fl{background:linear-gradient(90deg,var(--fire),var(--fire2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--mut);font-size:15px}
+  .badges{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .badge{font-size:12.5px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--ink)}
+  .badge.ok{border-color:rgba(62,207,142,.4);color:var(--ok)}
+  .badge.fire{border-color:rgba(255,106,61,.45);color:var(--fire2)}
+  .principle{background:var(--panel);border:1px solid var(--line);border-right:4px solid var(--fire);border-radius:14px;padding:16px 18px;margin-bottom:26px;color:#dfe3ec;font-size:15px}
+  h2.tier{font-size:15px;letter-spacing:.6px;text-transform:uppercase;color:var(--mut);margin:34px 0 4px;display:flex;align-items:center;gap:10px}
+  h2.tier .n{width:26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#0f1117}
+  .t1 .n{background:var(--ok)} .t2 .n{background:var(--fire)} .t3 .n{background:var(--blue)} .t4 .n{background:var(--pur)}
+  .tierdesc{color:var(--mut);font-size:13.5px;margin:0 0 14px 36px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:12px}
+  .card h3{margin:0 0 10px;font-size:18px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .pill{font-size:11px;padding:3px 9px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--mut);font-weight:600}
+  .pill.p1{color:var(--ok);border-color:rgba(62,207,142,.35)}
+  .pill.p2{color:var(--fire2);border-color:rgba(255,106,61,.35)}
+  .row{display:grid;grid-template-columns:110px 1fr;gap:4px 14px;font-size:14.5px;padding:5px 0;border-top:1px dashed var(--line)}
+  .row:first-of-type{border-top:0}
+  .k{color:var(--mut);font-weight:600}
+  .v code, code{background:#0b0d13;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--fire2);direction:ltr;display:inline-block}
+  .v a{color:var(--blue);text-decoration:none} .v a:hover{text-decoration:underline}
+  .file{color:var(--pur);font-weight:600;direction:ltr;display:inline-block}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:right}
+  th{background:var(--panel2);color:var(--ink);font-size:12.5px}
+  td code{font-size:12px}
+  .rules{background:linear-gradient(135deg,#241a16,#1a1512);border:1px solid rgba(255,106,61,.3);border-radius:14px;padding:18px 20px;margin-top:30px}
+  .rules h3{margin:0 0 10px;color:var(--fire2)}
+  .rules li{margin:6px 0}
+  .foot{color:var(--mut);font-size:12.5px;text-align:center;margin-top:34px}
+  ul{margin:6px 0;padding-inline-start:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1><span class="fl">infernoflow</span> — מדריך פרסום לכל הפלטפורמות</h1>
+  <div class="sub">כל מקום שאפשר לפרסם בו, הפורמט המדויק לכל אחד, ומתי. מעודכן 07/08/2026.</div>
+  <div class="badges">
+    <span class="badge ok">npm @latest = 0.44.15 · חי ומאומת</span>
+    <span class="badge fire">Show HN → שלישי 11/08, 18:00 שעון ישראל</span>
+    <span class="badge">WhatsApp soft-launch → סופ"ש 9–10/08</span>
+  </div>
+</header>
+
+<div class="principle">
+  <b>העיקרון המנחה:</b> הנתונים שלנו הראו שזו <b>בעיית הפצה, לא בעיית מוצר</b> — הורדות קופצות רק כשמישהו מפרסם, ואז מתמוטטות ל-10–30 ליום. לכן שני חוקים:
+  (1) <b>קודם משטחי הנחיתה</b> (Tier 1) — npm, GitHub, Marketplace, האתר — חייבים להיות מושלמים לפני שמשגרים אפילו הודעה אחת, כי כל לינק מוביל לשם.
+  (2) <b>הפצה מדורגת</b> — כל ערוץ מגביר את הקודם. לא לפרסם את אותו טקסט מילה-במילה בשני מקומות. <b>כלל הזהב:</b> כל טענה חייבת מקור מאומת — אפס פִברוק.
+</div>
+
+<!-- TIER 1 -->
+<h2 class="tier t1"><span class="n">1</span> משטחי נחיתה (Owned) — לתקן קודם, לפני כל הכרזה</h2>
+<p class="tierdesc">אלה לא ערוצי הכרזה — אלה היעד שכל הכרזה מובילה אליו. אם הם לא מושלמים, כל התנועה מתבזבזת.</p>
+
+<div class="card">
+  <h3>📦 npm — עמוד החבילה <span class="pill p1">עדיפות עליונה</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">ה-README של החבילה הוא הדף. Hero עם ה-bookmark feature + 2 שורות התקנה בראש. תיאור + keywords ב-package.json (משפיעים על חיפוש ב-npm).</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">Markdown (README.md). תג gif/תמונה בראש עוזר. keywords: memory, ai, copilot, cursor, claude, mcp, context, vscode.</span></div>
+  <div class="row"><span class="k">איפה</span><span class="v"><a href="https://www.npmjs.com/package/infernoflow">npmjs.com/package/infernoflow</a></span></div>
+  <div class="row"><span class="k">בדיקה</span><span class="v"><code>npm view infernoflow version</code> → 0.44.15 ✓ · לוודא שה-README מרונדר נכון אחרי publish</span></div>
+</div>
+
+<div class="card">
+  <h3>🐙 GitHub — הריפו <span class="pill p1">עדיפות עליונה</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">README מלוטש · About + Topics (memory, ai-tools, mcp, cursor, copilot, claude-code) · Repo מוצמד לפרופיל · <b>Discussions מופעל</b> · <b>SECURITY.md</b> בשורש · Release notes ל-0.44.15 · Social preview image (מ-assets).</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">Markdown + Releases (tag + changelog). Social preview: 1280×640 PNG.</span></div>
+  <div class="row"><span class="k">איפה</span><span class="v"><a href="https://github.com/ronmiz/infernoflow">github.com/ronmiz/infernoflow</a> → Settings ▸ Features (Discussions), Settings ▸ Social preview</span></div>
+  <div class="row"><span class="k">קובץ מוכן</span><span class="v"><span class="file">GITHUB_DISCUSSIONS_SETUP.md</span></span></div>
+</div>
+
+<div class="card">
+  <h3>🧩 VS Code Marketplace — התוסף <span class="pill p1">עדיפות עליונה</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">Listing של התוסף: README מרונדר, קטגוריות (AI ראשונה), תגיות, gallery banner, אייקון 128×128. Screenshot/gif של ה-CodeLens/diagnostics.</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">package.json (categories, keywords, galleryBanner) + README.md של התוסף. <b>לוודא את הגרסה החיה במרקטפלייס לפני שמסמנים ✓</b> (בריפו: 0.7.20).</span></div>
+  <div class="row"><span class="k">איפה</span><span class="v"><a href="https://marketplace.visualstudio.com/">marketplace.visualstudio.com</a> (ניהול ב-<code>vsce publish</code>)</span></div>
+  <div class="row"><span class="k">קובץ מוכן</span><span class="v"><span class="file">06_marketplace_listing.md</span></span></div>
+</div>
+
+<div class="card">
+  <h3>🟣 Open VSX — הכרחי ל-Cursor/Windsurf <span class="pill p2">קל להחמיץ</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">אותו .vsix. <b>Cursor, Windsurf ו-VSCodium לא ניגשים ל-MS Marketplace</b> — הם מתקינים מ-Open VSX. בלי זה, משתמשי Cursor לא יכולים להתקין את התוסף בכלל.</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v"><code>npx ovsx publish -p &lt;token&gt;</code> אחרי יצירת namespace <code>ronmiz</code>.</span></div>
+  <div class="row"><span class="k">איפה</span><span class="v"><a href="https://open-vsx.org/">open-vsx.org</a></span></div>
+</div>
+
+<div class="card">
+  <h3>🌐 האתר — www.infernoflow.dev <span class="pill p1">עדיפות עליונה</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">Feature card ל-bookmarks · סקשן Copilot (LMT) · Hero badge → 0.44.15 (כרגע 0.44.10) · OG image לשיתופים.</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">HTML (index.html) ב-repo של האתר. OG image 1200×630 (מ-assets: HERO_og_image_v3).</span></div>
+  <div class="row"><span class="k">איפה</span><span class="v">Vercel — repo <code>ronmiz/infernoflow-site</code>. דומיין תקין + SSL ✓</span></div>
+  <div class="row"><span class="k">קובץ מוכן</span><span class="v"><span class="file">reports/infernoflow_site_update_plan.html</span></span></div>
+</div>
+
+<!-- TIER 2 -->
+<h2 class="tier t2"><span class="n">2</span> ערוצי הכרזה — שבוע ההשקה (11–14/08)</h2>
+<p class="tierdesc">כאן מתפוצצים. סדר מדורג: HN → Reddit → dev.to, כשכל אחד מפנה לקודם.</p>
+
+<div class="card">
+  <h3>🟠 Hacker News — Show HN <span class="pill p2">הערוץ עם ה-upside הכי גבוה</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">כותרת <code>Show HN:</code> + טקסט פוסט + 2 תגובות מחבר טעונות מראש (הסבר טכני + התנגדות CLAUDE.md). הזווית: Copilot LMT (המוֹאט הייחודי).</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">כותרת ≤80 תווים, בלי clickbait. טקסט פשוט, גוף ראשון, בלי markdown מוגזם. אין לינקים בכותרת חוץ מ-URL אחד.</span></div>
+  <div class="row"><span class="k">איפה</span><span class="v"><a href="https://news.ycombinator.com/submit">news.ycombinator.com/submit</a></span></div>
+  <div class="row"><span class="k">תזמון</span><span class="v"><b>שלישי 11/08, 08:00 PT = 18:00 שעון ישראל.</b> להגיב לכל תגובה בשעתיים הראשונות.</span></div>
+  <div class="row"><span class="k">קבצים מוכנים</span><span class="v"><span class="file">01_show_hn.md</span> · <span class="file">PASTE_HN_TITLE/BODY/COMMENT_1/COMMENT_2.txt</span></span></div>
+</div>
+
+<div class="card">
+  <h3>👽 Reddit — סאב-רדיטים ממוקדים <span class="pill p2">4 עיקריים + 3–4 נישה</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">Self-post (טקסט) מותאם לכל סאב בנפרד. <b>לא cross-post</b> — Reddit שונא העתק-הדבק. r/GithubCopilot = הזווית החזקה ביותר.</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">כותרת ספציפית לקהילה, גוף בגוף ראשון, flair מתאים, לינק אחד בסוף. לענות על הכל.</span></div>
+  <div class="row"><span class="k">איפה + תזמון</span><span class="v">
+    <b>יום 2 (רביעי 12/08):</b> r/cursor (17:00 IL), r/GithubCopilot (18:00 IL)<br>
+    <b>יום 3 (חמישי 13/08):</b> r/ClaudeAI (17:00 IL)<br>
+    <b>יום 4 (שישי 14/08):</b> 2–3 מתוך: r/programming (חוקים נוקשים), r/vscode, r/typescript, r/opensource, r/LocalLLaMA, r/ChatGPTCoding, r/artificial
+  </span></div>
+  <div class="row"><span class="k">קבצים מוכנים</span><span class="v"><span class="file">02_reddit_cursor.md</span> · <span class="file">03_reddit_claude.md</span> · <span class="file">04_reddit_copilot.md</span> (נישה — לנסח מחדש כל אחד)</span></div>
+</div>
+
+<div class="card">
+  <h3>🐦 X / Twitter — Thread <span class="pill p2">מלווה את ה-HN</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">Thread בן 14 ציוצים. זווית: bookmark + transcript harvest. לינק ל-HN בציוץ 14. בהמשך: thread שני קצר "5 things I learned launching".</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">≤280 תווים לציוץ, ציוץ 1 מבטיח את ה-payoff מפורשות. וידאו ≤2:20, תמונות 16:9 (1600×900). האשטגים: #buildinpublic #AI #vscode.</span></div>
+  <div class="row"><span class="k">איפה + תזמון</span><span class="v">יום 1 (שלישי 11/08), 09:00 PT = 19:00 IL, ~שעה אחרי ה-HN.</span></div>
+  <div class="row"><span class="k">קבצים מוכנים</span><span class="v"><span class="file">05_twitter_thread.md</span> · <span class="file">PASTE_TWITTER_TWEET_1.txt</span></span></div>
+</div>
+
+<div class="card">
+  <h3>💬 WhatsApp + Telegram — קבוצות דיב <span class="pill p1">הערוץ החם הראשון</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">הודעת bookmark-led (עברית + אנגלית, גרסה מלאה + קצרה). קבוצות IL + בינ"ל. פוסט אחד לקבוצה, לא לשכפל לקבוצות חופפות באותה שעה.</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">טקסט קצר עם אימוג'ים מדודים, 2 שורות התקנה, לינק www. לענות לכל תגובה בשעה הראשונה.</span></div>
+  <div class="row"><span class="k">תזמון</span><span class="v"><b>סופ"ש 9–10/08</b> — לפני ה-HN, כדי לחמם ולקבל פידבק ראשוני.</span></div>
+  <div class="row"><span class="k">קובץ מוכן</span><span class="v"><span class="file">12_whatsapp_announcement.md</span> (עודכן היום ל-bookmark-led)</span></div>
+</div>
+
+<div class="card">
+  <h3>✍️ dev.to — מאמר long-form <span class="pill p2">SEO evergreen</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">פוסט ארוך, זווית Copilot LMT. בסוף — הפניה לדיון ב-HN. אחר כך republish ל-Medium + Hashnode עם canonical חזרה ל-dev.to.</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">Markdown, cover 1000×420, עד 4 תגיות: #ai #vscode #productivity #opensource. <code>canonical_url</code> ב-frontmatter ל-cross-post.</span></div>
+  <div class="row"><span class="k">איפה + תזמון</span><span class="v"><a href="https://dev.to/new">dev.to/new</a> · יום 3 (חמישי 13/08), 19:00 IL</span></div>
+  <div class="row"><span class="k">קובץ מוכן</span><span class="v"><span class="file">07_devto_post.md</span></span></div>
+</div>
+
+<!-- TIER 3 -->
+<h2 class="tier t3"><span class="n">3</span> מגבירים — שבוע 2 והלאה</h2>
+<p class="tierdesc">אחרי שהגל הראשון שכך. כל אחד מייצר גל משני.</p>
+
+<div class="card">
+  <h3>🚀 Product Hunt <span class="pill p2">חלון 24 שעות</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">שם + tagline + description + gallery + first maker comment. להיות online כל היום כדי לענות.</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">Tagline ≤60 תווים · description ≤260 · gallery: תמונה ראשונה 1270×760 (עם באדג' 🆕 v0.44.15) + מינ' 3 · gif מנצח.</span></div>
+  <div class="row"><span class="k">איפה + תזמון</span><span class="v"><a href="https://www.producthunt.com/">producthunt.com</a> · <b>שני 18/08, 00:01 PT = 10:01 IL.</b></span></div>
+  <div class="row"><span class="k">קובץ מוכן</span><span class="v"><span class="file">10_product_hunt.md</span></span></div>
+</div>
+
+<div class="card">
+  <h3>💼 LinkedIn <span class="pill">קהל dev + מקצועי</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">פוסט אישי נרטיבי — הסיפור מאחורי הכלי, מה נבנה, לינק. אפשר גם וידאו native.</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">≤3000 תווים, <b>2 השורות הראשונות הן ה-hook</b> (זה מה שנחתך ב-"see more"). וידאו native מנצח לינק חיצוני באלגוריתם.</span></div>
+  <div class="row"><span class="k">תזמון</span><span class="v">יום 4 (שישי 14/08) או שני שבוע 2. אפשר לבסס על ה-devto/HN.</span></div>
+</div>
+
+<div class="card">
+  <h3>🎮 Discord — קהילות כלים <span class="pill">כללי self-promo</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">הודעה קצרה + לינק בערוצי <code>#showcase</code>/<code>#i-made-this</code>: Cursor Discord, קהילות Claude/MCP, r/LocalLLaMA Discord.</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">2–3 שורות, לקרוא כללי הקהילה קודם (הרבה אוסרים self-promo מחוץ לערוץ ייעודי). לא לספאם.</span></div>
+</div>
+
+<div class="card">
+  <h3>🎬 וידאו — YouTube / Shorts / רילסים <span class="pill">יש כבר rough cuts</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">ה-screencast של 30–60ש' (cold→warm story). לפרסם כ-YouTube Short, וידאו בטוויטר, וידאו native ב-LinkedIn, ו-post וידאו ב-Reddit.</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">אנכי 9:16 ל-Shorts/רילס, אופקי 16:9 ל-YouTube רגיל. יש כבר <code>INFERNOFLOW_ROUGH_CUT_v7.mp4</code> + VEO packs.</span></div>
+  <div class="row"><span class="k">קבצים מוכנים</span><span class="v"><span class="file">assets/inserts/*.mp4</span> · <span class="file">VEO_pack_*.md</span> · <span class="file">SHOT_LIST_*.md</span></span></div>
+</div>
+
+<!-- TIER 4 -->
+<h2 class="tier t4"><span class="n">4</span> גילוי evergreen — פסיבי, נמשך חודשים</h2>
+<p class="tierdesc">לא זינוק — אלה מקורות תנועה שממשיכים לזרום הרבה אחרי ההשקה. ROI גבוה לזמן שמושקע.</p>
+
+<div class="card">
+  <h3>⭐ Awesome Lists — PRs <span class="pill">backlinks + גילוי</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">PR שמוסיף את infernoflow לרשימות רלוונטיות. שורה אחת + לינק, לפי הפורמט של הרשימה.</span></div>
+  <div class="row"><span class="k">היעדים</span><span class="v">awesome-mcp-servers · awesome-cursor · awesome-claude / awesome-claude-code · awesome-vscode · awesome-ai-coding-tools · awesome-copilot · awesome-ai-devtools</span></div>
+  <div class="row"><span class="k">פורמט</span><span class="v">Fork → הוספה לפי הכללים בכל repo → PR עם תיאור קצר. אמין וענייני, לא שיווקי.</span></div>
+</div>
+
+<div class="card">
+  <h3>🗂️ ספריות ואתרי השוואה <span class="pill">SEO + "alternatives"</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">רישום המוצר עם תיאור, קטגוריות, לינקים. משתמשים מגיעים דרך חיפושי "X alternative".</span></div>
+  <div class="row"><span class="k">היעדים</span><span class="v">AlternativeTo · StackShare · Slant · SaaSHub · Openbase · Libraries.io (אוטומטי מ-npm)</span></div>
+</div>
+
+<div class="card">
+  <h3>📰 ניוזלטרים — הגשה + פנייה קרה <span class="pill">קבצי טמפלייט מוכנים</span></h3>
+  <div class="row"><span class="k">מה לפרסם</span><span class="v">להגיש/לפנות לעורכי ניוזלטרים לדיב. פנייה אישית (שורה 1 ספציפית לנמען) מנצחת 500 טמפלייטים.</span></div>
+  <div class="row"><span class="k">היעדים</span><span class="v">Console.dev · TLDR · Pointer · Bytes (JS) · Changelog News · Hacker Newsletter · Cooperpress · devrels ב-YouTube</span></div>
+  <div class="row"><span class="k">תזמון</span><span class="v">גלים בימים 1–4 (Template A→E). מעקב אחרי מי שהגיב.</span></div>
+  <div class="row"><span class="k">קובץ מוכן</span><span class="v"><span class="file">08_cold_outreach.md</span> (5 טמפלייטים)</span></div>
+</div>
+
+<div class="card">
+  <h3>🧵 קהילות משניות <span class="pill">לפי זמן פנוי</span></h3>
+  <div class="row"><span class="k">היעדים</span><span class="v">Lobsters (דומה ל-HN, צריך הזמנה, נוקשה) · Indie Hackers (סיפור בנייה) · Stack Overflow (לענות לשאלות רלוונטיות בעדינות, לא לספאם)</span></div>
+</div>
+
+<!-- CHEAT SHEET -->
+<h2 class="tier t2" style="margin-top:38px"><span class="n">≡</span> טבלת פורמטים מהירה</h2>
+<table>
+  <tr><th>פלטפורמה</th><th>פורמט</th><th>מגבלות / מפרט נכסים</th><th>קובץ / מקום</th></tr>
+  <tr><td>Hacker News</td><td>Show HN + טקסט</td><td>כותרת ≤80 תווים, URL אחד</td><td><code>01_show_hn.md</code></td></tr>
+  <tr><td>Reddit</td><td>Self-post</td><td>מותאם לכל sub, flair, בלי cross-post</td><td><code>02/03/04_reddit_*</code></td></tr>
+  <tr><td>X/Twitter</td><td>Thread ×14</td><td>≤280/ציוץ · תמונה 1600×900 · וידאו ≤2:20</td><td><code>05_twitter_thread.md</code></td></tr>
+  <tr><td>dev.to</td><td>מאמר MD</td><td>cover 1000×420 · ≤4 תגיות · canonical</td><td><code>07_devto_post.md</code></td></tr>
+  <tr><td>Product Hunt</td><td>Listing</td><td>tagline ≤60 · gallery 1270×760 ×3+</td><td><code>10_product_hunt.md</code></td></tr>
+  <tr><td>LinkedIn</td><td>פוסט/וידאו</td><td>≤3000 · hook ב-2 שורות ראשונות</td><td>—</td></tr>
+  <tr><td>WhatsApp/TG</td><td>טקסט קצר</td><td>2 שורות התקנה + לינק www</td><td><code>12_whatsapp_*</code></td></tr>
+  <tr><td>Marketplace</td><td>Listing</td><td>icon 128×128 · categories · gallery banner</td><td><code>06_marketplace_*</code></td></tr>
+  <tr><td>Open VSX</td><td>vsix</td><td><code>ovsx publish</code> + namespace</td><td>open-vsx.org</td></tr>
+  <tr><td>GitHub social</td><td>PNG</td><td>1280×640 preview · OG 1200×630</td><td><code>assets/HERO_og_*</code></td></tr>
+</table>
+
+<div class="rules">
+  <h3>🔥 חוקי הזהב (לא לשבור)</h3>
+  <ul>
+    <li><b>אפס טענות מפוברקות.</b> כל טענה = מקור מאומת. לוודא גרסה חיה (<code>npm view infernoflow version</code>) לפני שמצטטים מספרים. הטענה השקרית על Copilot+MCP כבר נוקתה — לא להחזיר.</li>
+    <li><b>לא לשכפל טקסט זהה בין פלטפורמות.</b> כל sub/ערוץ מקבל ניסוח טרי. אלגוריתמים וקהילות מענישים העתק-הדבק.</li>
+    <li><b>לענות תוך שעה.</b> בשעה הראשונה של כל פוסט — תגובות מחזירות אותו למעלה בכל פלטפורמה.</li>
+    <li><b>Tier 1 לפני Tier 2.</b> אם משטח נחיתה שבור, כל התנועה מתבזבזת. לסיים אותם קודם.</li>
+    <li><b>למדוד, לא לאובססב.</b> להשוות יום 7 מול בסיס 10–30/יום, לא לרענן כל שעה.</li>
+  </ul>
+</div>
+
+<div class="foot">
+  infernoflow launch playbook · נבנה 07/08/2026 · חומרי מקור: <span class="file" style="color:#9aa3b2">docs/marketing/launch_pack/</span> · לוח זמנים מלא: <span class="file" style="color:#9aa3b2">09b_launch_schedule_DATED.md</span>
+</div>
+
+</div>
+</body>
+</html>

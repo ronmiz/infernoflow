@@ -1,6 +1,6 @@
 # infernoflow — Launch Pack
 
-Coordinated launch materials for v0.44.10. Read `09_launch_schedule.md` first — everything else slots into that timeline.
+Coordinated launch materials for v0.44.15. Read `09_launch_schedule.md` first — everything else slots into that timeline.
 
 ## Files
 
@@ -35,7 +35,7 @@ Every new AI coding session starts cold. The gotchas you found yesterday, the de
 Before Day 1:
 
 1. Vercel: `infernoflow.dev` → `www.infernoflow.dev` redirect
-2. `npm view infernoflow version` returns `0.44.10`
+2. `npm view infernoflow version` returns `0.44.15`
 3. VS Code Marketplace listing shows v0.7.19 with updated categories (AI first)
 4. `www.infernoflow.dev` loads with new bookmark + Copilot sections visible
 5. GitHub Discussions enabled on the repo

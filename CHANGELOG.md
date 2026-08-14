@@ -1,5 +1,21 @@
 # Changelog — infernoflow
 
+## 0.44.16 — 2026-08-14 — ships a Claude skill + memory-keeper agent
+
+infernoflow now installs a Claude Code **skill** and a **subagent** so the AI keeps memory proactively — no manual prompting.
+
+### New
+- **`infernoflow-memory` skill** — installed to `.claude/skills/` by `init`. Teaches the coding agent to start warm (`recap`), proactively `log` real gotchas / decisions-with-a-because / dead ends / preferences (**balanced** — skips noise, secrets, duplicates), and drop `bookmark`s at stopping points and on "bookmark this".
+- **`memory-keeper` subagent** — installed to `.claude/agents/`. A specialist to delegate memory capture to: it sweeps the session, dedupes against existing memory (`ask` / `log --show`), logs what's worth keeping with `--source memory-keeper`, drops bookmarks, and reports back. Never edits code or logs secrets.
+- **`init` auto-installs both** — in fresh setup and on re-run (backfill) of existing projects. Idempotent; existing files are left alone unless `--force`. Ships in the package via `dist/templates/{skills,agents}`.
+
+_No change to the memory format or CLI surface — this makes the existing capture loop proactive by default on Claude Code._
+
+## 0.44.15 — 2026-07-31 — field-findings fixes
+
+Bug-fix release addressing tester field findings; `bookmark` verified working end to end. (0.44.14 was a broken release, superseded by this one.)
+
+
 ## 0.44.13 — 2026-07-04 — `--targets` (kill the double-load) + `--protocol-style`
 
 The second half of the token-optimization work: stop writing the memory block to

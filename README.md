@@ -37,6 +37,17 @@ Bookmarks are **never auto-pruned**, and they surface in `infernoflow switch` un
 
 ---
 
+## 🆕 Proactive capture — a Claude skill + a memory-keeper agent
+
+`init` now installs two things into `.claude/` so the loop runs itself on Claude Code:
+
+- **`infernoflow-memory` skill** (`.claude/skills/`) — teaches the agent to start warm (`recap`), then proactively `log` real gotchas, decisions-with-a-*because*, dead ends, and durable preferences, and drop a `bookmark` at stopping points or when you say *"bookmark this"*. Capture is **balanced** — it skips routine steps, anything obvious from the code, secrets, and duplicates.
+- **`memory-keeper` subagent** (`.claude/agents/`) — a specialist you can delegate to. It sweeps the session, dedupes against what's already stored, logs what's worth keeping, drops bookmarks, and reports back. It never edits code or logs secrets.
+
+Both are installed automatically by `infernoflow init` (fresh **and** on re-run of an existing project) and ship in the package — nothing to set up by hand.
+
+---
+
 ## The loop
 
 Every new AI session today starts cold. The agent re-reads your code, re-derives the obvious, and re-makes the same wrong move someone else made yesterday. infernoflow closes that loop in four stages:
@@ -59,7 +70,7 @@ infernoflow init --yes
 
 Zero runtime dependencies. Works on Node ≥ 18 — macOS, Linux, Windows.
 
-`init --yes` does the whole setup: creates `.ai-memory/`, writes rule files for every supported IDE, wires the MCP server for Cursor / VS Code Copilot / Claude Code in one shot, applies the clean-tree git policy, and drops a visible demo entry so you can confirm the loop is alive with:
+`init --yes` does the whole setup: creates `.ai-memory/`, writes rule files for every supported IDE, wires the MCP server for Cursor / VS Code Copilot / Claude Code in one shot, installs the `infernoflow-memory` skill + `memory-keeper` agent into `.claude/`, applies the clean-tree git policy, and drops a visible demo entry so you can confirm the loop is alive with:
 
 ```bash
 infernoflow status

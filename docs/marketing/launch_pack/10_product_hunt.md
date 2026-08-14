@@ -19,7 +19,7 @@ Every new AI coding session starts cold. infernoflow keeps the gotchas, decision
 
 ## Gallery images (upload 4-6)
 
-1. **Hero image** (1270x760) — the site's hero shot with the "🆕 v0.44.10" badge visible
+1. **Hero image** (1270x760) — the site's hero shot with the "🆕 v0.44.15" badge visible
 2. **Bookmark in action** — screenshot of `infernoflow bookmark "before auth rewrite"` output showing harvested transcript
 3. **Copilot Chat calling `amp_read`** — screenshot of Copilot invoking the LMT tool mid-conversation
 4. **In-editor squigglies** — VS Code screenshot with a yellow underline showing a logged gotcha as a hover

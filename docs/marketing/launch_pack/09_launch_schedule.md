@@ -11,9 +11,9 @@
 - [ ] `package.json` homepage → `https://www.infernoflow.dev`
 - [ ] `SECURITY.md` visible in repo root
 - [ ] `README.md` hero updated with new copy
-- [ ] Site (`infernoflow-site/index.html`) deployed with v0.44.10 features
-- [ ] npm `infernoflow@0.44.10` published — verify with `npm view infernoflow version`
-- [ ] VS Code extension v0.7.19 published to Marketplace with updated listing
+- [ ] Site (`infernoflow-site/index.html`) deployed with v0.44.15 features
+- [ ] npm `infernoflow@0.44.15` published — verify with `npm view infernoflow version` (VERIFIED LIVE 2026-08-07)
+- [ ] VS Code extension v0.7.20 published to Marketplace with updated listing (verify live version before checking off)
 - [ ] Repo pinned to your GitHub profile
 - [ ] GitHub Discussions enabled (in repo Settings > Features)
 - [ ] Twitter/X profile has infernoflow link in bio

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "infernoflow": {
+      "command": "node",
+      "args": [
+        "/sessions/rcw-01ruyuf6ucqfzveuxnrsvfuv/mnt/infernoflow-pkg/.cursor/inferno-mcp-server.mjs"
+      ],
+      "env": {}
+    }
+  }
+}
