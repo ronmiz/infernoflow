@@ -114,6 +114,7 @@ const INFERNOFLOW_BIN = resolveInfernoflowBin();
 let ampIo = null;
 let refreshRuleFiles = null;
 let harvestSnapshot = null;
+let findProjectRoot = null;
 if (INFERNOFLOW_ROOT) {
   try {
     for (const c of [
@@ -134,8 +135,36 @@ if (INFERNOFLOW_ROOT) {
     ]) {
       if (fs.existsSync(c)) { harvestSnapshot = (await import(pathToFileURL(c).href)).harvestSnapshot; break; }
     }
+    for (const c of [
+      path.join(INFERNOFLOW_ROOT, "lib",  "projectRoot.mjs"),
+      path.join(INFERNOFLOW_ROOT, "dist", "lib", "projectRoot.mjs"),
+    ]) {
+      if (fs.existsSync(c)) { findProjectRoot = (await import(pathToFileURL(c).href)).findProjectRoot; break; }
+    }
   } catch { /* swallow — fallback path handles it */ }
 }
+
+// ── Project directory resolution ───────────────────────────────────────────
+// NEVER trust process.cwd() to locate .ai-memory. IDEs and the desktop bridge
+// routinely launch this server from the wrong place — a monorepo parent, or
+// C:\WINDOWS\system32 on Windows — so every amp_* tool looked for .ai-memory
+// relative to that wrong cwd and failed with "not initialized". Resolve the
+// real project root once, in priority order:
+//   1. INFERNOFLOW_PROJECT_DIR   — explicit override (init can bake this into the MCP config)
+//   2. WORKSPACE_FOLDER_PATHS[0] — the folder the IDE actually opened (Cursor / VS Code set this)
+//   3. findProjectRoot(cwd)      — walk up to .ai-memory / .git / a manifest (subfolder case)
+//   4. process.cwd()             — last resort
+function resolveProjectDir() {
+  const hint = process.env.INFERNOFLOW_PROJECT_DIR
+            || (process.env.WORKSPACE_FOLDER_PATHS || "").split(path.delimiter).filter(Boolean)[0];
+  const start = (hint && fs.existsSync(hint)) ? hint : process.cwd();
+  if (typeof findProjectRoot === "function") {
+    try { return findProjectRoot(start); } catch { /* fall through to start */ }
+  }
+  return start;
+}
+const PROJECT_DIR = resolveProjectDir();
+process.stderr.write(`[infernoflow MCP] project dir: ${PROJECT_DIR}\n`);
 
 // ── Clean-tree policy: regenerate rule files ONCE at boot ──────────────────
 // Historically, every amp_write rewrote CLAUDE.md / .cursorrules. That
@@ -145,7 +174,7 @@ if (INFERNOFLOW_ROOT) {
 // the session. amp_read serves runtime queries; rule-file content is
 // for cold-start injection only.
 if (refreshRuleFiles) {
-  try { refreshRuleFiles(process.cwd()); } catch { /* non-fatal */ }
+  try { refreshRuleFiles(PROJECT_DIR); } catch { /* non-fatal */ }
 }
 
 // ── Boot stamp: record which MCP version is running ──────────────────────
@@ -163,7 +192,7 @@ try {
     try { runtimeVersion = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version || runtimeVersion; }
     catch {}
   }
-  const memDir = path.join(process.cwd(), ".ai-memory");
+  const memDir = path.join(PROJECT_DIR, ".ai-memory");
   if (fs.existsSync(memDir)) {
     fs.writeFileSync(path.join(memDir, ".mcp-runtime.json"), JSON.stringify({
       version:  runtimeVersion,
@@ -200,7 +229,7 @@ function runCmd(args, env = {}) {
       : `"${INFERNOFLOW_BIN}" ${args}`;
     return execSync(cmd, {
       encoding: "utf8",
-      cwd: process.cwd(),
+      cwd: PROJECT_DIR,
       timeout: 30000,
       env: { ...process.env, ...env },
     });
@@ -246,7 +275,7 @@ const TOOLS = [
 
 // ── git drift detection (inline — no external imports in this template file) ─
 function detectGitDrift(sinceCommits) {
-  const cwd = process.cwd();
+  const cwd = PROJECT_DIR;
   const infernoDir = path.join(cwd, "inferno");
 
   const runGit = (cmd) => {
@@ -402,7 +431,7 @@ function handleTool(id, name, input) {
         if (input.tags && input.tags.length)  entry.tags = input.tags;
         if (input.detail && String(input.detail).trim()) entry.detail = String(input.detail);
         try {
-          const written = ampIo.appendEntry(process.cwd(), entry);
+          const written = ampIo.appendEntry(PROJECT_DIR, entry);
           // NOTE: rule-file refresh deliberately NOT called here — clean-tree
           // policy regenerates them once at MCP boot only. Doing it on every
           // write dirties tracked files and blocks `git checkout`. Within a
@@ -446,10 +475,10 @@ function handleTool(id, name, input) {
         if (input.note && String(input.note).trim()) {
           entry.detail = String(input.note);
         } else if (harvestSnapshot) {
-          try { const snap = harvestSnapshot(process.cwd()); if (snap) entry.detail = snap; } catch { /* best-effort */ }
+          try { const snap = harvestSnapshot(PROJECT_DIR); if (snap) entry.detail = snap; } catch { /* best-effort */ }
         }
         try {
-          const written = ampIo.appendEntry(process.cwd(), entry);
+          const written = ampIo.appendEntry(PROJECT_DIR, entry);
           text = `🔖 Bookmark saved: ${written.msg} (${written.id})` +
                  (written.meta && written.meta.detailRef ? `\n  context: ${written.meta.detailRef}` : "");
         } catch (err) {
@@ -467,8 +496,8 @@ function handleTool(id, name, input) {
         return sendError(id, -32000, `infernoflow switch failed: ${switchResult.message}\n${switchResult.stderr || switchResult.stdout || ""}`.trim());
       }
       try {
-        const ampPath    = path.join(process.cwd(), ".ai-memory", "handoff.md");
-        const legacyPath = path.join(process.cwd(), "inferno",    "HANDOFF.md");
+        const ampPath    = path.join(PROJECT_DIR, ".ai-memory", "handoff.md");
+        const legacyPath = path.join(PROJECT_DIR, "inferno",    "HANDOFF.md");
         const target = fs.existsSync(ampPath) ? ampPath : legacyPath;
         text = fs.readFileSync(target, "utf8");
         if (input.format === "json") {
