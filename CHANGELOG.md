@@ -1,5 +1,13 @@
 # Changelog — infernoflow
 
+## 0.44.19 — 2026-08-28 — consolidated detail store (ships for real)
+
+0.44.18 shipped the `init` restart hint and the MCP project-root fix, but its built `dist/` was cut moments before the detail-store consolidation landed back in source, so that change never reached the 0.44.18 tarball. 0.44.19 ships it.
+
+### Changed
+- **Tier-2 detail bodies now live in a single `.ai-memory/details.jsonl`** instead of one `details/<id>.md` file per bookmark/detailed-log — one file, not a folder that grows with every bookmark. Legacy `details/<id>.md` sidecars auto-migrate on the next `log`/`bookmark` (idempotent; `readDetail` still falls back to them). Injection/ranking are unaffected — they only read `sessions.jsonl`.
+
+
 ## 0.44.18 — 2026-08-28 — consolidated detail store + skill/agent restart hint
 
 ### Changed
