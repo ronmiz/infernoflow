@@ -1,5 +1,13 @@
 # Changelog — infernoflow
 
+## 0.44.18 — 2026-08-28 — consolidated detail store + skill/agent restart hint
+
+### Changed
+- **Tier-2 detail bodies now live in a single `.ai-memory/details.jsonl`** instead of one `details/<id>.md` file per bookmark/detailed-log. This keeps the workspace (and git) quiet — one file, not a folder that grows with every bookmark. Existing `details/<id>.md` sidecars auto-migrate into the store on the next `log`/`bookmark` (idempotent; nothing is lost — `readDetail` still falls back to legacy files). Injection and ranking are unaffected — they only ever read `sessions.jsonl`, never the detail bodies.
+- **`init` now prints a "Restart Claude Code / Cursor" reminder** when it installs the `infernoflow-memory` skill / `memory-keeper` agent, because editors only load newly-added `.claude/` skills & agents on restart. Verify with `/skills` and `@agent-`.
+
+_No change to the memory format on the wire or to what reaches the chat._
+
 ## 0.44.17 — 2026-08-14 — skill + agent self-install on upgrade (zero-touch)
 
 Makes 0.44.16's skill + agent reach **existing** projects with no manual step.

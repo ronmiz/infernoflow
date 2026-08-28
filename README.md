@@ -143,7 +143,7 @@ infernoflow prune --apply --max-age-days 14          # one-off cleanup
 
 **Rotation** archives stale `note` / `attempt` / `detection` entries to `.ai-memory/archive/sessions-YYYY-MM.jsonl` — invisible to the merged read (so the AI, sidebar, `ask`, and `refresh` stop surfacing them) but still on disk if you want them back. `gotcha`, `decision`, `pattern`, and `bookmark` entries are **never auto-pruned** — that's the knowledge you logged infernoflow FOR.
 
-**Two-tier bodies (new in 0.44.10):** any entry can carry a rich `detail` — stored in `.ai-memory/details/<id>.md`, loaded on demand via `readDetail()`, and **never injected into rule files**. The lean index stays lean; you pay for the body only when you open it. `log --detail`, `--detail-file`, MCP `amp_write` `detail`, and the new `amp_bookmark` tool all feed it.
+**Two-tier bodies:** any entry can carry a rich `detail` — stored in a single `.ai-memory/details.jsonl` (consolidated in 0.44.18; older per-entry `details/<id>.md` sidecars auto-migrate on the next write), loaded on demand via `readDetail()`, and **never injected into rule files**. The lean index stays lean; you pay for the body only when you open it. `log --detail`, `--detail-file`, MCP `amp_write` `detail`, and the new `amp_bookmark` tool all feed it.
 
 ---
 
