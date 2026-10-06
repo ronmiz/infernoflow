@@ -1,5 +1,27 @@
 # Changelog — infernoflow
 
+## 0.45.0 — 2026-10-06 — per-project MCP, secret redaction, keys out of the repo
+
+### Security
+- **Secrets are redacted before anything is written to memory** (message, tags, detail, bookmark transcripts): known token formats, JWTs, private keys, URL credentials and `password=`-style values become `[REDACTED:<kind>]`. The entry is kept; `meta.redacted` records what was removed.
+- **Bookmark transcript snapshots are local-only** (`.ai-memory/details.local.jsonl`, gitignored).
+- **API keys moved out of the project.** `inferno/integrations.json` no longer stores keys; existing keys are migrated to `~/.infernoflow/ai-credentials.json` (0600) on first use, environment keys are never written anywhere, and `inferno/integrations.json` is gitignored.
+- **`readDetail` can no longer read files outside `.ai-memory/details/`** through a crafted `detailRef` (absolute paths, `..`, symlinks).
+- **`doctor` reports the security state:** pinned user-level MCP entry, outdated server/hook copies, secrets in memory files, API keys in the project.
+
+### Changed
+- **MCP is registered per project.** New `infernoflow mcp` runs the server from the installed package. Claude Code gets the project's `.mcp.json` (created gitignored; a git-tracked `.mcp.json` is never modified), Cursor/VS Code their per-project files, Claude Desktop one `infernoflow-<repo>` entry per project. The server is no longer copied into `.cursor/`.
+- **The single user-level `infernoflow` entry that pinned every project to one repo is removed** from `~/.claude.json` and the Claude Desktop config (backup in `~/.infernoflow/backups/`). The upgrade refresh no longer re-pins it.
+- `recap`, `ask`, `status`, `log --show` and the MCP write tools print the store they use (`store: <path> (branch X)`).
+
+## 0.44.20 — 2026-10-06 — security fix: command injection through MCP tool arguments
+
+### Security
+- **The MCP server no longer runs commands through a shell.** Tool arguments were built into shell command strings, so a crafted argument (which an AI agent can be steered into sending by content it reads) could run commands. The CLI and git now run with `execFileSync` and an argument array; every tool call is validated against its schema; text can no longer be read as a CLI flag.
+- **Prompt hooks (Claude Code, Cursor) no longer use a shell on Windows**, where a prompt containing `&` or `|` was executed by `cmd.exe`.
+- **Outdated copies of the MCP server and hooks in existing projects are replaced** on the first `infernoflow` command after upgrading (they were previously copied once and never updated).
+- Tests no longer write to the developer's real `~/.claude.json`.
+
 ## 0.44.19 — 2026-08-28 — consolidated detail store (ships for real)
 
 0.44.18 shipped the `init` restart hint and the MCP project-root fix, but its built `dist/` was cut moments before the detail-store consolidation landed back in source, so that change never reached the 0.44.18 tarball. 0.44.19 ships it.

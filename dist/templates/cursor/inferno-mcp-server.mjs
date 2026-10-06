@@ -541,7 +541,10 @@ function handleTool(id, name, rawInput) {
           // write dirties tracked files and blocks `git checkout`. Within a
           // session, the agent uses amp_read for fresh queries; rule files
           // are for cold-start injection of the *next* session.
-          text = `✔ Logged [${written.type}] ${written.id}\n  msg:  ${written.msg}` +
+          // D3 (0.45.0): always say which store was written, so a wrong store is visible.
+          text = (typeof ampIo.describeStore === "function" ? ampIo.describeStore(PROJECT_DIR) + "\n" : "") +
+                 `✔ Logged [${written.type}] ${written.id}\n  msg:  ${written.msg}` +
+                 (written.meta && written.meta.redacted ? `\n  ⚠ secrets redacted: ${written.meta.redacted.join(", ")}` : "") +
                  (written.file ? `\n  file: ${written.file}${written.line ? ":" + written.line : ""}` : "") +
                  (written.tags ? `\n  tags: ${written.tags.join(", ")}` : "") +
                  (written.meta && written.meta.detailRef ? `\n  detail: ${written.meta.detailRef}` : "");
@@ -577,11 +580,14 @@ function handleTool(id, name, rawInput) {
         if (input.note && String(input.note).trim()) {
           entry.detail = String(input.note);
         } else if (harvestSnapshot) {
-          try { const snap = harvestSnapshot(PROJECT_DIR); if (snap) entry.detail = snap; } catch { /* best-effort */ }
+          // Automatic transcript snapshots stay on this machine (gitignored store).
+          try { const snap = harvestSnapshot(PROJECT_DIR); if (snap) { entry.detail = snap; entry.detailLocal = true; } } catch { /* best-effort */ }
         }
         try {
           const written = ampIo.appendEntry(PROJECT_DIR, entry);
-          text = `🔖 Bookmark saved: ${written.msg} (${written.id})` +
+          text = (typeof ampIo.describeStore === "function" ? ampIo.describeStore(PROJECT_DIR) + "\n" : "") +
+                 `🔖 Bookmark saved: ${written.msg} (${written.id})` +
+                 (written.meta && written.meta.redacted ? `\n  ⚠ secrets redacted: ${written.meta.redacted.join(", ")}` : "") +
                  (written.meta && written.meta.detailRef ? `\n  context: ${written.meta.detailRef}` : "");
         } catch (err) {
           return sendError(id, -32000, `amp_bookmark failed (in-process): ${err.message}`);

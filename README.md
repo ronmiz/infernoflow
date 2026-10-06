@@ -271,9 +271,12 @@ Local-first by design:
 - 🚫 **No `postinstall` script.** `npm install -g infernoflow` runs no code — it only copies files.
 - 🚫 **No network calls in any default command path** (with telemetry off, which is the default).
 - 🚫 **No auto-updates of the package, no background processes, no cloud sync.**
-- ⚠️ **Writes outside the project:** `setup` (and the automatic refresh after an upgrade) registers the MCP server in your AI tools' config files — `~/.claude.json` and the Claude Desktop config. Everything else stays in the project (`.ai-memory/`, `.cursor/`, `.claude/`, `.vscode/`, the three rule files). Moving these registrations into per-project config is in progress.
+- ✅ **MCP is registered per project.** Claude Code gets the project's own `.mcp.json` (gitignored — it holds this machine's paths); Cursor and VS Code get `.cursor/mcp.json` / `.vscode/mcp.json`. All of them run the server from the installed package (`infernoflow mcp`), not a copy inside the repo.
+- ⚠️ **Writes outside the project:** Claude Desktop has no per-project config, so `setup` adds one entry per project there (`infernoflow-<repo>`). Pre-0.45 versions left a single `infernoflow` entry in `~/.claude.json` / the Desktop config that pinned every project to one repo; it is removed automatically (backup in `~/.infernoflow/backups/`). Personal settings and API keys live in `~/.infernoflow/`.
 - ✅ **Auto-injected content is wrapped in markers** (`<!-- infernoflow:start -->` / `<!-- infernoflow:end -->`) — your manual edits outside the block are never touched.
-- ⚠️ **Memory files are plain text and are committed with your repo.** Don't paste secrets into prompts or log messages — automatic secret redaction is not implemented yet.
+- ✅ **Secrets are redacted before anything is written** — GitHub/npm/OpenAI/Anthropic/AWS/Google/Slack/Stripe tokens, JWTs, private keys, URL credentials and `password=`-style values become `[REDACTED:<kind>]`. Memory files are still plain text committed with your repo, so treat them like code: review `.ai-memory/` diffs.
+- ✅ **Bookmark transcript snapshots stay on your machine** (`.ai-memory/details.local.jsonl`, gitignored). Only context you write explicitly (`--note`, `detail`) is shared with the team.
+- ✅ **API keys never live in the project** — environment variables are used as-is; pasted keys go to `~/.infernoflow/ai-credentials.json` (owner-only).
 - ✅ **No shell is used to run commands** from the MCP server or the prompt hooks (since 0.44.20), and MCP tool arguments are validated against their schema.
 
 The optional `infernoflow ai setup` command wires an AI provider (Anthropic / OpenAI / Google / Ollama) for a few enrichment commands — same trust model as using that provider directly. Off by default.

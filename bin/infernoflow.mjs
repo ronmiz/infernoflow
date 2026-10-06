@@ -5,6 +5,7 @@
 // to replace them with ASCII equivalents before any output happens.
 (function patchUnicodeForWindows() {
   if (process.platform !== "win32") return;
+  if (process.argv[2] === "mcp") return; // MCP server: stdout is JSON-RPC, never rewrite it
   if (process.env.WT_SESSION) return;   // Windows Terminal — supports unicode
   if (process.env.ConEmuPID) return;    // ConEmu/Cmder
   if (process.env.TERM_PROGRAM === "vscode") return; // VS Code terminal
@@ -101,6 +102,7 @@ const COMMAND_DESCRIPTIONS = {
 
   // ── Namespace ──────────────────────────────────────────────────────────
   amp: "AI Memory Protocol — status, migrate, validate (run: infernoflow amp)",
+  mcp: "Run the MCP server (used by AI tool configs — not run by hand)",
 };
 
 const COMMAND_HANDLERS = {
@@ -120,6 +122,7 @@ const COMMAND_HANDLERS = {
   setup:   async (args) => (await import("../lib/commands/setup.mjs")).setupCommand(args),
   doctor:  async (args) => (await import("../lib/commands/doctor.mjs")).doctorCommand(args),
   context: async (args) => (await import("../lib/commands/context.mjs")).contextCommand(args),
+  mcp:     async (args) => (await import("../lib/commands/mcp.mjs")).mcpCommand(args),
 
   // ide wiring
   "install-cursor-hooks":         async (args) => (await import("../lib/commands/installCursorHooks.mjs")).installCursorHooksCommand(args),
@@ -151,7 +154,7 @@ function formatCommandsHelp() {
 
 const COMMAND_GROUPS = {
   "Memory":                       ["log", "ask", "switch", "recap", "status", "refresh", "forget", "prune", "bookmark"],
-  "Setup":                        ["init", "setup", "doctor", "context"],
+  "Setup":                        ["init", "setup", "doctor", "context", "mcp"],
   "IDE wiring":                   ["install-cursor-hooks", "install-vscode-copilot-hooks", "generate-skills"],
   "Configuration":                ["ai", "telemetry", "sync", "uninstall"],
   "Contract":                     ["check"],
