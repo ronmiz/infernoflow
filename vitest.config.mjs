@@ -12,6 +12,8 @@ export default defineConfig({
       ? ["**/node_modules/**"]
       : ["tests/tarball-install.test.mjs", "**/node_modules/**"],
     environment: "node",
+    // Never let tests touch the real ~/.claude.json (see the file for why).
+    setupFiles: ["tests/setup-isolated-home.mjs"],
     globals: false,
     pool: "threads",
     testTimeout: includeInstallTests ? 240_000 : 15_000,

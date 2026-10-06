@@ -267,13 +267,14 @@ That's the whole product. No vendor lock-in (it's JSONL on disk). No SaaS. One C
 
 Local-first by design:
 
-- 🚫 **No telemetry.** No analytics, no error reporting, no install pings.
+- ✅ **Telemetry is opt-in and off by default.** After a few runs in an interactive terminal infernoflow asks once; nothing is sent unless you answer yes. It never sends code, file paths or memory content. Check or change it with `infernoflow telemetry status`.
 - 🚫 **No `postinstall` script.** `npm install -g infernoflow` runs no code — it only copies files.
-- 🚫 **No network calls in any default command path.** Everything runs on your machine.
-- 🚫 **No auto-updates, no background processes, no cloud sync.**
-- ✅ **Reads and writes only inside your project directory** (`.ai-memory/`, plus the three rule files at repo root).
+- 🚫 **No network calls in any default command path** (with telemetry off, which is the default).
+- 🚫 **No auto-updates of the package, no background processes, no cloud sync.**
+- ⚠️ **Writes outside the project:** `setup` (and the automatic refresh after an upgrade) registers the MCP server in your AI tools' config files — `~/.claude.json` and the Claude Desktop config. Everything else stays in the project (`.ai-memory/`, `.cursor/`, `.claude/`, `.vscode/`, the three rule files). Moving these registrations into per-project config is in progress.
 - ✅ **Auto-injected content is wrapped in markers** (`<!-- infernoflow:start -->` / `<!-- infernoflow:end -->`) — your manual edits outside the block are never touched.
-- ✅ **Secret patterns rejected on capture** — entries matching `sk-`, `ghp_`, `-----BEGIN` are refused at the AMP writer.
+- ⚠️ **Memory files are plain text and are committed with your repo.** Don't paste secrets into prompts or log messages — automatic secret redaction is not implemented yet.
+- ✅ **No shell is used to run commands** from the MCP server or the prompt hooks (since 0.44.20), and MCP tool arguments are validated against their schema.
 
 The optional `infernoflow ai setup` command wires an AI provider (Anthropic / OpenAI / Google / Ollama) for a few enrichment commands — same trust model as using that provider directly. Off by default.
 

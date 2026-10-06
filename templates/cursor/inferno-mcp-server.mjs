@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
@@ -37,6 +37,19 @@ function walkUpForInfernoflow(startFile) {
   return null;
 }
 
+/**
+ * Locate the global `infernoflow` launcher(s) on PATH WITHOUT a shell.
+ * `where` (Windows) / `which` (POSIX) are real executables, so execFileSync
+ * with an argument array is enough. Returns [] when nothing is found.
+ */
+function lookupOnPath(name) {
+  try {
+    const finder = process.platform === "win32" ? "where" : "which";
+    const out = execFileSync(finder, [name], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true, shell: false });
+    return out.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  } catch { return []; }
+}
+
 function findInfernoflowRoot() {
   // 1. Walk up from this template's own location.
   //    Works when the template runs from inside infernoflow-pkg/ or from a
@@ -56,9 +69,7 @@ function findInfernoflowRoot() {
   //    and the user's project doesn't depend on infernoflow locally. Without
   //    this branch the MCP server boots with v0.0.0-unknown.
   try {
-    const lookup = process.platform === "win32" ? "where infernoflow" : "which infernoflow";
-    const out = execSync(lookup, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-    for (const candidate of out.split(/\r?\n/).map(s => s.trim()).filter(Boolean)) {
+    for (const candidate of lookupOnPath("infernoflow")) {
       if (!fs.existsSync(candidate)) continue;
       const binDir = path.dirname(candidate);
       // Windows layout: <npm-prefix>/infernoflow.cmd  +  <npm-prefix>/node_modules/infernoflow/
@@ -89,20 +100,40 @@ function sendError(id, code, message) { send({ jsonrpc: "2.0", id, error: { code
 // Resolve a deterministic location once at startup, in priority order:
 //   1. infernoflow installed in the project's node_modules (npm i / npm link)
 //   2. `where`/`which` the global binary
-// Returns null if nothing is found; runCmd surfaces a clear error in that case.
+// Returns null if nothing is found; runCli surfaces a clear error in that case.
+// SECURITY: this must always resolve to the CLI's JavaScript entry point
+// (infernoflow.mjs), which we run as `node <file> ...args` with NO shell.
+// We never execute the npm `.cmd` / shell-script wrapper: running those needs
+// a shell, and a shell turns tool arguments into commands.
 function resolveInfernoflowBin() {
-  if (INFERNOFLOW_ROOT) {
+  const fromRoot = (root) => {
     for (const c of [
-      path.join(INFERNOFLOW_ROOT, "dist", "bin", "infernoflow.mjs"),
-      path.join(INFERNOFLOW_ROOT, "bin",  "infernoflow.mjs"),
+      path.join(root, "dist", "bin", "infernoflow.mjs"),
+      path.join(root, "bin",  "infernoflow.mjs"),
     ]) if (fs.existsSync(c)) return c;
+    return null;
+  };
+  if (INFERNOFLOW_ROOT) {
+    const hit = fromRoot(INFERNOFLOW_ROOT);
+    if (hit) return hit;
   }
-  try {
-    const lookup = process.platform === "win32" ? "where infernoflow" : "which infernoflow";
-    const out = execSync(lookup, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-    const first = out.split(/\r?\n/)[0];
-    if (first && fs.existsSync(first)) return first;
-  } catch {}
+  for (const candidate of lookupOnPath("infernoflow")) {
+    if (!fs.existsSync(candidate)) continue;
+    // POSIX: the bin entry is usually a symlink straight to infernoflow.mjs.
+    try {
+      const real = fs.realpathSync(candidate);
+      if (/\.m?js$/i.test(real)) return real;
+    } catch {}
+    // Windows / wrapper layouts: find the package next to the wrapper.
+    const binDir = path.dirname(candidate);
+    for (const layout of [
+      path.join(binDir, "node_modules", "infernoflow"),
+      path.join(binDir, "..", "lib", "node_modules", "infernoflow"),
+    ]) {
+      const hit = fromRoot(layout);
+      if (hit) return hit;
+    }
+  }
   return null;
 }
 
@@ -110,7 +141,7 @@ const INFERNOFLOW_BIN = resolveInfernoflowBin();
 
 // In-process AMP I/O loader. When available, amp_write / amp_read bypass the
 // CLI entirely — no subprocess, no version skew, no flag-mapping field loss.
-// Falls back to shell-out via runCmd() if the AMP layer can't be loaded.
+// Falls back to the CLI via runCli() if the AMP layer can't be loaded.
 let ampIo = null;
 let refreshRuleFiles = null;
 let harvestSnapshot = null;
@@ -211,8 +242,16 @@ try {
  * Run the infernoflow CLI. Returns either the stdout string OR a structured
  * error object so call sites can decide whether to surface it via JSON-RPC
  * sendError() instead of returning gibberish text to the agent.
+ *
+ * SECURITY: `args` is an ARRAY of separate arguments, passed straight to
+ * `node infernoflow.mjs` with execFileSync and no shell. Tool input must never
+ * be concatenated into a command string — that allowed command injection
+ * through tool arguments (fixed in 0.44.20).
  */
-function runCmd(args, env = {}) {
+function runCli(args, env = {}) {
+  if (!Array.isArray(args) || !args.every(a => typeof a === "string")) {
+    return { __error: true, message: "internal: runCli expects an array of strings", stderr: "", stdout: "", status: 1 };
+  }
   if (!INFERNOFLOW_BIN) {
     return {
       __error: true,
@@ -223,15 +262,13 @@ function runCmd(args, env = {}) {
     };
   }
   try {
-    const isMjs = INFERNOFLOW_BIN.toLowerCase().endsWith(".mjs");
-    const cmd = isMjs
-      ? `"${process.execPath}" "${INFERNOFLOW_BIN}" ${args}`
-      : `"${INFERNOFLOW_BIN}" ${args}`;
-    return execSync(cmd, {
+    return execFileSync(process.execPath, [INFERNOFLOW_BIN, ...args], {
       encoding: "utf8",
       cwd: PROJECT_DIR,
       timeout: 30000,
       env: { ...process.env, ...env },
+      windowsHide: true,
+      shell: false,
     });
   } catch (err) {
     return {
@@ -244,7 +281,7 @@ function runCmd(args, env = {}) {
   }
 }
 
-/** True if a runCmd() result is actually a structured error. */
+/** True if a runCli() result is actually a structured error. */
 function isCmdError(result) {
   return typeof result === "object" && result !== null && result.__error === true;
 }
@@ -259,36 +296,97 @@ function isCmdError(result) {
 // helpers that pair cleanly with the kept CLI surface.
 const TOOLS = [
   // ── AMP-spec memory tools (the product) ──────────────────────────────────
-  { name: "amp_read",    description: "AMP: read session memory entries with optional filters.", inputSchema: { type: "object", properties: { file: { type: "string" }, type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] }, query: { type: "string" }, limit: { type: "number" } } } },
-  { name: "amp_write",   description: "AMP: log a new entry. Required: type + msg (one sentence). Optional: file, line, tags, detail. Use 'detail' for a rich multi-paragraph body (repro steps, code, full reasoning, or a session snapshot) — it's stored in a sidecar and loaded on demand, so it never bloats the always-on memory index.", inputSchema: { type: "object", properties: { type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] }, msg: { type: "string" }, file: { type: "string" }, line: { type: "number" }, tags: { type: "array", items: { type: "string" } }, detail: { type: "string", description: "Optional rich body (Tier-2). Stored in the consolidated details store; NOT injected into rule files. Put the long-form context here; keep 'msg' to one summary sentence." } }, required: ["type","msg"] } },
-  { name: "amp_search",  description: "AMP: search entries by keyword. Optional type filter.", inputSchema: { type: "object", properties: { query: { type: "string" }, type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] } }, required: ["query"] } },
-  { name: "amp_bookmark", description: "AMP: drop a named session bookmark — a resume point. Required: label (short name). Optional: note. If note is OMITTED, the current session transcript is auto-captured as the bookmark's context (the 'save everything here' resume point). Use when the user says 'bookmark this' / 'mark this point', or before a risky change / when the context window is filling up, so the exact state can be recalled later and appears in the next session's handoff. Bookmarks are never auto-pruned.", inputSchema: { type: "object", properties: { label: { type: "string" }, note: { type: "string", description: "Optional explicit context. Omit to auto-capture the session transcript instead. Stored in a sidecar; not injected into rule files." } }, required: ["label"] } },
+  { name: "amp_read",    description: "AMP: read session memory entries with optional filters.", inputSchema: { type: "object", properties: { file: { type: "string", maxLength: 1000 }, type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] }, query: { type: "string", maxLength: 500 }, limit: { type: "integer", minimum: 1, maximum: 200 } } } },
+  { name: "amp_write",   description: "AMP: log a new entry. Required: type + msg (one sentence). Optional: file, line, tags, detail. Use 'detail' for a rich multi-paragraph body (repro steps, code, full reasoning, or a session snapshot) — it's stored in a sidecar and loaded on demand, so it never bloats the always-on memory index.", inputSchema: { type: "object", properties: { type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] }, msg: { type: "string", maxLength: 2000 }, file: { type: "string", maxLength: 1000 }, line: { type: "integer", minimum: 1, maximum: 10000000 }, tags: { type: "array", maxItems: 20, items: { type: "string", maxLength: 100 } }, detail: { type: "string", maxLength: 200000, description: "Optional rich body (Tier-2). Stored in the consolidated details store; NOT injected into rule files. Put the long-form context here; keep 'msg' to one summary sentence." } }, required: ["type","msg"] } },
+  { name: "amp_search",  description: "AMP: search entries by keyword. Optional type filter.", inputSchema: { type: "object", properties: { query: { type: "string", maxLength: 500 }, type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] } }, required: ["query"] } },
+  { name: "amp_bookmark", description: "AMP: drop a named session bookmark — a resume point. Required: label (short name). Optional: note. If note is OMITTED, the current session transcript is auto-captured as the bookmark's context (the 'save everything here' resume point). Use when the user says 'bookmark this' / 'mark this point', or before a risky change / when the context window is filling up, so the exact state can be recalled later and appears in the next session's handoff. Bookmarks are never auto-pruned.", inputSchema: { type: "object", properties: { label: { type: "string", maxLength: 200 }, note: { type: "string", maxLength: 200000, description: "Optional explicit context. Omit to auto-capture the session transcript instead. Stored in a sidecar; not injected into rule files." } }, required: ["label"] } },
   { name: "amp_handoff", description: "AMP: generate the handoff document for the next AI session. format=markdown|json (default: markdown).", inputSchema: { type: "object", properties: { format: { type: "string", enum: ["markdown","json"] } } } },
   { name: "amp_health",  description: "AMP: get the session health score (0-100, A-F grade).", inputSchema: { type: "object", properties: {} } },
 
   // ── Read-only contract helpers ───────────────────────────────────────────
   { name: "infernoflow_status",    description: "Show project memory + contract health at a glance.", inputSchema: { type: "object", properties: {} } },
   { name: "infernoflow_check",     description: "Validate the capability contract (read-only).", inputSchema: { type: "object", properties: {} } },
-  { name: "infernoflow_context",   description: "Generate AI-ready context for a task.", inputSchema: { type: "object", properties: { intent: { type: "string" }, working: { type: "string" } } } },
-  { name: "infernoflow_git_drift", description: "Detect which capabilities may be affected by recent code changes — useful when memory needs branch-aware revalidation.", inputSchema: { type: "object", properties: { sinceCommits: { type: "number", description: "How many commits back to check (default: 1)" } } } },
+  { name: "infernoflow_context",   description: "Generate AI-ready context for a task.", inputSchema: { type: "object", properties: { intent: { type: "string", maxLength: 1000 }, working: { type: "string", maxLength: 1000 } } } },
+  { name: "infernoflow_git_drift", description: "Detect which capabilities may be affected by recent code changes — useful when memory needs branch-aware revalidation.", inputSchema: { type: "object", properties: { sinceCommits: { type: "integer", minimum: 1, maximum: 100, description: "How many commits back to check (default: 1, max: 100)" } } } },
 ];
+
+// ── Input validation ─────────────────────────────────────────────────────────
+// SECURITY: tool arguments come from the model, and the model can be steered by
+// anything it reads (a README, an issue, a memory entry pulled from git). The
+// inputSchema above is advisory to the client only — nothing enforces it — so
+// we enforce it here, before any argument reaches the CLI, git or the disk.
+// Unknown properties are dropped (not rejected) so a chatty client still works.
+const TOOL_SCHEMAS = new Map(TOOLS.map(t => [t.name, t.inputSchema]));
+
+function checkValue(key, v, spec) {
+  const t = spec.type;
+  if (t === "string") {
+    if (typeof v !== "string") return `'${key}' must be a string`;
+    if (spec.maxLength && v.length > spec.maxLength) return `'${key}' is too long (max ${spec.maxLength} characters)`;
+    if (v.includes("\u0000")) return `'${key}' must not contain NUL characters`;
+  } else if (t === "integer" || t === "number") {
+    if (typeof v !== "number" || !Number.isFinite(v)) return `'${key}' must be a number`;
+    if (t === "integer" && !Number.isInteger(v)) return `'${key}' must be a whole number`;
+    if (spec.minimum !== undefined && v < spec.minimum) return `'${key}' must be >= ${spec.minimum}`;
+    if (spec.maximum !== undefined && v > spec.maximum) return `'${key}' must be <= ${spec.maximum}`;
+  } else if (t === "array") {
+    if (!Array.isArray(v)) return `'${key}' must be an array`;
+    if (spec.maxItems && v.length > spec.maxItems) return `'${key}' has too many items (max ${spec.maxItems})`;
+    for (const item of v) { const e = checkValue(`${key}[]`, item, spec.items || {}); if (e) return e; }
+  }
+  if (spec.enum && !spec.enum.includes(v)) return `'${key}' must be one of: ${spec.enum.join(", ")}`;
+  return null;
+}
+
+/** Returns { ok: true, value } with only known, valid properties, or { ok: false, error }. */
+function validateToolInput(name, input) {
+  const schema = TOOL_SCHEMAS.get(name);
+  if (!schema) return { ok: false, error: `Unknown tool: ${name}` };
+  if (input === undefined || input === null) input = {};
+  if (typeof input !== "object" || Array.isArray(input)) return { ok: false, error: "arguments must be an object" };
+  const props = schema.properties || {};
+  const value = {};
+  for (const [key, spec] of Object.entries(props)) {
+    const v = input[key];
+    if (v === undefined || v === null) continue;
+    const err = checkValue(key, v, spec);
+    if (err) return { ok: false, error: `Invalid arguments for ${name}: ${err}` };
+    value[key] = v;
+  }
+  for (const req of schema.required || []) {
+    if (value[req] === undefined || value[req] === "") return { ok: false, error: `Invalid arguments for ${name}: '${req}' is required` };
+  }
+  return { ok: true, value };
+}
+
+/**
+ * Free text that is handed to the CLI as an argument. The CLI's own parser
+ * treats any argument equal to a flag name (e.g. "--watch", "--auto-push") as
+ * that flag, even when it arrives as a separate argv entry. Strip leading
+ * dashes so tool text can never be read as a CLI option.
+ */
+function asCliText(v) {
+  return String(v ?? "").replace(/^[\s-]+/, "");
+}
 
 // ── git drift detection (inline — no external imports in this template file) ─
 function detectGitDrift(sinceCommits) {
   const cwd = PROJECT_DIR;
   const infernoDir = path.join(cwd, "inferno");
 
-  const runGit = (cmd) => {
-    try { return execSync(cmd, { cwd, encoding: "utf8", timeout: 10_000 }); }
+  // SECURITY: git is run with an argument array and no shell.
+  const runGit = (args) => {
+    try { return execFileSync("git", args, { cwd, encoding: "utf8", timeout: 10_000, stdio: ["ignore", "pipe", "ignore"], windowsHide: true, shell: false }); }
     catch { return ""; }
   };
+  const n = Number.isInteger(sinceCommits) && sinceCommits >= 1 && sinceCommits <= 100 ? sinceCommits : 1;
 
   const changedSet = new Set();
   const addLines = (out) => out.split("\n").map(l => l.trim()).filter(Boolean).forEach(f => changedSet.add(f));
 
-  addLines(runGit("git diff --name-only HEAD"));
-  addLines(runGit(`git diff --name-only HEAD~${sinceCommits} HEAD`));
-  addLines(runGit("git ls-files --others --exclude-standard"));
+  addLines(runGit(["diff", "--name-only", "HEAD"]));
+  addLines(runGit(["diff", "--name-only", `HEAD~${n}`, "HEAD"]));
+  addLines(runGit(["ls-files", "--others", "--exclude-standard"]));
 
   const changedFiles = Array.from(changedSet).sort();
   if (!changedFiles.length) return "No changed files detected since last commit.";
@@ -388,29 +486,35 @@ function detectGitDrift(sinceCommits) {
   return lines.join("\n");
 }
 
-function handleTool(id, name, input) {
+function handleTool(id, name, rawInput) {
   try {
+    const checked = validateToolInput(name, rawInput);
+    if (!checked.ok) {
+      const code = checked.error.startsWith("Unknown tool") ? -32601 : -32602;
+      return sendError(id, code, checked.error);
+    }
+    const input = checked.value;
     let text = "";
     // ── Read-only contract helpers ─────────────────────────────────────────
     if (name === "infernoflow_check") {
-      text = runCmd("check");
+      text = runCli(["check"]);
     } else if (name === "infernoflow_status") {
-      text = runCmd("status");
+      text = runCli(["status"]);
     } else if (name === "infernoflow_context") {
-      const parts = [];
-      if (input.intent) parts.push(`--intent "${input.intent}"`);
-      if (input.working) parts.push(`--working "${input.working}"`);
-      text = runCmd("context " + parts.join(" "));
+      const args = ["context"];
+      if (input.intent)  args.push("--intent",  asCliText(input.intent));
+      if (input.working) args.push("--working", asCliText(input.working));
+      text = runCli(args);
     } else if (name === "infernoflow_git_drift") {
-      text = detectGitDrift(input.sinceCommits || 1);
+      text = detectGitDrift(input.sinceCommits ?? 1);
 
     // ── AMP-spec memory tools ──────────────────────────────────────────────
     } else if (name === "amp_read") {
-      const args = [];
-      if (input.query) args.push(JSON.stringify(input.query));
+      const args = ["ask"];
+      if (input.query) args.push(asCliText(input.query));
       if (input.type)  args.push("--type", input.type);
       if (input.limit) args.push("--limit", String(input.limit));
-      text = runCmd("ask " + args.join(" "));
+      text = runCli(args);
     } else if (name === "amp_write") {
       // Prefer in-process write: no subprocess, no `npx` version skew, and
       // file/line/tags reach disk unchanged. The CLI fallback below is only
@@ -445,15 +549,13 @@ function handleTool(id, name, input) {
           return sendError(id, -32000, `amp_write failed (in-process): ${err.message}`);
         }
       } else {
-        // Fallback: shell-out. Pass --file/--line/--tags through the CLI so
-        // they're not silently dropped like in the original implementation.
-        const t = (input.type || "note").replace(/[^a-z]/g, "");
-        const m = JSON.stringify(input.msg || "");
-        const extras = [];
-        if (input.file)                      extras.push("--file", JSON.stringify(input.file));
-        if (input.line)                      extras.push("--line", String(input.line));
-        if (input.tags && input.tags.length) extras.push("--tags", JSON.stringify(input.tags.join(",")));
-        text = runCmd(`log ${m} --type ${t} ${extras.join(" ")}`);
+        // Fallback: run the CLI (argument array, no shell). Pass
+        // --file/--line/--tags through so they're not silently dropped.
+        const args = ["log", asCliText(input.msg), "--type", input.type || "note"];
+        if (input.file)                      args.push("--file", asCliText(input.file));
+        if (input.line)                      args.push("--line", String(input.line));
+        if (input.tags && input.tags.length) args.push("--tags", input.tags.map(asCliText).join(","));
+        text = runCli(args);
       }
     } else if (name === "amp_bookmark") {
       // A bookmark is a `note` entry tagged "bookmark"; the optional `note`
@@ -485,13 +587,13 @@ function handleTool(id, name, input) {
           return sendError(id, -32000, `amp_bookmark failed (in-process): ${err.message}`);
         }
       } else {
-        const l = JSON.stringify(input.label || "");
-        const extras = input.note ? `--note ${JSON.stringify(input.note)}` : "";
-        text = runCmd(`bookmark ${l} ${extras}`);
+        const args = ["bookmark", asCliText(input.label)];
+        if (input.note) args.push("--note", asCliText(input.note));
+        text = runCli(args);
       }
     } else if (name === "amp_handoff") {
       // switch writes a file; we read it back to return the content
-      const switchResult = runCmd("switch");
+      const switchResult = runCli(["switch"]);
       if (isCmdError(switchResult)) {
         return sendError(id, -32000, `infernoflow switch failed: ${switchResult.message}\n${switchResult.stderr || switchResult.stdout || ""}`.trim());
       }
@@ -508,20 +610,20 @@ function handleTool(id, name, input) {
         text = "(handoff generated; could not read back: " + err.message + ")";
       }
     } else if (name === "amp_search") {
-      const args = [JSON.stringify(input.query || "")];
+      const args = ["ask", asCliText(input.query)];
       if (input.type) args.push("--type", input.type);
-      text = runCmd("ask " + args.join(" "));
+      text = runCli(args);
     } else if (name === "amp_health") {
-      const recap = runCmd("recap --json");
+      const recap = runCli(["recap", "--json"]);
       if (isCmdError(recap)) {
-        text = runCmd("status");
+        text = runCli(["status"]);
       } else {
-        text = recap.trim() || runCmd("status");
+        text = recap.trim() || runCli(["status"]);
       }
 
     } else { return sendError(id, -32601, `Unknown tool: ${name}`); }
 
-    // Central error check — if any runCmd() call produced a structured error,
+    // Central error check — if any runCli() call produced a structured error,
     // surface it as a real JSON-RPC error so the calling AI sees a proper
     // failure instead of garbled stderr text mixed into a "successful" reply.
     if (isCmdError(text)) {
