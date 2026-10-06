@@ -85,7 +85,8 @@ These cover 95% of usage:
 | Command | What it does |
 |---|---|
 | `infernoflow log "..."` | Remember a gotcha / decision / attempt / note. `--type gotcha\|decision\|attempt\|preference` |
-| `infernoflow ask "..."` | Search your memory by keyword — gotchas surface first |
+| `infernoflow resume` | **🆕 0.46** "Where were we?" in one call — last resume point, open dead ends, recent decisions, uncommitted work. `--file <path>` ranks by file |
+| `infernoflow ask "..."` | Search your memory by keyword — gotchas surface first. `--file <path>` ranks entries about that file first |
 | `infernoflow switch` | Generate a handoff for the next session. `--copy` puts it on your clipboard |
 | `infernoflow recap` | End-of-session summary with health score + unlogged-change detection |
 | `infernoflow status` | Quick health check — entries, gotchas, decisions, last activity |
@@ -93,6 +94,11 @@ These cover 95% of usage:
 | `infernoflow refresh` | Manually rebuild `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` from memory |
 | `infernoflow forget <id\|prefix>` | Delete a memory entry without hand-editing JSONL. `--last` for the newest |
 | `infernoflow prune` | Archive stale `note` / `attempt` entries older than 30 days. Gotchas/decisions/bookmarks never auto-pruned. Default dry-run; `--apply` to act |
+| `infernoflow resolve <id>` | **🆕 0.46** Mark an entry fixed/outdated — stays searchable, no longer injected. Entries whose file changed since they were written show **"may be stale"** |
+| `infernoflow curate` | **🆕 0.46** Remove noise: old commit notes, duplicates, raw frustration prompts. Dry-run; `--apply` |
+| `infernoflow move <id…> --to <dir>` | **🆕 0.46** Move misfiled entries to another project's memory. Dry-run; `--apply` |
+
+Any command takes `--project <dir>` to work on another project's memory (multi-folder workspaces, hooks, agents).
 
 In practice you barely run any of these — the MCP-aware AI does it for you. The CLI is for grep-style introspection.
 
@@ -193,8 +199,9 @@ When the MCP server is wired, your AI agent can call these directly in chat:
 
 | Tool | What it does |
 |---|---|
-| `amp_write` | Log an entry (`type`, `msg`, optional `file` / `line` / `tags` / `detail`) |
-| `amp_read` | Read entries with optional filters |
+| `amp_write` | Log an entry (`type`, `msg`, optional `file` / `line` / `tags` / `detail`). In a multi-folder workspace an entry about another open folder's file goes to that folder's memory |
+| `amp_resume` | **🆕 0.46** "Where were we?" — last resume point, open dead ends, recent decisions, uncommitted changes |
+| `amp_read` | Read entries with optional filters (`type`, `query`, `file` — entries about that file rank first) |
 | `amp_search` | Keyword search across entries |
 | `amp_bookmark` | **🆕** Drop a named resume point — auto-captures the current session transcript when no `note` is given |
 | `amp_handoff` | Generate the handoff document for the next AI session |

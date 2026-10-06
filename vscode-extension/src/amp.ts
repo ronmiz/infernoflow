@@ -13,6 +13,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import { AMP, AMPEntry, AMPConfig, EntryType, HealthScore } from "infernoflow-amp";
+import { redactSecrets } from "./redact";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -102,7 +103,13 @@ class AmpIO {
   write(entry: { type: EntryType; msg: string; file?: string; line?: number; tags?: string[]; source?: string }): AMPEntry | undefined {
     if (!this.amp || !this.root) return undefined;
     try {
-      return this.amp.write({ ...entry, source: entry.source || "vscode-extension" });
+      // Memory is committed with the repo — redact secrets before writing (CLI parity).
+      return this.amp.write({
+        ...entry,
+        msg: redactSecrets(entry.msg),
+        ...(entry.tags ? { tags: entry.tags.map(t => redactSecrets(t)) } : {}),
+        source: entry.source || "vscode-extension",
+      });
     } catch (err: unknown) {
       const m = err instanceof Error ? err.message : String(err);
       vscode.window.showErrorMessage(`infernoflow: failed to write entry — ${m}`);
@@ -235,7 +242,7 @@ class AmpIO {
         // Translate legacy infernoflow shape → AMP shape via the lib's write
         amp.write({
           type: (parsed.type as EntryType) || "note",
-          msg:  parsed.summary || parsed.msg || "",
+          msg:  redactSecrets(parsed.summary || parsed.msg || ""),
           file: parsed.file,
           line: parsed.line,
           tags: parsed.tags,

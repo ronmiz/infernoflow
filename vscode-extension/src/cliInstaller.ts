@@ -16,6 +16,7 @@
  *   it. This module makes the wiring automatic.
  */
 
+import { spawnCli } from "./cli";
 import * as vscode from "vscode";
 import * as cp from "child_process";
 import * as fs from "fs";
@@ -29,7 +30,7 @@ const CLI_BIN = "infernoflow";
 // one-click `npm install -g infernoflow@latest`. Bump this in lockstep with the
 // CLI whenever a release adds behavior the extension expects. Keep it a plain
 // x.y.z string (compared numerically below).
-const RECOMMENDED_CLI_VERSION = "0.44.12";
+const RECOMMENDED_CLI_VERSION = "0.46.0";   // security fixes (0.44.20 → 0.46.0)
 
 /** True if installed version a is strictly older than b (both "x.y.z"). */
 function isOlderVersion(a: string, b: string): boolean {
@@ -159,11 +160,10 @@ async function runSetup(cwd: string): Promise<void> {
       title: "infernoflow: wiring up MCP servers…",
     },
     () => new Promise<void>(resolve => {
-      const child = cp.spawn(CLI_BIN, ["setup", "--yes"], {
-        cwd,
-        shell: true,
-        windowsHide: true,
-      });
+      // No shell, and the CLI is resolved outside the workspace (see cli.ts):
+      // with shell:true, cmd.exe would run an `infernoflow.cmd` planted in the repo.
+      const child = spawnCli(["setup", "--yes"], { cwd });
+      if (!child) { resolve(); return; }
       child.on("error", () => resolve());
       child.on("close", () => resolve());
       // Cap setup at 30s — if something hangs, don't freeze the extension load
@@ -190,6 +190,12 @@ function setupKey(folder: vscode.WorkspaceFolder): string {
  * Runs in the background so activation stays snappy.
  */
 export async function ensureCliAndSetup(context: vscode.ExtensionContext): Promise<void> {
+  // Restricted Mode (untrusted workspace): never install, probe or run the CLI
+  // in it. Run once the user grants trust.
+  if (!vscode.workspace.isTrusted) {
+    context.subscriptions.push(vscode.workspace.onDidGrantWorkspaceTrust(() => { void ensureCliAndSetup(context); }));
+    return;
+  }
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (!folder) return; // No workspace open — nothing to set up against
 

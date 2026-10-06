@@ -46,7 +46,12 @@ function lookupOnPath(name) {
   try {
     const finder = process.platform === "win32" ? "where" : "which";
     const out = execFileSync(finder, [name], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true, shell: false });
-    return out.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    // `where` (Windows) searches the current folder first. Never accept a
+    // launcher inside the project / workspace — a cloned repo could plant one.
+    const roots = [process.cwd(), process.env.INFERNOFLOW_PROJECT_DIR, ...(process.env.WORKSPACE_FOLDER_PATHS || "").split(path.delimiter)]
+      .filter(Boolean).map(r => path.resolve(r).toLowerCase());
+    const inside = (p) => { const r = path.resolve(p).toLowerCase(); return roots.some(w => r === w || r.startsWith(w + path.sep)); };
+    return out.split(/\r?\n/).map(s => s.trim()).filter(Boolean).filter(c => !inside(c));
   } catch { return []; }
 }
 
@@ -106,11 +111,15 @@ function sendError(id, code, message) { send({ jsonrpc: "2.0", id, error: { code
 // We never execute the npm `.cmd` / shell-script wrapper: running those needs
 // a shell, and a shell turns tool arguments into commands.
 function resolveInfernoflowBin() {
+  // Prefer the CLI that ships next to THIS server file: dist/templates → dist/bin
+  // (installed package), templates → bin (running from a source checkout).
+  const here = fileURLToPath(import.meta.url).split(path.sep).join("/");
+  const fromDist = /\/dist\/templates\//.test(here);
   const fromRoot = (root) => {
-    for (const c of [
-      path.join(root, "dist", "bin", "infernoflow.mjs"),
-      path.join(root, "bin",  "infernoflow.mjs"),
-    ]) if (fs.existsSync(c)) return c;
+    const order = fromDist
+      ? [path.join(root, "dist", "bin", "infernoflow.mjs"), path.join(root, "bin", "infernoflow.mjs")]
+      : [path.join(root, "bin", "infernoflow.mjs"), path.join(root, "dist", "bin", "infernoflow.mjs")];
+    for (const c of order) if (fs.existsSync(c)) return c;
     return null;
   };
   if (INFERNOFLOW_ROOT) {
@@ -143,6 +152,9 @@ const INFERNOFLOW_BIN = resolveInfernoflowBin();
 // CLI entirely — no subprocess, no version skew, no flag-mapping field loss.
 // Falls back to the CLI via runCli() if the AMP layer can't be loaded.
 let ampIo = null;
+// Entry types come from the package's single schema (lib/schema.mjs); this
+// fallback only applies when the package can't be loaded.
+let AGENT_TYPES = ["gotcha","decision","attempt","note","detection","pattern","preference"];
 let refreshRuleFiles = null;
 let harvestSnapshot = null;
 let findProjectRoot = null;
@@ -153,6 +165,12 @@ if (INFERNOFLOW_ROOT) {
       path.join(INFERNOFLOW_ROOT, "dist", "lib", "amp", "io.mjs"),
     ]) {
       if (fs.existsSync(c)) { ampIo = await import(pathToFileURL(c).href); break; }
+    }
+    for (const c of [
+      path.join(INFERNOFLOW_ROOT, "lib",  "schema.mjs"),
+      path.join(INFERNOFLOW_ROOT, "dist", "lib", "schema.mjs"),
+    ]) {
+      if (fs.existsSync(c)) { const m = await import(pathToFileURL(c).href); if (Array.isArray(m.AGENT_TYPES)) AGENT_TYPES = m.AGENT_TYPES; break; }
     }
     for (const c of [
       path.join(INFERNOFLOW_ROOT, "lib",  "ruleFiles.mjs"),
@@ -296,10 +314,11 @@ function isCmdError(result) {
 // helpers that pair cleanly with the kept CLI surface.
 const TOOLS = [
   // ── AMP-spec memory tools (the product) ──────────────────────────────────
-  { name: "amp_read",    description: "AMP: read session memory entries with optional filters.", inputSchema: { type: "object", properties: { file: { type: "string", maxLength: 1000 }, type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] }, query: { type: "string", maxLength: 500 }, limit: { type: "integer", minimum: 1, maximum: 200 } } } },
-  { name: "amp_write",   description: "AMP: log a new entry. Required: type + msg (one sentence). Optional: file, line, tags, detail. Use 'detail' for a rich multi-paragraph body (repro steps, code, full reasoning, or a session snapshot) — it's stored in a sidecar and loaded on demand, so it never bloats the always-on memory index.", inputSchema: { type: "object", properties: { type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] }, msg: { type: "string", maxLength: 2000 }, file: { type: "string", maxLength: 1000 }, line: { type: "integer", minimum: 1, maximum: 10000000 }, tags: { type: "array", maxItems: 20, items: { type: "string", maxLength: 100 } }, detail: { type: "string", maxLength: 200000, description: "Optional rich body (Tier-2). Stored in the consolidated details store; NOT injected into rule files. Put the long-form context here; keep 'msg' to one summary sentence." } }, required: ["type","msg"] } },
-  { name: "amp_search",  description: "AMP: search entries by keyword. Optional type filter.", inputSchema: { type: "object", properties: { query: { type: "string", maxLength: 500 }, type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] } }, required: ["query"] } },
+  { name: "amp_read",    description: "AMP: read session memory entries with optional filters.", inputSchema: { type: "object", properties: { file: { type: "string", maxLength: 1000 }, type: { type: "string", enum: AGENT_TYPES }, query: { type: "string", maxLength: 500 }, limit: { type: "integer", minimum: 1, maximum: 200 } } } },
+  { name: "amp_write",   description: "AMP: log a new entry. Required: type + msg (one sentence). Optional: file, line, tags, detail. Use 'detail' for a rich multi-paragraph body (repro steps, code, full reasoning, or a session snapshot) — it's stored in a sidecar and loaded on demand, so it never bloats the always-on memory index.", inputSchema: { type: "object", properties: { type: { type: "string", enum: AGENT_TYPES }, msg: { type: "string", maxLength: 2000 }, file: { type: "string", maxLength: 1000 }, line: { type: "integer", minimum: 1, maximum: 10000000 }, tags: { type: "array", maxItems: 20, items: { type: "string", maxLength: 100 } }, detail: { type: "string", maxLength: 200000, description: "Optional rich body (Tier-2). Stored in the consolidated details store; NOT injected into rule files. Put the long-form context here; keep 'msg' to one summary sentence." } }, required: ["type","msg"] } },
+  { name: "amp_search",  description: "AMP: search entries by keyword. Optional type filter.", inputSchema: { type: "object", properties: { query: { type: "string", maxLength: 500 }, type: { type: "string", enum: AGENT_TYPES } }, required: ["query"] } },
   { name: "amp_bookmark", description: "AMP: drop a named session bookmark — a resume point. Required: label (short name). Optional: note. If note is OMITTED, the current session transcript is auto-captured as the bookmark's context (the 'save everything here' resume point). Use when the user says 'bookmark this' / 'mark this point', or before a risky change / when the context window is filling up, so the exact state can be recalled later and appears in the next session's handoff. Bookmarks are never auto-pruned.", inputSchema: { type: "object", properties: { label: { type: "string", maxLength: 200 }, note: { type: "string", maxLength: 200000, description: "Optional explicit context. Omit to auto-capture the session transcript instead. Stored in a sidecar; not injected into rule files." } }, required: ["label"] } },
+  { name: "amp_resume",  description: "AMP: 'where were we?' in one call — the latest resume point with its note, open dead ends (don't repeat them), recent decisions/notes, uncommitted changes, and which memory store this is. Call it at the start of work in a session. Optional: file (rank entries about that file first).", inputSchema: { type: "object", properties: { file: { type: "string", maxLength: 1000 } } } },
   { name: "amp_handoff", description: "AMP: generate the handoff document for the next AI session. format=markdown|json (default: markdown).", inputSchema: { type: "object", properties: { format: { type: "string", enum: ["markdown","json"] } } } },
   { name: "amp_health",  description: "AMP: get the session health score (0-100, A-F grade).", inputSchema: { type: "object", properties: {} } },
 
@@ -486,6 +505,39 @@ function detectGitDrift(sinceCommits) {
   return lines.join("\n");
 }
 
+// ── D5 (0.46.0): write to the repo the entry is about ─────────────────────
+// In a multi-folder workspace the server runs for one project, but the agent
+// may be working on files of another open folder. When amp_write / bookmark
+// name a `file` inside ANOTHER workspace root that has its own .ai-memory,
+// the entry goes there. Only roots the IDE itself reports are considered
+// (WORKSPACE_FOLDER_PATHS) — never an arbitrary path from the tool input.
+function workspaceRoots() {
+  const roots = (process.env.WORKSPACE_FOLDER_PATHS || "").split(path.delimiter).filter(Boolean);
+  const out = [];
+  for (const r of roots) {
+    try { const real = fs.realpathSync(r); if (fs.existsSync(path.join(real, ".ai-memory"))) out.push(real); } catch { /* gone */ }
+  }
+  return out;
+}
+function routeByFile(file) {
+  const fallback = { dir: PROJECT_DIR, file };
+  if (!file) return fallback;
+  let abs;
+  try { abs = path.resolve(PROJECT_DIR, String(file)); } catch { return fallback; }
+  const inside = (root) => { const rel = path.relative(root, abs); return rel && !rel.startsWith("..") && !path.isAbsolute(rel) ? rel : null; };
+  // Store paths relative to their project (no absolute paths in shared memory).
+  const own = inside(PROJECT_DIR);
+  if (own) return { dir: PROJECT_DIR, file: own.split(path.sep).join("/") };
+  for (const root of workspaceRoots()) {
+    if (path.resolve(root) === path.resolve(PROJECT_DIR)) continue;
+    const rel = inside(root);
+    if (rel) return { dir: root, file: rel.split(path.sep).join("/") };
+  }
+  // Outside every known root: keep the entry here but don't store an absolute
+  // path (it would leak this machine's layout into shared memory).
+  return { dir: PROJECT_DIR, file: path.isAbsolute(String(file)) ? undefined : file };
+}
+
 function handleTool(id, name, rawInput) {
   try {
     const checked = validateToolInput(name, rawInput);
@@ -514,6 +566,11 @@ function handleTool(id, name, rawInput) {
       if (input.query) args.push(asCliText(input.query));
       if (input.type)  args.push("--type", input.type);
       if (input.limit) args.push("--limit", String(input.limit));
+      if (input.file)  args.push("--file", asCliText(input.file));   // D16: rank by file
+      text = runCli(args);
+    } else if (name === "amp_resume") {
+      const args = ["resume"];
+      if (input.file) args.push("--file", asCliText(input.file));
       text = runCli(args);
     } else if (name === "amp_write") {
       // Prefer in-process write: no subprocess, no `npx` version skew, and
@@ -530,19 +587,21 @@ function handleTool(id, name, rawInput) {
                    :  process.env.COPILOT_SESSION      ? "copilot"
                    :                                     "claude"),
         };
-        if (input.file)                       entry.file = input.file;
+        const routed = routeByFile(input.file);
+        if (routed.file)                      entry.file = routed.file;
         if (input.line)                       entry.line = input.line;
         if (input.tags && input.tags.length)  entry.tags = input.tags;
         if (input.detail && String(input.detail).trim()) entry.detail = String(input.detail);
         try {
-          const written = ampIo.appendEntry(PROJECT_DIR, entry);
+          const written = ampIo.appendEntry(routed.dir, entry);
           // NOTE: rule-file refresh deliberately NOT called here — clean-tree
           // policy regenerates them once at MCP boot only. Doing it on every
           // write dirties tracked files and blocks `git checkout`. Within a
           // session, the agent uses amp_read for fresh queries; rule files
           // are for cold-start injection of the *next* session.
           // D3 (0.45.0): always say which store was written, so a wrong store is visible.
-          text = (typeof ampIo.describeStore === "function" ? ampIo.describeStore(PROJECT_DIR) + "\n" : "") +
+          text = (typeof ampIo.describeStore === "function" ? ampIo.describeStore(routed.dir) + "\n" : "") +
+                 (routed.dir !== PROJECT_DIR ? `↪ routed to ${path.basename(routed.dir)} (the file belongs to that workspace folder)\n` : "") +
                  `✔ Logged [${written.type}] ${written.id}\n  msg:  ${written.msg}` +
                  (written.meta && written.meta.redacted ? `\n  ⚠ secrets redacted: ${written.meta.redacted.join(", ")}` : "") +
                  (written.file ? `\n  file: ${written.file}${written.line ? ":" + written.line : ""}` : "") +

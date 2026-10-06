@@ -18,7 +18,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawnSync, execFileSync } from "node:child_process";
 
-// infernoflow-hook-version: 2
+// infernoflow-hook-version: 3
 // SECURITY (0.44.20): the CLI is run as `node infernoflow.mjs ...` with NO
 // shell. Before 0.44.20 this hook used spawnSync("infernoflow.cmd", args,
 // { shell: true }) on Windows, which hands the prompt text to cmd.exe
@@ -27,11 +27,16 @@ function findCliMjs() {
   let hits = [];
   try {
     const finder = process.platform === "win32" ? "where" : "which";
-    hits = execFileSync(finder, ["infernoflow"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true, timeout: 3000 })
+    hits = execFileSync(finder, ["infernoflow"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true, timeout: 10_000 })
       .split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
   } catch {}
+  // `where` (Windows) searches the current folder first — never use a
+  // launcher that lives inside the project (a cloned repo could plant one).
+  const proj = path.resolve(projectRoot()).toLowerCase();
+  const inProject = (p) => { const r = path.resolve(p).toLowerCase(); return r === proj || r.startsWith(proj + path.sep); };
   for (const c of hits) {
-    try { const real = fs.realpathSync(c); if (/\.m?js$/i.test(real)) return real; } catch {}
+    if (inProject(c)) continue;
+    try { const real = fs.realpathSync(c); if (/\.m?js$/i.test(real) && !inProject(real)) return real; } catch {}
     const d = path.dirname(c);
     for (const pkg of [path.join(d, "node_modules", "infernoflow"), path.join(d, "..", "lib", "node_modules", "infernoflow")]) {
       for (const f of [path.join(pkg, "dist", "bin", "infernoflow.mjs"), path.join(pkg, "bin", "infernoflow.mjs")]) {

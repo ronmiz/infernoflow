@@ -1,0 +1,5 @@
+import{readEntries as u,updateEntry as f}from"../amp/io.mjs";import{gray as a,green as m,red as h,cyan as y}from"../ui/output.mjs";function g(e,t){if(!t||t.length<6)return{error:"give at least 6 characters of the entry id (see: infernoflow ask)"};const r=u(e).filter(o=>o.id&&o.id.startsWith(t));return r.length?r.length>1?{error:`${r.length} entries match ${t} \u2014 use more characters`}:{entry:r[0]}:{error:`no entry with id starting ${t}`}}async function w(e=[]){const t=process.cwd(),r=e.slice(1).find(n=>!n.startsWith("--")&&e[e.indexOf(n)-1]!=="--note"),o=e.indexOf("--note"),i=o!==-1?String(e[o+1]||"").slice(0,500):null,d=e.includes("--undo"),{entry:s,error:c}=g(t,r);if(c){console.error(h(`
+  \u2718 `+c+`
+`)),process.exitCode=1;return}const l=f(t,s.id,n=>(d?delete n.meta.resolved:n.meta.resolved={ts:Date.now(),...i?{note:i}:{}},Object.keys(n.meta).length||delete n.meta,n));console.log(`
+  `+m("\u2714 ")+(d?"Re-opened ":"Resolved ")+y(s.id)+a(` (${l.updated} cop${l.updated===1?"y":"ies"})`)),console.log("  "+a(s.summary||s.msg||"")+`
+`)}export{g as findByIdPrefix,w as resolveCommand};

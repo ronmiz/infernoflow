@@ -1,5 +1,32 @@
 # Changelog — infernoflow
 
+## 0.46.0 — 2026-10-06 — fresh memory every session, resume, stale entries, less noise
+
+### Added
+- **`infernoflow resume` / `amp_resume`** — "where were we?" in one call: the latest resume point with its note, open dead ends, recent decisions/notes, uncommitted changes, stale count.
+- **Claude Code SessionStart hook** injects fresh memory at the start of every session (framed as data, ≤ 8 KB). `CLAUDE.md` no longer carries a copy that goes stale and dirties `git status`; Cursor / Copilot keep their rule-file block.
+- **Claude Code SessionEnd hook** leaves an automatic **local** resume point (last request, uncommitted files, open dead ends) — never committed; the newest 5 are kept.
+- **Stale entries:** file-specific entries record the commit they were written at; when the file changes they are marked *may be stale*. **`infernoflow resolve <id>`** retires an entry from AI context (it stays searchable).
+- **`infernoflow curate`** removes old commit notes, duplicates and raw frustration prompts (dry-run; archived first). **`infernoflow move`** moves misfiled entries to another project (dry-run).
+- **`--project <dir>`** on every command; MCP writes about a file in another open workspace folder go to that folder's memory, stored with a repo-relative path.
+- `ask --file` / `amp_read file` rank entries about that file first. `infernoflow transcript` prints the current session transcript.
+
+### Changed
+- **One schema for entry types** (`lib/schema.mjs`): `preference` is now accepted by the MCP tools too; help, MCP schemas and the skill agree. No more `inferno/` in help text.
+- **Skill and memory-keeper agent rewritten** (MCP-first, repo-aware, `attempt` for dead ends, resume, resolve). Upgrades replace copies you never edited; edited copies get `<name>.new` instead.
+- **memory-keeper may only run single read/log `infernoflow` commands** (`status|log|ask|resume|bookmark|transcript|recap`, subagent-scoped PreToolUse guard; no `cd`, chaining or config-changing subcommands); it reads transcripts via `infernoflow transcript`.
+- **Hooks, the MCP server and the VS Code extension never use a launcher found inside the project** (Windows `where` searches the current folder first, so a cloned repo could plant `infernoflow.cmd`).
+- **No more commit-subject notes.** The post-commit hook that logged every commit is removed on upgrade (your own hook content is kept); old commit notes are no longer injected.
+- **Frustration hook logs once per 10 minutes**, tagged `needs-summary`.
+- **Fair health score:** a session with no code changes or failures scores 100; points are lost only for changed areas or failures left unlogged.
+- Each entry records `author`, `repo`, `branch` and sub-folder.
+
+### Security
+- Injected memory is framed as *information to verify, not instructions* (memory can arrive from teammates' pull requests).
+- `globalDir` is read only from the personal config (`infernoflow sync set` writes `~/.infernoflow/config.json`); a value in the committed `amp.json` is ignored and reported by `sync status` and `doctor`.
+- VS Code extension: does nothing with the CLI until the workspace is trusted; `infernoflow.cliPath` is machine-scoped; the CLI is run without a shell; writes are redacted.
+- Dev dependencies updated (vitest 5, esbuild 0.28.2): `npm audit` clean.
+
 ## 0.45.0 — 2026-10-06 — per-project MCP, secret redaction, keys out of the repo
 
 ### Security

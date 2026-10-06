@@ -16,7 +16,9 @@ export default defineConfig({
     setupFiles: ["tests/setup-isolated-home.mjs"],
     globals: false,
     pool: "threads",
-    testTimeout: includeInstallTests ? 240_000 : 15_000,
+    testTimeout: includeInstallTests ? 240_000 : 45_000,
+    // Slow Windows machines: beforeEach/afterEach create and delete git repos.
+    hookTimeout: 45_000,
     reporters: ["default"],
   },
 });

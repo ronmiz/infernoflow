@@ -2,7 +2,7 @@
   "name": "infernoflow",
   "displayName": "infernoflow",
   "description": "Persistent memory for AI coding sessions \u2014 live sidebar over .ai-memory/ (AMP). Captures gotchas, decisions, dead ends and replays them into Cursor / Copilot / Claude / Windsurf.",
-  "version": "0.7.20",
+  "version": "0.7.21",
   "publisher": "infernoflow",
   "license": "MIT",
   "repository": {
@@ -37,6 +37,13 @@
     "context-switching"
   ],
   "icon": "media/icon.png",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In untrusted workspaces infernoflow only shows memory: it does not install, probe or run the CLI until you trust the workspace.",
+      "restrictedConfigurations": ["infernoflow.cliPath"]
+    }
+  },
   "activationEvents": [
     "onStartupFinished",
     "workspaceContains:.ai-memory/sessions.jsonl",
@@ -277,7 +284,8 @@
         "infernoflow.cliPath": {
           "type": "string",
           "default": "infernoflow",
-          "description": "Path to the infernoflow CLI (used for `switch` and other write-side ops). Default 'infernoflow' must be on PATH."
+          "scope": "machine",
+          "description": "Path to the infernoflow CLI (used for `switch` and other write-side ops). Default 'infernoflow' must be on PATH. Machine-level setting: a workspace cannot change it."
         },
         "infernoflow.showStatusBar": {
           "type": "boolean",

@@ -103,6 +103,12 @@ const COMMAND_DESCRIPTIONS = {
   // ── Namespace ──────────────────────────────────────────────────────────
   amp: "AI Memory Protocol — status, migrate, validate (run: infernoflow amp)",
   mcp: "Run the MCP server (used by AI tool configs — not run by hand)",
+  resume:     "Where were we? Latest resume point, open dead ends, recent decisions, uncommitted work",
+  resolve:    "Mark an entry resolved (kept searchable, no longer injected) — resolve <id> [--note]",
+  move:       "Move misfiled entries to another project — move <id…>|--query q --to <dir> [--apply]",
+  curate:     "Remove noise: commit notes, duplicates, old raw frustration prompts [--apply]",
+  transcript: "Print this project's current Claude Code session transcript (plain text)",
+  hook:       "Entry point for AI-tool hooks (session-start / session-end) — not run by hand",
 };
 
 const COMMAND_HANDLERS = {
@@ -123,6 +129,12 @@ const COMMAND_HANDLERS = {
   doctor:  async (args) => (await import("../lib/commands/doctor.mjs")).doctorCommand(args),
   context: async (args) => (await import("../lib/commands/context.mjs")).contextCommand(args),
   mcp:     async (args) => (await import("../lib/commands/mcp.mjs")).mcpCommand(args),
+  hook:    async (args) => (await import("../lib/commands/hook.mjs")).hookCommand(args),
+  resume:  async (args) => (await import("../lib/commands/resume.mjs")).resumeCommand(args),
+  resolve: async (args) => (await import("../lib/commands/resolve.mjs")).resolveCommand(args),
+  move:    async (args) => (await import("../lib/commands/move.mjs")).moveCommand(args),
+  curate:  async (args) => (await import("../lib/commands/curate.mjs")).curateCommand(args),
+  transcript: async (args) => (await import("../lib/commands/transcript.mjs")).transcriptCommand(args),
 
   // ide wiring
   "install-cursor-hooks":         async (args) => (await import("../lib/commands/installCursorHooks.mjs")).installCursorHooksCommand(args),
@@ -153,8 +165,8 @@ function formatCommandsHelp() {
 }
 
 const COMMAND_GROUPS = {
-  "Memory":                       ["log", "ask", "switch", "recap", "status", "refresh", "forget", "prune", "bookmark"],
-  "Setup":                        ["init", "setup", "doctor", "context", "mcp"],
+  "Memory":                       ["log", "ask", "resume", "switch", "recap", "status", "bookmark", "resolve", "refresh", "forget", "prune", "curate", "move", "transcript"],
+  "Setup":                        ["init", "setup", "doctor", "context", "mcp", "hook"],
   "IDE wiring":                   ["install-cursor-hooks", "install-vscode-copilot-hooks", "generate-skills"],
   "Configuration":                ["ai", "telemetry", "sync", "uninstall"],
   "Contract":                     ["check"],
@@ -238,6 +250,24 @@ if (!commands.includes(cmd)) {
   process.exit(1);
 }
 
+// D5 (0.46.0): `--project <dir>` runs any command against another project's
+// memory (for hooks, agents and multi-folder workspaces) — equivalent to
+// running it from that folder.
+const projIdx = rest.indexOf("--project");
+if (projIdx !== -1) {
+  const dir = rest[projIdx + 1];
+  const abs = dir ? path.resolve(dir) : null;
+  if (!abs || !fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) {
+    console.error(red(`\n  ✘ --project: not a folder: ${dir || "(missing)"}\n`));
+    process.exit(1);
+  }
+  if (!["init", "setup"].includes(cmd) && !fs.existsSync(path.join(abs, ".ai-memory")) && !fs.existsSync(path.join(abs, "inferno"))) {
+    console.error(red(`\n  ✘ --project: ${abs} has no .ai-memory/ — run infernoflow init there\n`));
+    process.exit(1);
+  }
+  rest.splice(projIdx, 2);
+  process.chdir(abs);
+}
 const args = [cmd, ...rest];
 
 // ── Silent version-skew backfill ──────────────────────────────────────────

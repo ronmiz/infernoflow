@@ -71,7 +71,7 @@ describe("upgrade backfill replaces outdated security-sensitive copies", () => {
     expect(cursorHook).toBe(fs.readFileSync(TMPL_CURSOR_HOOK, "utf8"));
 
     const claudeHook = fs.readFileSync(path.join(project, ".claude", "hooks", "log-frustration.mjs"), "utf8");
-    expect(claudeHook).toContain("infernoflow-hook-version: 2");
+    expect(claudeHook).toContain("infernoflow-hook-version: 3");
     expect(claudeHook).not.toMatch(/shell:\s*process\.platform/);
 
     // The user is told, on stderr, and asked to restart their AI tool.
