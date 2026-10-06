@@ -18,7 +18,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawnSync, execFileSync } from "node:child_process";
 
-// infernoflow-hook-version: 3
+// infernoflow-hook-version: 4
 // SECURITY (0.44.20): the CLI is run as `node infernoflow.mjs ...` with NO
 // shell. Before 0.44.20 this hook used spawnSync("infernoflow.cmd", args,
 // { shell: true }) on Windows, which hands the prompt text to cmd.exe
@@ -272,14 +272,14 @@ function handleUserPrompt(text) {
   if (state.lastTs && now - state.lastTs < COOLDOWN_MS) return; // rate-limit
 
   const msg = "Auto-trigger — user signalled trouble: " +
-    trimmed.replace(/\s+/g, " ").slice(0, 180);
+    trimmed.replace(/\s+/g, " ").slice(0, 60);   // R5.2: keep only a short prefix of the prompt
 
   // Prefer the CLI (correct id / branch routing / AMP shape); fall back to a
   // direct sessions.jsonl append so capture still works without a global CLI.
   let wrote = false;
   try {
     const r = runCli(["log", asCliText(msg), "--type", "attempt", "--source", "cursor-trigger", "--tags", "auto-trigger"], {
-      cwd: projectRoot(), encoding: "utf8", timeout: 8000,
+      cwd: projectRoot(), encoding: "utf8", timeout: 15000,
     });
     wrote = !!r && r.status === 0;
   } catch { /* fall through to direct write */ }

@@ -71,7 +71,7 @@ describe("upgrade backfill replaces outdated security-sensitive copies", () => {
     expect(cursorHook).toBe(fs.readFileSync(TMPL_CURSOR_HOOK, "utf8"));
 
     const claudeHook = fs.readFileSync(path.join(project, ".claude", "hooks", "log-frustration.mjs"), "utf8");
-    expect(claudeHook).toContain("infernoflow-hook-version: 3");
+    expect(claudeHook).toContain("infernoflow-hook-version: 4");
     expect(claudeHook).not.toMatch(/shell:\s*process\.platform/);
 
     // The user is told, on stderr, and asked to restart their AI tool.
@@ -135,5 +135,8 @@ describe("Claude Code prompt hook never uses a shell", () => {
     expect(fs.existsSync(sessions)).toBe(true);
     const text = fs.readFileSync(sessions, "utf8");
     expect(text).toContain("User frustration: still not working &");
+    // R5.2 (0.46.1): at most 60 characters of the prompt are kept.
+    const logged = JSON.parse(text.split("\n").find(l => l.includes("User frustration:"))).msg;
+    expect(logged.length).toBeLessThanOrEqual("User frustration: ".length + 60);
   });
 });

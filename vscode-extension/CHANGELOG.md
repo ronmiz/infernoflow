@@ -2,7 +2,7 @@
 
 ## 0.7.21 — 2026-10-06 — security hardening
 
-Pairs with CLI 0.46.0.
+Pairs with CLI 0.46.1.
 - **Restricted Mode:** in an untrusted workspace the extension only shows memory — it does not install, probe or run the CLI until you trust the workspace.
 - A CLI launcher found **inside the workspace** is never used.
 - `infernoflow.cliPath` is now a **machine-level** setting — a workspace's `.vscode/settings.json` can no longer point it at a program of its choosing — and it is restricted in untrusted workspaces.

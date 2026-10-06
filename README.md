@@ -16,7 +16,17 @@ infernoflow is a local-first CLI + VS Code extension + open protocol (AMP) that 
 
 ---
 
-## What's new — 🆕 v0.44.10: session bookmarks
+## What's new in 0.46
+
+- **Fresh memory every Claude Code session** — a SessionStart hook injects current memory (framed as information to verify, not instructions); `CLAUDE.md` no longer carries a copy that goes stale.
+- **`infernoflow resume`** — "where were we?" in one call. Claude Code also leaves an automatic local resume point when a session ends.
+- **Stale and resolved entries** — entries about a file that changed since are marked *may be stale*; `infernoflow resolve <id>` retires one from AI context.
+- **Review what arrives through git** (0.46.1) — memory added by teammates is listed until you review it, and the GitHub Action shows memory changes in each PR.
+- **Safer by default** — only read-only MCP tools are pre-approved; the memory-keeper agent is limited to single `infernoflow` commands; secrets are redacted; MCP is registered per project.
+
+Full list: [CHANGELOG.md](./CHANGELOG.md).
+
+## Session bookmarks
 
 Drop a **named resume point** mid-session. When the context window fills up or you're about to make a risky change, one command captures the current session's transcript and stores it as a jumpable checkpoint:
 
@@ -41,8 +51,8 @@ Bookmarks are **never auto-pruned**, and they surface in `infernoflow switch` un
 
 `init` now installs two things into `.claude/` so the loop runs itself on Claude Code:
 
-- **`infernoflow-memory` skill** (`.claude/skills/`) — teaches the agent to start warm (`recap`), then proactively `log` real gotchas, decisions-with-a-*because*, dead ends, and durable preferences, and drop a `bookmark` at stopping points or when you say *"bookmark this"*. Capture is **balanced** — it skips routine steps, anything obvious from the code, secrets, and duplicates.
-- **`memory-keeper` subagent** (`.claude/agents/`) — a specialist you can delegate to. It sweeps the session, dedupes against what's already stored, logs what's worth keeping, drops bookmarks, and reports back. It never edits code or logs secrets.
+- **`infernoflow-memory` skill** (`.claude/skills/`) — teaches the agent to start warm (`resume`), then proactively `log` real gotchas, decisions-with-a-*because*, dead ends, and durable preferences, and drop a `bookmark` at stopping points or when you say *"bookmark this"*. Capture is **balanced** — it skips routine steps, anything obvious from the code, secrets, and duplicates.
+- **`memory-keeper` subagent** (`.claude/agents/`) — a specialist you can delegate to. It sweeps the session, dedupes against what's already stored, logs what's worth keeping, drops bookmarks, and reports back. It never edits code or logs secrets, and a guard limits its shell to single `infernoflow` read/log commands (blocked if the guard can't run).
 
 Both are installed automatically by `infernoflow init` (fresh **and** on re-run of an existing project) and ship in the package — nothing to set up by hand.
 
@@ -88,7 +98,7 @@ These cover 95% of usage:
 | `infernoflow resume` | **🆕 0.46** "Where were we?" in one call — last resume point, open dead ends, recent decisions, uncommitted work. `--file <path>` ranks by file |
 | `infernoflow ask "..."` | Search your memory by keyword — gotchas surface first. `--file <path>` ranks entries about that file first |
 | `infernoflow switch` | Generate a handoff for the next session. `--copy` puts it on your clipboard |
-| `infernoflow recap` | End-of-session summary with health score + unlogged-change detection |
+| `infernoflow recap` | End-of-session summary with health score + unlogged-change detection; lists memory that arrived through git and marks it reviewed |
 | `infernoflow status` | Quick health check — entries, gotchas, decisions, last activity |
 | `infernoflow bookmark "..."` | **🆕** Drop a named resume point — auto-captures the session transcript as its context. `list` / `show <id\|label>` / `rm` round it out. Surfaces in `switch`. Never auto-pruned. |
 | `infernoflow refresh` | Manually rebuild `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` from memory |
@@ -162,13 +172,15 @@ infernoflow prune --apply --max-age-days 14          # one-off cleanup
 ├── branches/
 │   ├── main.jsonl              ← project-wide truths (git-tracked)
 │   └── feature-auth.jsonl      ← your current branch's work (git-tracked)
-├── details/                    ← Tier-2 rich bodies (loaded on demand)
-│   └── amp_01HXYZ....md
+├── details.jsonl               ← long-form entry bodies (git-tracked, loaded on demand)
+├── details.local.jsonl         ← bookmark transcript snapshots (gitignored, this machine only)
 ├── global.jsonl                ← your personal preferences (gitignored)
-└── sessions.jsonl              ← legacy flat file (still read)
+└── sessions.jsonl              ← everything this machine wrote (gitignored mirror)
 ```
 
 - **Captures on a feature branch travel with that branch via git.** When a teammate runs `git checkout feature-auth`, the JSONL is there. Their MCP server boots, reads it, regenerates their rule files — their AI is warm-started on *your* findings without you sending a message.
+- **You see what arrives.** Entries that reach your machine through git and that you haven't reviewed are listed by `infernoflow resume` (and in Claude Code's session-start context); `infernoflow recap` shows them and marks them reviewed. Tracked locally per machine, from the entry's content — not from the author it claims. Retire a wrong one with `infernoflow resolve <id>`.
+- **Review memory in pull requests.** The GitHub Action ([`action/`](./action)) comments on each PR with the memory entries it adds, edits or deletes, so they are reviewed like code before they reach everyone's AI.
 - **Personal preferences travel between your own machines.** Point at any OS-synced folder once:
   ```
   infernoflow sync set ~/Dropbox/infernoflow-memory
@@ -285,6 +297,9 @@ Local-first by design:
 - ✅ **Bookmark transcript snapshots stay on your machine** (`.ai-memory/details.local.jsonl`, gitignored). Only context you write explicitly (`--note`, `detail`) is shared with the team.
 - ✅ **API keys never live in the project** — environment variables are used as-is; pasted keys go to `~/.infernoflow/ai-credentials.json` (owner-only).
 - ✅ **No shell is used to run commands** from the MCP server or the prompt hooks (since 0.44.20), and MCP tool arguments are validated against their schema.
+- ✅ **Only read-only tools are pre-approved** in Claude Code (`permissions.allow` in `.claude/settings.json`). Tools that write memory ask for your permission like any other tool, so text the AI reads can't silently write to shared memory.
+- ✅ **Memory is data, not instructions.** Injected memory is framed that way, each entry records its author, entries about a changed file are marked *may be stale*, and memory that arrived through git is listed until you review it (`resume` / `recap`).
+- ✅ **The frustration hook keeps only a 60-character prefix** of the prompt that triggered it.
 
 The optional `infernoflow ai setup` command wires an AI provider (Anthropic / OpenAI / Google / Ollama) for a few enrichment commands — same trust model as using that provider directly. Off by default.
 

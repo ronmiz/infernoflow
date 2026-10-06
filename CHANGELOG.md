@@ -1,5 +1,17 @@
 # Changelog — infernoflow
 
+## 0.46.1 — 2026-10-06 — review what arrives through git; writes need approval
+
+### Security
+- **Tool pre-approval actually works now, and covers read-only tools only.** Earlier versions wrote a top-level `allowedTools` key to `.claude/settings.json`, which Claude Code does not read there, so nothing was pre-approved. `setup` now writes the documented `permissions.allow` with the read-only tools (`status`, `check`, `git_drift`, `amp_read`, `amp_search`, `amp_health`, `amp_resume`). Tools that write (`amp_write`, `amp_bookmark`, `amp_handoff`, `infernoflow_context`) ask for permission like any other tool, so text the AI reads can't silently write to shared memory. Our entries in the old key are removed; your own settings are kept.
+- **Entries that arrive through git are surfaced for review.** `resume` and the Claude Code session-start context list shared entries that were not written on this machine and haven't been reviewed; `infernoflow recap`, run by a person in a terminal, shows them and marks them reviewed (not when run by a tool or agent, unless `--mark-reviewed`). "Written here" and "reviewed" are tracked locally (`.ai-memory/.review-seen.log`, gitignored) and keyed on the entry's content, so an entry edited in place is new again — never on the author, id or time an entry claims. Tracking starts with a baseline of what exists on first use; `recap` shows when and how many.
+- **GitHub Action:** the PR comment lists memory a PR adds, edits or deletes (any `.ai-memory/` in the repo, including detail files), with memory text neutralised (no links, images, HTML, mentions or formatting) and the author shown as *claimed*. It only edits its own bot comment, reports a failed post (e.g. fork PRs) in the job summary and fails when memory changed, and warns when GitHub's file list is truncated. It now reads `.ai-memory/`, and two bugs that stopped it from running are fixed (CommonJS under an ES-module repo; the template now uses `ronmiz/infernoflow/action@action-v3`).
+- **memory-keeper's guard fails closed:** if the guard can't run, the agent's Bash call is blocked (`|| exit 2`). The agent may no longer run `recap` (it would mark entries reviewed). Unedited 0.46.0 agent copies are updated automatically.
+- The frustration hooks keep at most 60 characters of the prompt (Claude Code was 120, Cursor 180).
+
+### Fixed
+- `uninstall` now removes the tool approvals (it looked for a key setup never wrote), the hook registrations and scripts, and the skill / memory-keeper agent when unedited (an edited agent keeps its guard).
+
 ## 0.46.0 — 2026-10-06 — fresh memory every session, resume, stale entries, less noise
 
 ### Added
@@ -26,6 +38,9 @@
 - `globalDir` is read only from the personal config (`infernoflow sync set` writes `~/.infernoflow/config.json`); a value in the committed `amp.json` is ignored and reported by `sync status` and `doctor`.
 - VS Code extension: does nothing with the CLI until the workspace is trusted; `infernoflow.cliPath` is machine-scoped; the CLI is run without a shell; writes are redacted.
 - Dev dependencies updated (vitest 5, esbuild 0.28.2): `npm audit` clean.
+
+### Fixed
+- Windows: longer timeouts for git and the prompt hook on busy machines (the author could fall back to the email prefix; the hook could lose an entry and still start its cooldown).
 
 ## 0.45.0 — 2026-10-06 — per-project MCP, secret redaction, keys out of the repo
 
