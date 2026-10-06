@@ -8,21 +8,16 @@ on:
 
 jobs:
   smoke:
-    name: Smoke (${{ matrix.os }} · Node ${{ matrix.node }})
+    name: Tests (${{ matrix.os }} · Node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: [18, 20, 22]
-        # Trim a couple of cells we don't need — Node 18 is fine to verify on
-        # one OS, save the matrix runs.
-        exclude:
-          - os: macos-latest
-            node: 18
-          - os: windows-latest
-            node: 18
+        # The test toolchain (vitest 5) needs Node 22.12+. Older Node versions
+        # the CLI supports are covered by the `runtime` job below.
+        node: [22, 24]
 
     steps:
       - name: Checkout
@@ -40,8 +35,36 @@ jobs:
       - name: Build
         run: node build.mjs
 
-      - name: Smoke suite
+      - name: Built output matches the committed dist/
+        shell: bash
+        run: git diff --exit-code -- dist
+
+      - name: Test suite
         run: npm test
+
+  runtime:
+    name: Runtime (${{ matrix.os }} · Node ${{ matrix.node }})
+    # The CLI has zero runtime dependencies and supports Node 18+. Run the
+    # committed dist/ end to end, without dev dependencies.
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [18, 20]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Runtime smoke
+        run: node scripts/runtime-smoke.mjs
 
   lint:
     name: Syntax check
@@ -106,7 +129,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dev dependencies
