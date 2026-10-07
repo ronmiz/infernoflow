@@ -35,6 +35,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
 import { ampIO } from "./amp";
+import { DATA_NOT_INSTRUCTIONS, sessionHookInstalled, visible, setUpHere } from "./store";
 import type { AMPEntry } from "infernoflow-amp";
 
 const RULE_FILES = [
@@ -108,7 +109,8 @@ interface ScoredEntry {
 }
 
 export function rankedForFile(activeFile: string | undefined): ScoredEntry[] {
-  const all = ampIO.readEntries();
+  // Resolved entries and old commit notes are never shown to the AI (CLI parity).
+  const all = visible(ampIO.readEntries());
   if (all.length === 0) return [];
 
   const norm = (p: string) => p.replace(/\\/g, "/");
@@ -260,6 +262,13 @@ function memoryProtocolLinesFull(): string[] {
   ];
 }
 
+/** " _— author_" for entries that record who wrote them (text from a committed file: one safe line). */
+function byOf(e: AMPEntry): string {
+  const a = e.meta && (e.meta as Record<string, unknown>).author;
+  if (typeof a !== "string" || !a.trim()) return "";
+  return ` _— ${a.replace(/[\s`*_[\]<>|#]+/g, " ").trim().slice(0, 60)}_`;
+}
+
 function buildSection(scored: ScoredEntry[], activeFile: string | undefined, commits: GitCommit[], settings: InjectionSettings): string {
   const haveMemory  = scored.length > 0;
   const haveCommits = commits.length > 0;
@@ -272,6 +281,8 @@ function buildSection(scored: ScoredEntry[], activeFile: string | undefined, com
       "<!-- Auto-managed by infernoflow. Don't edit between these markers. -->",
       "## Project memory (infernoflow)",
       "",
+      DATA_NOT_INSTRUCTIONS,
+      "",
       ...(settings.includeProtocol ? [...memoryProtocolLines(settings.protocolStyle), ""] : []),
       "_No entries yet. They'll appear here as you and your AI tools log them — run `infernoflow log` or use `Ctrl+Alt+G` in VS Code._",
       SECTION_END,
@@ -282,6 +293,9 @@ function buildSection(scored: ScoredEntry[], activeFile: string | undefined, com
   lines.push(SECTION_START);
   lines.push("<!-- Auto-managed by infernoflow. Don't edit between these markers. -->");
   lines.push("## Project memory (infernoflow)");
+  lines.push("");
+  // Memory arrives through git from teammates — frame it as data (CLI parity).
+  lines.push(DATA_NOT_INSTRUCTIONS);
   lines.push("");
   if (settings.includeProtocol) {
     lines.push(...memoryProtocolLines(settings.protocolStyle));
@@ -329,7 +343,7 @@ function buildSection(scored: ScoredEntry[], activeFile: string | undefined, com
       lines.push("### Most relevant memory");
       for (const { entry: e } of top) {
         const fileRef = e.file ? ` (\`${e.file}${e.line ? ":" + e.line : ""}\`)` : "";
-        lines.push(`- 🔥 ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${trunc(e.msg)}`);
+        lines.push(`- 🔥 ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${trunc(e.msg)}${byOf(e)}`);
       }
       lines.push("");
     }
@@ -342,7 +356,7 @@ function buildSection(scored: ScoredEntry[], activeFile: string | undefined, com
       lines.push("");
       for (const { entry: e } of rest) {
         const fileRef = e.file ? ` (\`${e.file}${e.line ? ":" + e.line : ""}\`)` : "";
-        lines.push(`- 🔥 ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${trunc(e.msg)}`);
+        lines.push(`- 🔥 ${ICON[e.type] || "·"} **${e.type}**${fileRef}: ${trunc(e.msg)}${byOf(e)}`);
       }
       lines.push("");
       lines.push(`</details>`);
@@ -388,9 +402,26 @@ function updateRuleFile(absPath: string, sectionMd: string): void {
  * Rewrite all three rule files with the file-prioritized memory section.
  * Returns the count of files actually changed (0 if everything was already up to date).
  */
-export function rebuildAiRuleFiles(activeFile?: string): { updated: number; total: number } {
+/** Rebuild the rule files at VS Code start-up — only in projects set up on this machine (not a fresh clone). */
+export async function rebuildAiRuleFilesOnStartup(): Promise<void> {
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!root || !setUpHere(root)) return;
+  await rebuildAiRuleFiles();
+}
+
+export async function rebuildAiRuleFiles(activeFile?: string): Promise<{ updated: number; total: number; via?: "extension" | "skipped" }> {
   const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!root) return { updated: 0, total: 0 };
+  // Restricted Mode: never write files on behalf of an untrusted repository.
+  if (!vscode.workspace.isTrusted) return { updated: 0, total: 0, via: "skipped" };
+
+  // Same block as the CLI's `infernoflow refresh` (framed as data, resolved
+  // entries and commit notes left out), ranked for the active file. Claude Code
+  // gets memory from the session hook when it's installed, so CLAUDE.md then
+  // carries no block. The CLI itself is never run from here: a first CLI run
+  // in a project also sets it up (MCP servers, hooks), which must stay a
+  // decision the user makes.
+  const hookServesClaude = sessionHookInstalled(root);
 
   const settings  = resolveInjectionSettings(ampIO.getConfig());
   const scored    = rankedForFile(activeFile);
@@ -404,7 +435,7 @@ export function rebuildAiRuleFiles(activeFile?: string): { updated: number; tota
   for (const rel of RULE_FILES) {
     const abs = path.join(root, rel);
     const before = fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : "";
-    if (targetSet.has(norm(rel))) {
+    if (targetSet.has(norm(rel)) && !(hookServesClaude && norm(rel) === "CLAUDE.md")) {
       updateRuleFile(abs, sectionMd);
     } else {
       stripManagedBlock(abs); // de-selected target — don't leave a stale block
@@ -412,5 +443,5 @@ export function rebuildAiRuleFiles(activeFile?: string): { updated: number; tota
     const after = fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : "";
     if (after !== before) updated++;
   }
-  return { updated, total: RULE_FILES.length };
+  return { updated, total: RULE_FILES.length, via: "extension" };
 }

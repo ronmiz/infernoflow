@@ -179,11 +179,13 @@ async function switchCommand(): Promise<void> {
   // generated in-process, so this works with no CLI and no system Node.
   const handoffPath = path.join(root, ".ai-memory", "handoff.md");
   let wrote = false;
-  try {
-    fs.mkdirSync(path.dirname(handoffPath), { recursive: true });
-    fs.writeFileSync(handoffPath, md, "utf8");
-    wrote = true;
-  } catch { /* non-fatal — we still copy + preview below */ }
+  if (vscode.workspace.isTrusted) {   // Restricted Mode: show the handoff, don't save it
+    try {
+      fs.mkdirSync(path.dirname(handoffPath), { recursive: true });
+      fs.writeFileSync(handoffPath, md, "utf8");
+      wrote = true;
+    } catch { /* non-fatal — we still copy + preview below */ }
+  }
 
   await vscode.env.clipboard.writeText(md);
 
@@ -649,8 +651,10 @@ export function registerCommands(context: vscode.ExtensionContext, refresh: () =
     if (editor && root && editor.document.uri.scheme === "file") {
       activeFile = path.relative(root, editor.document.uri.fsPath).replace(/\\/g, "/");
     }
-    const result = rebuildAiRuleFiles(activeFile);
-    if (result.updated === 0) {
+    const result = await rebuildAiRuleFiles(activeFile);
+    if (result.via === "skipped") {
+      notifyImportant("infernoflow doesn't write files in an untrusted workspace. Trust the workspace first.");
+    } else if (result.updated === 0) {
       notifyImportant("AI rule files already up to date.");
     } else {
       notifyImportant(`🔄 Rebuilt ${result.updated}/${result.total} AI rule files (.cursorrules · CLAUDE.md · copilot-instructions.md).`);

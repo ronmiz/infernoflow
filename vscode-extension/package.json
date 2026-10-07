@@ -1,7 +1,7 @@
 {
   "name": "infernoflow",
   "displayName": "infernoflow",
-  "description": "Persistent memory for AI coding sessions \u2014 live sidebar over .ai-memory/ (AMP). Captures gotchas, decisions, dead ends and replays them into Cursor / Copilot / Claude / Windsurf.",
+  "description": "Persistent memory for AI coding sessions — live sidebar over .ai-memory/ (AMP). Captures gotchas, decisions, dead ends and replays them into Cursor / Copilot / Claude / Windsurf.",
   "version": "0.7.21",
   "publisher": "infernoflow",
   "license": "MIT",
@@ -41,7 +41,9 @@
     "untrustedWorkspaces": {
       "supported": "limited",
       "description": "In untrusted workspaces infernoflow only shows memory: it does not install, probe or run the CLI until you trust the workspace.",
-      "restrictedConfigurations": ["infernoflow.cliPath"]
+      "restrictedConfigurations": [
+        "infernoflow.cliPath"
+      ]
     }
   },
   "activationEvents": [
@@ -127,7 +129,7 @@
       },
       {
         "command": "infernoflow.migrateAmp",
-        "title": "Migrate inferno/ \u2192 .ai-memory/",
+        "title": "Migrate inferno/ → .ai-memory/",
         "category": "infernoflow",
         "icon": "$(file-symlink-directory)"
       },
@@ -372,13 +374,24 @@
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "amp_write",
         "icon": "$(flame)",
-        "tags": ["infernoflow", "memory", "ai-context"],
+        "tags": [
+          "infernoflow",
+          "memory",
+          "ai-context"
+        ],
         "inputSchema": {
           "type": "object",
           "properties": {
             "type": {
               "type": "string",
-              "enum": ["gotcha", "decision", "attempt", "note", "detection", "pattern"],
+              "enum": [
+                "gotcha",
+                "decision",
+                "attempt",
+                "note",
+                "detection",
+                "pattern"
+              ],
               "description": "Entry category. 'gotcha' = non-obvious behavior or API quirk. 'decision' = architectural pick (X over Y). 'attempt' = failed try with reason. 'note' = plan / session snapshot. 'pattern' = reusable shape. 'detection' = inferred condition."
             },
             "msg": {
@@ -395,11 +408,16 @@
             },
             "tags": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Optional free-form tags for grouping (e.g. ['auth', 'race-condition'])."
             }
           },
-          "required": ["type", "msg"]
+          "required": [
+            "type",
+            "msg"
+          ]
         }
       },
       {
@@ -410,7 +428,11 @@
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "amp_read",
         "icon": "$(book)",
-        "tags": ["infernoflow", "memory", "ai-context"],
+        "tags": [
+          "infernoflow",
+          "memory",
+          "ai-context"
+        ],
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -422,7 +444,14 @@
             },
             "type": {
               "type": "string",
-              "enum": ["gotcha", "decision", "attempt", "note", "detection", "pattern"],
+              "enum": [
+                "gotcha",
+                "decision",
+                "attempt",
+                "note",
+                "detection",
+                "pattern"
+              ],
               "description": "Filter by entry category."
             },
             "file": {
@@ -438,16 +467,17 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "test": "npm run compile && node scripts/lm-tools-smoke.cjs && node scripts/bookmark-smoke.cjs",
+    "test": "npm run compile && node scripts/lm-tools-smoke.cjs && node scripts/bookmark-smoke.cjs && node scripts/store-smoke.cjs",
     "test:lmtools": "node scripts/lm-tools-smoke.cjs",
     "test:bookmark": "node scripts/bookmark-smoke.cjs",
+    "test:store": "node scripts/store-smoke.cjs",
     "package": "vsce package",
     "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.95.0",
-    "@vscode/vsce": "^2.22.0",
+    "@vscode/vsce": "^4.0.0",
     "typescript": "^5.3.0"
   },
   "bugs": {

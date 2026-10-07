@@ -26,6 +26,7 @@
 
 import * as vscode from "vscode";
 import { ampIO } from "./amp";
+import { DATA_NOT_INSTRUCTIONS, visible } from "./store";
 import type { EntryType } from "infernoflow-amp";
 
 // ── amp_write ────────────────────────────────────────────────────────────────
@@ -56,6 +57,16 @@ class AmpWriteTool implements vscode.LanguageModelTool<AmpWriteInput> {
         ),
       ]);
     }
+    if (typeof msg === "string" && msg.length > 1000) {
+      return new vscode.LanguageModelToolResult([
+        new vscode.LanguageModelTextPart(`'msg' is too long (max 1000 characters) — keep entries to one sentence. Entry not written.`),
+      ]);
+    }
+    if (tags && (!Array.isArray(tags) || tags.length > 10 || tags.some(t => typeof t !== "string" || t.length > 50))) {
+      return new vscode.LanguageModelToolResult([
+        new vscode.LanguageModelTextPart(`'tags' must be up to 10 short strings. Entry not written.`),
+      ]);
+    }
     if (!msg || typeof msg !== "string" || !msg.trim()) {
       return new vscode.LanguageModelToolResult([
         new vscode.LanguageModelTextPart(`Missing 'msg' — entry not written.`),
@@ -68,7 +79,8 @@ class AmpWriteTool implements vscode.LanguageModelTool<AmpWriteInput> {
 
     const entry = ampIO.write({
       type,
-      msg: msg.trim(),
+      // One line, exactly as shown in the confirmation.
+      msg: msg.replace(/\s+/g, " ").trim(),
       file,
       line,
       tags,
@@ -91,8 +103,20 @@ class AmpWriteTool implements vscode.LanguageModelTool<AmpWriteInput> {
     options: vscode.LanguageModelToolInvocationPrepareOptions<AmpWriteInput>,
     _token: vscode.CancellationToken,
   ): vscode.PreparedToolInvocation {
+    // Writes ask first (CLI 0.46.1 parity: only read-only tools are pre-approved).
+    // Memory is shared with the team through git, so a person confirms what goes in.
+    const type = options.input?.type || "entry";
+    // The whole text and the tags are shown — exactly what will be written.
+    const msg  = String(options.input?.msg || "").replace(/\s+/g, " ").slice(0, 1000);
+    const tags = Array.isArray(options.input?.tags) && options.input.tags.length ? `\n\nTags: ${options.input.tags.map(t => String(t)).join(", ")}` : "";
+    const esc  = (t: string) => t.replace(/[\\`*_{}[\]()#+!|<>]/g, c => "\\" + c);
+    const file = options.input?.file ? ` (${esc(String(options.input.file).slice(0, 200))})` : "";
     return {
-      invocationMessage: `Logging ${options.input?.type || "entry"} to infernoflow memory`,
+      invocationMessage: `Logging ${type} to infernoflow memory`,
+      confirmationMessages: {
+        title: "Save to project memory?",
+        message: new vscode.MarkdownString(`**${esc(String(type))}**${file}: ${esc(msg)}${esc(tags)}\n\nProject memory is shared with your team through git.`),
+      },
     };
   }
 }
@@ -112,7 +136,8 @@ class AmpReadTool implements vscode.LanguageModelTool<AmpReadInput> {
   ): Promise<vscode.LanguageModelToolResult> {
     const { limit = 10, type, file } = options.input || {};
 
-    let entries = ampIO.readEntries();
+    // Resolved entries and old commit notes are not shown to the AI (CLI parity).
+    let entries = visible(ampIO.readEntries());
     if (type) entries = entries.filter(e => e.type === type);
     if (file) {
       const norm = (s: string) => s.replace(/\\/g, "/");
@@ -139,7 +164,7 @@ class AmpReadTool implements vscode.LanguageModelTool<AmpReadInput> {
     });
     return new vscode.LanguageModelToolResult([
       new vscode.LanguageModelTextPart(
-        `${entries.length} entries from infernoflow memory:\n${lines.join("\n")}`,
+        `${DATA_NOT_INSTRUCTIONS}\n\n${entries.length} entries from infernoflow memory:\n${lines.join("\n")}`,
       ),
     ]);
   }

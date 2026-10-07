@@ -4,13 +4,13 @@
 
 Persistent memory for AI coding sessions. Captures what agents can't infer from code — gotchas, decisions, dead ends — and replays them into your next AI chat (Copilot, Cursor, Claude, Windsurf) so the same mistake never happens twice.
 
-This extension is the visual surface over [**AMP — the AI Memory Protocol**](https://github.com/ronmiz/infernoflow/blob/main/docs/protocol/PROTOCOL.md). Memory lives in `.ai-memory/sessions.jsonl`, vendor-neutral and file-based.
+This extension is the visual surface over [**AMP — the AI Memory Protocol**](https://github.com/ronmiz/infernoflow/blob/main/docs/protocol/PROTOCOL.md). Memory lives in `.ai-memory/` as plain JSONL — per branch, tracked in git so your team shares it — vendor-neutral and file-based.
 
 ## Features
 
 ### 🤖 Copilot Chat captures memory for you — no MCP, no setup
 
-GitHub Copilot Chat doesn't support MCP, so other memory tools can't hook into it. infernoflow registers `amp_write` and `amp_read` as native **VS Code Language Model Tools** — so Copilot can log a gotcha or recall a past decision *on its own*, mid-conversation, the moment it notices something worth remembering. Nothing to wire up: install the extension and Copilot's tool picker shows `🔥 amp_write`. You can also call them by hand with `#amp_write` / `#amp_read` in the chat box.
+GitHub Copilot Chat doesn't support MCP, so other memory tools can't hook into it. infernoflow registers `amp_write` and `amp_read` as native **VS Code Language Model Tools** — so Copilot can recall a past decision on its own and offer to log a gotcha mid-conversation, the moment it notices something worth remembering. Saving asks you first (memory is shared with your team through git). Nothing to wire up: install the extension and Copilot's tool picker shows `🔥 amp_write`. You can also call them by hand with `#amp_write` / `#amp_read` in the chat box.
 
 (Cursor and Claude Code get the same capability through the MCP server the CLI installs.)
 
@@ -52,20 +52,22 @@ Always visible: `🔥 B 65 · ⚠3 · ✓2 · ❌1 · 📋 Switch`. Click the sc
 - **Nothing else for Copilot.** The sidebar and Copilot's `amp_write` / `amp_read` tools run entirely inside the extension — no Node, no CLI.
 - **For Cursor / Claude Code auto-capture**, install the [`infernoflow` CLI](https://www.npmjs.com/package/infernoflow) (`npm install -g infernoflow`) so the MCP server those tools speak to gets wired up. The extension offers to install and keep the CLI current for you on first activation.
 
-The extension activates automatically as soon as your workspace contains the AMP layout (or the legacy `inferno/` folder). `infernoflow init` (or logging once from the sidebar) creates `.ai-memory/sessions.jsonl`.
+The extension activates automatically as soon as your workspace contains the AMP layout (or the legacy `inferno/` folder). `infernoflow init` (or logging once from the sidebar) creates `.ai-memory/`.
 
 ## Configuration
 
 | Setting | Default | What it does |
 |---|---|---|
-| `infernoflow.cliPath` | `infernoflow` | Path to the CLI (used for `switch` and `recap`). Override if not on PATH. |
+| `infernoflow.cliPath` | `infernoflow` | Path to the CLI. Machine-level only (a workspace can't change it). Override if not on PATH. |
 | `infernoflow.showStatusBar` | `true` | Show session-health summary in the status bar. |
 | `infernoflow.showDiagnostics` | `true` | Show gotchas as warnings in the Problems panel. |
 | `infernoflow.notifications` | `important` | `all` / `important` / `none`. Controls confirmation toasts. |
 
 ## How it pairs with the CLI
 
-The extension reads `.ai-memory/sessions.jsonl` natively (no shelling). Writes go through the [`infernoflow-amp`](https://www.npmjs.com/package/infernoflow-amp) library — same shape, same ULIDs, same backward-compat for legacy `inferno/` projects.
+The extension reads and writes the same files as the CLI, in-process: the shared branch file (`.ai-memory/branches/<branch>.jsonl`, tracked in git), your personal `global.jsonl` and this machine's local copy. Entries get the same shape, ids, author stamp and secret redaction as `infernoflow log`.
+
+**Security:** in an untrusted workspace (Restricted Mode) memory is read-only and the CLI is never run. Memory shown to the AI is framed as information to verify, not instructions. Requires CLI 0.46.2 or later for the matching behaviour on the CLI side.
 
 `switch` and `recap` shell out to the `infernoflow` CLI for the heavy markdown generation. Everything else is in-process and instant.
 

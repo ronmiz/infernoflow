@@ -34,14 +34,20 @@ describe("vscode-extension rule-file write policy (v0.44.3)", () => {
   // inert, since per-edit writes were what blocked branch switches in v0.43.
   const text = fs.readFileSync(EXTENSION_TS, "utf8")
 
-  it("imports rebuildAiRuleFiles as an ACTIVE import (not commented out)", () => {
-    expect(text).toMatch(/^\s*import\s+\{\s*rebuildAiRuleFiles\s*\}\s+from\s+["']\.\/contextSync["']/m)
+  // 0.7.21: the start-up rebuild goes through rebuildAiRuleFilesOnStartup,
+  // which also requires infernoflow to be set up on this machine (a fresh
+  // clone is left untouched) and a trusted workspace.
+  it("imports the start-up rebuild as an ACTIVE import (not commented out)", () => {
+    expect(text).toMatch(/^\s*import\s+\{\s*rebuildAiRuleFilesOnStartup\s*\}\s+from\s+["']\.\/contextSync["']/m)
   })
 
-  it("calls rebuildAiRuleFiles exactly once, gated behind isInitialised() (one-time bootstrap, not per-edit)", () => {
-    const calls = text.match(/rebuildAiRuleFiles\s*\(\s*\)/g) || []
+  it("calls the start-up rebuild exactly once, gated behind isInitialised() (one-time bootstrap, not per-edit)", () => {
+    const calls = text.match(/rebuildAiRuleFilesOnStartup\s*\(\s*\)/g) || []
     expect(calls.length).toBe(1)
     expect(text).toContain("ampIO.isInitialised()")
+    const ctx = fs.readFileSync(path.join(path.dirname(EXTENSION_TS), "contextSync.ts"), "utf8")
+    expect(ctx).toMatch(/rebuildAiRuleFilesOnStartup[\s\S]*?setUpHere\(root\)/)
+    expect(ctx).toMatch(/if \(!vscode\.workspace\.isTrusted\) return \{ updated: 0, total: 0, via: "skipped" \}/)
   })
 
   it("does NOT rebuild rule files from the debounced per-edit scheduleRebuild path", () => {

@@ -22,6 +22,7 @@ fs.writeFileSync(path.join(ws, ".ai-memory", "sessions.jsonl"), "", "utf8");
 
 const vscodeMock = {
   workspace: {
+    isTrusted: true,
     workspaceFolders: [{ uri: { fsPath: ws }, name: "t", index: 0 }],
     createFileSystemWatcher: () => ({ onDidChange() {}, onDidCreate() {}, onDidDelete() {}, dispose() {} }),
     getConfiguration: () => ({ get: (_k, d) => d }),
