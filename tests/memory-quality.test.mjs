@@ -189,8 +189,8 @@ describe("D10 skill/agent updates: replace if unedited", () => {
     const agentDst = path.join(dir, ".claude", "agents", "memory-keeper.md");
     fs.mkdirSync(path.dirname(skillDst), { recursive: true });
     fs.mkdirSync(path.dirname(agentDst), { recursive: true });
-    // Unedited old template (from the 0.44.19 tarball / git history).
-    const oldSkill = execFileSync("git", ["show", "v0.44.17:templates/skills/infernoflow-memory/SKILL.md"], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    // Unedited template shipped by 0.44.16–0.45.0 (a fixture: CI checkouts are shallow, without tags).
+    const oldSkill = fs.readFileSync(path.join(ROOT, "tests", "fixtures", "skill-0.44.16-0.45.0.md"), "utf8");
     fs.writeFileSync(skillDst, oldSkill);
     fs.writeFileSync(agentDst, "my own edited agent\n");
     const r = syncClaudeAssets(dir);

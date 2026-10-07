@@ -37,7 +37,9 @@ jobs:
 
       - name: Built output matches the committed dist/
         shell: bash
-        run: git diff --exit-code -- dist
+        # Content only: the build marks bin files executable, which a commit
+        # made on Windows doesn't record.
+        run: git -c core.fileMode=false diff --exit-code -- dist
 
       - name: Test suite
         run: npm test
