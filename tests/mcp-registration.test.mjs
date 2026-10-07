@@ -61,7 +61,7 @@ describe("setup registers per project, never one pinned user-level entry", () =>
       expect(e.command).toBe("node");
       expect(e.args[0]).toBe(BIN);
       expect(e.args[1]).toBe("mcp");
-      expect(e.env.INFERNOFLOW_PROJECT_DIR).toBe(dir);
+      expect(fs.realpathSync(e.env.INFERNOFLOW_PROJECT_DIR)).toBe(fs.realpathSync(dir));
       expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf8")).toMatch(/^\.mcp\.json$/m);
       expect(fs.existsSync(path.join(dir, ".cursor", "inferno-mcp-server.mjs"))).toBe(false); // no copy in the repo
       expect(rd(path.join(dir, ".vscode", "mcp.json")).servers.infernoflow.args[1]).toBe("mcp");
@@ -75,8 +75,8 @@ describe("setup registers per project, never one pinned user-level entry", () =>
 
     const dc = rd(desktopConfig(home)).mcpServers;
     expect(dc.infernoflow).toBeUndefined();
-    expect(dc["infernoflow-alpha"].env.INFERNOFLOW_PROJECT_DIR).toBe(A);
-    expect(dc["infernoflow-beta"].env.INFERNOFLOW_PROJECT_DIR).toBe(B);
+    expect(fs.realpathSync(dc["infernoflow-alpha"].env.INFERNOFLOW_PROJECT_DIR)).toBe(fs.realpathSync(A));
+    expect(fs.realpathSync(dc["infernoflow-beta"].env.INFERNOFLOW_PROJECT_DIR)).toBe(fs.realpathSync(B));
     expect(dc.other).toEqual({ command: "y" });
 
     const backups = fs.readdirSync(path.join(home, ".infernoflow", "backups"));
@@ -101,7 +101,7 @@ describe("setup registers per project, never one pinned user-level entry", () =>
     const r = run(["log", "--show"], A, home);
     expect(r.status).toBe(0);
     expect(rd(path.join(home, ".claude.json")).mcpServers.infernoflow).toBeUndefined();
-    expect(rd(path.join(A, ".mcp.json")).mcpServers.infernoflow.env.INFERNOFLOW_PROJECT_DIR).toBe(A);
+    expect(fs.realpathSync(rd(path.join(A, ".mcp.json")).mcpServers.infernoflow.env.INFERNOFLOW_PROJECT_DIR)).toBe(fs.realpathSync(A));
   });
 });
 

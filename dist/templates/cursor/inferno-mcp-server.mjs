@@ -519,17 +519,32 @@ function workspaceRoots() {
   }
   return out;
 }
+/** Real path of p, resolving symlinks in the part that exists (macOS /var → /private/var). */
+function realish(p) {
+  let cur = path.resolve(p);
+  const rest = [];
+  for (;;) {
+    try { return path.join(fs.realpathSync(cur), ...rest.reverse()); }
+    catch {
+      const up = path.dirname(cur);
+      if (up === cur) return path.resolve(p);
+      rest.push(path.basename(cur));
+      cur = up;
+    }
+  }
+}
 function routeByFile(file) {
   const fallback = { dir: PROJECT_DIR, file };
   if (!file) return fallback;
   let abs;
-  try { abs = path.resolve(PROJECT_DIR, String(file)); } catch { return fallback; }
+  try { abs = realish(path.resolve(PROJECT_DIR, String(file))); } catch { return fallback; }
   const inside = (root) => { const rel = path.relative(root, abs); return rel && !rel.startsWith("..") && !path.isAbsolute(rel) ? rel : null; };
   // Store paths relative to their project (no absolute paths in shared memory).
-  const own = inside(PROJECT_DIR);
+  const projectReal = realish(PROJECT_DIR);
+  const own = inside(projectReal);
   if (own) return { dir: PROJECT_DIR, file: own.split(path.sep).join("/") };
   for (const root of workspaceRoots()) {
-    if (path.resolve(root) === path.resolve(PROJECT_DIR)) continue;
+    if (root === projectReal) continue;
     const rel = inside(root);
     if (rel) return { dir: root, file: rel.split(path.sep).join("/") };
   }

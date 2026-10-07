@@ -1,5 +1,12 @@
 # Changelog — infernoflow
 
+## 0.46.2 — 2026-10-07 — macOS path fixes
+
+### Fixed
+- **MCP routing by file on macOS:** a write about a file in another open workspace folder could land in the current project when the paths were spelled through a symlink (`/var` → `/private/var`). Paths are now compared after resolving symlinks.
+- **Bookmark transcript capture** finds Claude Code's transcript folder whichever spelling of the project path Claude Code used (resolved path or the shell's `PWD`).
+- CI: tests run on Node 22/24 on Linux, Windows and macOS; the built CLI is smoke-tested on Node 18/20.
+
 ## 0.46.1 — 2026-10-06 — review what arrives through git; writes need approval
 
 ### Security
