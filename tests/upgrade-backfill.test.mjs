@@ -78,7 +78,7 @@ function runCli(args, cwd) {
   return spawnSync(process.execPath, [BIN, ...args], {
     cwd,
     encoding: "utf8",
-    timeout: 20_000,
+    timeout: 30_000,
     env: { ...process.env, NO_COLOR: "1" },
   })
 }
@@ -107,13 +107,15 @@ describe("upgrade backfill — v0.43.x project gets cleanly migrated by v0.44 CL
   it("rebuilds CLAUDE.md cleanly — no duplicate `<!-- AMP:START -->` block lingers", () => {
     runCli(["status"], project)
     const claude = fs.readFileSync(path.join(project, "CLAUDE.md"), "utf8")
-    // The new managed block exists.
-    expect(claude).toMatch(/<!--\s*infernoflow:start\s*-->/)
-    // The old dual block must be gone.
+    // 0.46.0: Claude Code now gets memory from the SessionStart hook, so the
+    // upgrade removes infernoflow's blocks from CLAUDE.md entirely — the old
+    // dual AMP block and the managed block — and keeps the user's own text.
     expect(claude).not.toMatch(/<!--\s*AMP:START\s*-->/)
-    // Exactly one managed block.
-    const matches = claude.match(/<!--\s*infernoflow:start\s*-->/g) || []
-    expect(matches.length).toBe(1)
+    expect(claude).not.toMatch(/<!--\s*infernoflow:start\s*-->/)
+    expect(claude).toContain("# Project")
+    // The other IDEs still get exactly one managed block.
+    const cr = fs.readFileSync(path.join(project, ".cursorrules"), "utf8")
+    expect((cr.match(/<!--\s*infernoflow:start\s*-->/g) || []).length).toBe(1)
   })
 
   it("preserves the existing v0.43 sessions.jsonl entries via the merged reader", () => {

@@ -32,7 +32,7 @@ function runLog(cwd, args) {
   const r = spawnSync(process.execPath, [BIN, "log", ...args], {
     cwd,
     encoding: "utf8",
-    timeout: 10_000,
+    timeout: 30_000,
     env: { ...process.env, NO_COLOR: "1" },
   });
   return r;

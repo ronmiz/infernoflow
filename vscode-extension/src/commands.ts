@@ -68,6 +68,10 @@ function getOrCreateTerminal(): vscode.Terminal {
 
 /** Run an infernoflow CLI command in the reusable terminal — streaming output. */
 function runInTerminal(cliArgs: string): void {
+  if (!vscode.workspace.isTrusted) {
+    void vscode.window.showWarningMessage("infernoflow: trust this workspace to run CLI commands (Restricted Mode).");
+    return;
+  }
   const cli  = vscode.workspace.getConfiguration("infernoflow").get<string>("cliPath", "infernoflow");
   const term = getOrCreateTerminal();
   term.show(/* preserveFocus */ false);

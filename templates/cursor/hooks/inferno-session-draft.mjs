@@ -16,7 +16,46 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFileSync } from "node:child_process";
+
+// infernoflow-hook-version: 4
+// SECURITY (0.44.20): the CLI is run as `node infernoflow.mjs ...` with NO
+// shell. Before 0.44.20 this hook used spawnSync("infernoflow.cmd", args,
+// { shell: true }) on Windows, which hands the prompt text to cmd.exe
+// unquoted — a prompt containing `&` or `|` ran as a command.
+function findCliMjs() {
+  let hits = [];
+  try {
+    const finder = process.platform === "win32" ? "where" : "which";
+    hits = execFileSync(finder, ["infernoflow"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true, timeout: 10_000 })
+      .split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  } catch {}
+  // `where` (Windows) searches the current folder first — never use a
+  // launcher that lives inside the project (a cloned repo could plant one).
+  const proj = path.resolve(projectRoot()).toLowerCase();
+  const inProject = (p) => { const r = path.resolve(p).toLowerCase(); return r === proj || r.startsWith(proj + path.sep); };
+  for (const c of hits) {
+    if (inProject(c)) continue;
+    try { const real = fs.realpathSync(c); if (/\.m?js$/i.test(real) && !inProject(real)) return real; } catch {}
+    const d = path.dirname(c);
+    for (const pkg of [path.join(d, "node_modules", "infernoflow"), path.join(d, "..", "lib", "node_modules", "infernoflow")]) {
+      for (const f of [path.join(pkg, "dist", "bin", "infernoflow.mjs"), path.join(pkg, "bin", "infernoflow.mjs")]) {
+        if (fs.existsSync(f)) return f;
+      }
+    }
+  }
+  return null;
+}
+
+/** Run the infernoflow CLI without a shell. Returns the spawnSync result or null. */
+function runCli(args, opts) {
+  const cli = findCliMjs();
+  if (!cli) return null;
+  return spawnSync(process.execPath, [cli, ...args], { ...opts, windowsHide: true, shell: false });
+}
+
+/** Text that becomes a CLI argument must never look like a flag. */
+const asCliText = (v) => String(v ?? "").replace(/^[\s-]+/, "");
 
 /** Keep in sync with templates/scripts/inferno-promote-draft.mjs */
 const DRAFT_HEADER = `# CONTEXT draft (gitignored)
@@ -201,11 +240,10 @@ function handleBookmarkTrigger(prompt) {
     // The `bookmark` command (no --marker) auto-captures the session transcript
     // as the resume point. Needs infernoflow >= 0.44.10 on PATH; if the global
     // CLI is older / missing, this no-ops and the AI's amp_bookmark path covers it.
-    const bin = process.platform === "win32" ? "infernoflow.cmd" : "infernoflow";
-    const r = spawnSync(bin, ["bookmark", label], {
-      cwd: projectRoot(), encoding: "utf8", timeout: 12000, shell: process.platform === "win32",
+    const r = runCli(["bookmark", asCliText(label)], {
+      cwd: projectRoot(), encoding: "utf8", timeout: 12000,
     });
-    wrote = r.status === 0;
+    wrote = !!r && r.status === 0;
   } catch { /* CLI unavailable — skip */ }
 
   if (wrote) {
@@ -234,17 +272,16 @@ function handleUserPrompt(text) {
   if (state.lastTs && now - state.lastTs < COOLDOWN_MS) return; // rate-limit
 
   const msg = "Auto-trigger — user signalled trouble: " +
-    trimmed.replace(/\s+/g, " ").slice(0, 180);
+    trimmed.replace(/\s+/g, " ").slice(0, 60);   // R5.2: keep only a short prefix of the prompt
 
   // Prefer the CLI (correct id / branch routing / AMP shape); fall back to a
   // direct sessions.jsonl append so capture still works without a global CLI.
   let wrote = false;
   try {
-    const bin = process.platform === "win32" ? "infernoflow.cmd" : "infernoflow";
-    const r = spawnSync(bin, ["log", msg, "--type", "attempt", "--source", "cursor-trigger", "--tags", "auto-trigger"], {
-      cwd: projectRoot(), encoding: "utf8", timeout: 8000, shell: process.platform === "win32",
+    const r = runCli(["log", asCliText(msg), "--type", "attempt", "--source", "cursor-trigger", "--tags", "auto-trigger"], {
+      cwd: projectRoot(), encoding: "utf8", timeout: 15000,
     });
-    wrote = r.status === 0;
+    wrote = !!r && r.status === 0;
   } catch { /* fall through to direct write */ }
   if (!wrote) {
     try {

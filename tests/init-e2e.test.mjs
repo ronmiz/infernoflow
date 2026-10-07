@@ -39,7 +39,7 @@ function runInit(cwd) {
   return spawnSync(process.execPath, [BIN, "init", "--yes"], {
     cwd,
     encoding: "utf8",
-    timeout: 20_000,
+    timeout: 30_000,
     env: { ...process.env, NO_COLOR: "1" },
   });
 }
@@ -58,11 +58,16 @@ describe("init --yes — 60-second magic", () => {
 
   it("writes rule files for every supported IDE with the capture protocol", () => {
     runInit(project);
+    // Claude Code gets memory from the SessionStart hook (0.46.0), so CLAUDE.md
+    // carries no copy; the other IDEs still read their rule files.
     const ideFiles = [
       ".cursorrules",
-      "CLAUDE.md",
       path.join(".github", "copilot-instructions.md"),
     ];
+    const settings = JSON.parse(fs.readFileSync(path.join(project, ".claude", "settings.json"), "utf8"));
+    expect(JSON.stringify(settings.hooks.SessionStart)).toContain("infernoflow-session.mjs");
+    const claudeMd = path.join(project, "CLAUDE.md");
+    if (fs.existsSync(claudeMd)) expect(fs.readFileSync(claudeMd, "utf8")).not.toMatch(/<!--\s*infernoflow:start\s*-->/);
     for (const rel of ideFiles) {
       const file = path.join(project, rel);
       expect(fs.existsSync(file), `missing: ${rel}`).toBe(true);

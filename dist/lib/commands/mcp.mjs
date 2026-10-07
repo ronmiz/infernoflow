@@ -1,0 +1,1 @@
+import*as r from"node:path";import{fileURLToPath as o,pathToFileURL as m}from"node:url";const t=r.dirname(o(import.meta.url));async function s(a){const e=r.resolve(t,"../../templates/cursor/inferno-mcp-server.mjs");await import(m(e).href)}export{s as mcpCommand};

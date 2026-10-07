@@ -1,5 +1,92 @@
 # Changelog — infernoflow
 
+## 0.46.2 — 2026-10-07 — macOS path fixes
+
+### Fixed
+- **MCP routing by file on macOS:** a write about a file in another open workspace folder could land in the current project when the paths were spelled through a symlink (`/var` → `/private/var`). Paths are now compared after resolving symlinks.
+- **Bookmark transcript capture** finds Claude Code's transcript folder whichever spelling of the project path Claude Code used (resolved path or the shell's `PWD`).
+- CI: tests run on Node 22/24 on Linux, Windows and macOS; the built CLI is smoke-tested on Node 18/20.
+
+## 0.46.1 — 2026-10-06 — review what arrives through git; writes need approval
+
+### Security
+- **Tool pre-approval actually works now, and covers read-only tools only.** Earlier versions wrote a top-level `allowedTools` key to `.claude/settings.json`, which Claude Code does not read there, so nothing was pre-approved. `setup` now writes the documented `permissions.allow` with the read-only tools (`status`, `check`, `git_drift`, `amp_read`, `amp_search`, `amp_health`, `amp_resume`). Tools that write (`amp_write`, `amp_bookmark`, `amp_handoff`, `infernoflow_context`) ask for permission like any other tool, so text the AI reads can't silently write to shared memory. Our entries in the old key are removed; your own settings are kept.
+- **Entries that arrive through git are surfaced for review.** `resume` and the Claude Code session-start context list shared entries that were not written on this machine and haven't been reviewed; `infernoflow recap`, run by a person in a terminal, shows them and marks them reviewed (not when run by a tool or agent, unless `--mark-reviewed`). "Written here" and "reviewed" are tracked locally (`.ai-memory/.review-seen.log`, gitignored) and keyed on the entry's content, so an entry edited in place is new again — never on the author, id or time an entry claims. Tracking starts with a baseline of what exists on first use; `recap` shows when and how many.
+- **GitHub Action:** the PR comment lists memory a PR adds, edits or deletes (any `.ai-memory/` in the repo, including detail files), with memory text neutralised (no links, images, HTML, mentions or formatting) and the author shown as *claimed*. It only edits its own bot comment, reports a failed post (e.g. fork PRs) in the job summary and fails when memory changed, and warns when GitHub's file list is truncated. It now reads `.ai-memory/`, and two bugs that stopped it from running are fixed (CommonJS under an ES-module repo; the template now uses `ronmiz/infernoflow/action@action-v3`).
+- **memory-keeper's guard fails closed:** if the guard can't run, the agent's Bash call is blocked (`|| exit 2`). The agent may no longer run `recap` (it would mark entries reviewed). Unedited 0.46.0 agent copies are updated automatically.
+- The frustration hooks keep at most 60 characters of the prompt (Claude Code was 120, Cursor 180).
+
+### Fixed
+- `uninstall` now removes the tool approvals (it looked for a key setup never wrote), the hook registrations and scripts, and the skill / memory-keeper agent when unedited (an edited agent keeps its guard).
+
+## 0.46.0 — 2026-10-06 — fresh memory every session, resume, stale entries, less noise
+
+### Added
+- **`infernoflow resume` / `amp_resume`** — "where were we?" in one call: the latest resume point with its note, open dead ends, recent decisions/notes, uncommitted changes, stale count.
+- **Claude Code SessionStart hook** injects fresh memory at the start of every session (framed as data, ≤ 8 KB). `CLAUDE.md` no longer carries a copy that goes stale and dirties `git status`; Cursor / Copilot keep their rule-file block.
+- **Claude Code SessionEnd hook** leaves an automatic **local** resume point (last request, uncommitted files, open dead ends) — never committed; the newest 5 are kept.
+- **Stale entries:** file-specific entries record the commit they were written at; when the file changes they are marked *may be stale*. **`infernoflow resolve <id>`** retires an entry from AI context (it stays searchable).
+- **`infernoflow curate`** removes old commit notes, duplicates and raw frustration prompts (dry-run; archived first). **`infernoflow move`** moves misfiled entries to another project (dry-run).
+- **`--project <dir>`** on every command; MCP writes about a file in another open workspace folder go to that folder's memory, stored with a repo-relative path.
+- `ask --file` / `amp_read file` rank entries about that file first. `infernoflow transcript` prints the current session transcript.
+
+### Changed
+- **One schema for entry types** (`lib/schema.mjs`): `preference` is now accepted by the MCP tools too; help, MCP schemas and the skill agree. No more `inferno/` in help text.
+- **Skill and memory-keeper agent rewritten** (MCP-first, repo-aware, `attempt` for dead ends, resume, resolve). Upgrades replace copies you never edited; edited copies get `<name>.new` instead.
+- **memory-keeper may only run single read/log `infernoflow` commands** (`status|log|ask|resume|bookmark|transcript|recap`, subagent-scoped PreToolUse guard; no `cd`, chaining or config-changing subcommands); it reads transcripts via `infernoflow transcript`.
+- **Hooks, the MCP server and the VS Code extension never use a launcher found inside the project** (Windows `where` searches the current folder first, so a cloned repo could plant `infernoflow.cmd`).
+- **No more commit-subject notes.** The post-commit hook that logged every commit is removed on upgrade (your own hook content is kept); old commit notes are no longer injected.
+- **Frustration hook logs once per 10 minutes**, tagged `needs-summary`.
+- **Fair health score:** a session with no code changes or failures scores 100; points are lost only for changed areas or failures left unlogged.
+- Each entry records `author`, `repo`, `branch` and sub-folder.
+
+### Security
+- Injected memory is framed as *information to verify, not instructions* (memory can arrive from teammates' pull requests).
+- `globalDir` is read only from the personal config (`infernoflow sync set` writes `~/.infernoflow/config.json`); a value in the committed `amp.json` is ignored and reported by `sync status` and `doctor`.
+- VS Code extension: does nothing with the CLI until the workspace is trusted; `infernoflow.cliPath` is machine-scoped; the CLI is run without a shell; writes are redacted.
+- Dev dependencies updated (vitest 5, esbuild 0.28.2): `npm audit` clean.
+
+### Fixed
+- Windows: longer timeouts for git and the prompt hook on busy machines (the author could fall back to the email prefix; the hook could lose an entry and still start its cooldown).
+
+## 0.45.0 — 2026-10-06 — per-project MCP, secret redaction, keys out of the repo
+
+### Security
+- **Secrets are redacted before anything is written to memory** (message, tags, detail, bookmark transcripts): known token formats, JWTs, private keys, URL credentials and `password=`-style values become `[REDACTED:<kind>]`. The entry is kept; `meta.redacted` records what was removed.
+- **Bookmark transcript snapshots are local-only** (`.ai-memory/details.local.jsonl`, gitignored).
+- **API keys moved out of the project.** `inferno/integrations.json` no longer stores keys; existing keys are migrated to `~/.infernoflow/ai-credentials.json` (0600) on first use, environment keys are never written anywhere, and `inferno/integrations.json` is gitignored.
+- **`readDetail` can no longer read files outside `.ai-memory/details/`** through a crafted `detailRef` (absolute paths, `..`, symlinks).
+- **`doctor` reports the security state:** pinned user-level MCP entry, outdated server/hook copies, secrets in memory files, API keys in the project.
+
+### Changed
+- **MCP is registered per project.** New `infernoflow mcp` runs the server from the installed package. Claude Code gets the project's `.mcp.json` (created gitignored; a git-tracked `.mcp.json` is never modified), Cursor/VS Code their per-project files, Claude Desktop one `infernoflow-<repo>` entry per project. The server is no longer copied into `.cursor/`.
+- **The single user-level `infernoflow` entry that pinned every project to one repo is removed** from `~/.claude.json` and the Claude Desktop config (backup in `~/.infernoflow/backups/`). The upgrade refresh no longer re-pins it.
+- `recap`, `ask`, `status`, `log --show` and the MCP write tools print the store they use (`store: <path> (branch X)`).
+
+## 0.44.20 — 2026-10-06 — security fix: command injection through MCP tool arguments
+
+### Security
+- **The MCP server no longer runs commands through a shell.** Tool arguments were built into shell command strings, so a crafted argument (which an AI agent can be steered into sending by content it reads) could run commands. The CLI and git now run with `execFileSync` and an argument array; every tool call is validated against its schema; text can no longer be read as a CLI flag.
+- **Prompt hooks (Claude Code, Cursor) no longer use a shell on Windows**, where a prompt containing `&` or `|` was executed by `cmd.exe`.
+- **Outdated copies of the MCP server and hooks in existing projects are replaced** on the first `infernoflow` command after upgrading (they were previously copied once and never updated).
+- Tests no longer write to the developer's real `~/.claude.json`.
+
+## 0.44.19 — 2026-08-28 — consolidated detail store (ships for real)
+
+0.44.18 shipped the `init` restart hint and the MCP project-root fix, but its built `dist/` was cut moments before the detail-store consolidation landed back in source, so that change never reached the 0.44.18 tarball. 0.44.19 ships it.
+
+### Changed
+- **Tier-2 detail bodies now live in a single `.ai-memory/details.jsonl`** instead of one `details/<id>.md` file per bookmark/detailed-log — one file, not a folder that grows with every bookmark. Legacy `details/<id>.md` sidecars auto-migrate on the next `log`/`bookmark` (idempotent; `readDetail` still falls back to them). Injection/ranking are unaffected — they only read `sessions.jsonl`.
+
+
+## 0.44.18 — 2026-08-28 — consolidated detail store + skill/agent restart hint
+
+### Changed
+- **Tier-2 detail bodies now live in a single `.ai-memory/details.jsonl`** instead of one `details/<id>.md` file per bookmark/detailed-log. This keeps the workspace (and git) quiet — one file, not a folder that grows with every bookmark. Existing `details/<id>.md` sidecars auto-migrate into the store on the next `log`/`bookmark` (idempotent; nothing is lost — `readDetail` still falls back to legacy files). Injection and ranking are unaffected — they only ever read `sessions.jsonl`, never the detail bodies.
+- **`init` now prints a "Restart Claude Code / Cursor" reminder** when it installs the `infernoflow-memory` skill / `memory-keeper` agent, because editors only load newly-added `.claude/` skills & agents on restart. Verify with `/skills` and `@agent-`.
+
+_No change to the memory format on the wire or to what reaches the chat._
+
 ## 0.44.17 — 2026-08-14 — skill + agent self-install on upgrade (zero-touch)
 
 Makes 0.44.16's skill + agent reach **existing** projects with no manual step.

@@ -44,7 +44,10 @@ beforeEach(() => {
   _resetProjectRootCache();
   _resetBranchCache();
   delete process.env.INFERNOFLOW_GLOBAL_DIR;
+  // Fresh personal config per test (sync settings live in ~/.infernoflow/config.json since 0.46).
+  process.env.INFERNOFLOW_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "infernoflow-home-"));
 });
+const personalCfg = () => path.join(process.env.INFERNOFLOW_HOME, "config.json");
 
 // ── projectSlug ────────────────────────────────────────────────────────────
 
@@ -93,11 +96,19 @@ describe("resolveGlobalFile — resolution priority", () => {
     expect(file).toBe(path.join(syncedRoot, slug, "global.jsonl"));
   });
 
-  it("amp.json `globalDir` is used when env var absent", () => {
+  it("personal-config `globalDir` is used when env var absent", () => {
     rmrf(project);
-    project = mkProject({ ampJson: { globalDir: syncedRoot, project: "p1" } });
+    project = mkProject({ ampJson: { project: "p1" } });
+    fs.writeFileSync(personalCfg(), JSON.stringify({ globalDir: syncedRoot }));
     const file = resolveGlobalFile(project, path.join(project, ".ai-memory"));
     expect(file).toBe(path.join(syncedRoot, "p1", "global.jsonl"));
+  });
+
+  it("SECURITY: a `globalDir` in the repo's amp.json is ignored (F8)", () => {
+    rmrf(project);
+    project = mkProject({ ampJson: { globalDir: "./shared-prefs", project: "p1" } });
+    const file = resolveGlobalFile(project, path.join(project, ".ai-memory"));
+    expect(file).toBe(path.join(project, ".ai-memory", "global.jsonl"));
   });
 
   it("env var WINS over amp.json when both are set", () => {
@@ -159,7 +170,7 @@ function runSync(cwd, args = [], env = {}) {
   return spawnSync(process.execPath, [BIN, "sync", ...args], {
     cwd,
     encoding: "utf8",
-    timeout: 10_000,
+    timeout: 30_000,
     env: { ...process.env, ...env, NO_COLOR: "1" },
   });
 }
@@ -186,19 +197,25 @@ describe("infernoflow sync — CLI subcommands", () => {
     expect(parsed.configuredPath).toBe(syncedRoot);
   });
 
-  it("`sync set <path>` writes globalDir into amp.json", () => {
-    const r = runSync(project, ["set", "/some/sync/dir"]);
+  it("`sync set <path>` writes globalDir into the personal config, not the repo", () => {
+    const r = runSync(project, ["set", syncedRoot]);
     expect(r.status).toBe(0);
-    const cfg = JSON.parse(fs.readFileSync(path.join(project, ".ai-memory", "amp.json"), "utf8"));
-    expect(cfg.globalDir).toBe("/some/sync/dir");
+    expect(JSON.parse(fs.readFileSync(personalCfg(), "utf8")).globalDir).toBe(syncedRoot);
+    const amp = path.join(project, ".ai-memory", "amp.json");
+    if (fs.existsSync(amp)) expect(JSON.parse(fs.readFileSync(amp, "utf8")).globalDir).toBeUndefined();
   });
 
-  it("`sync clear` removes globalDir from amp.json", () => {
-    runSync(project, ["set", "/some/sync/dir"]);
+  it("`sync clear` removes globalDir from the personal config", () => {
+    runSync(project, ["set", syncedRoot]);
     const r = runSync(project, ["clear", "--json"]);
     expect(r.status).toBe(0);
-    const cfg = JSON.parse(fs.readFileSync(path.join(project, ".ai-memory", "amp.json"), "utf8"));
-    expect(cfg.globalDir).toBeUndefined();
+    expect(JSON.parse(fs.readFileSync(personalCfg(), "utf8")).globalDir).toBeUndefined();
+  });
+
+  it("`sync status` reports an ignored repo globalDir", () => {
+    fs.writeFileSync(path.join(project, ".ai-memory", "amp.json"), JSON.stringify({ globalDir: "./x" }));
+    const r = runSync(project, ["status", "--json"], { INFERNOFLOW_GLOBAL_DIR: "" });
+    expect(JSON.parse(r.stdout).ignoredRepoGlobalDir).toBe("./x");
   });
 
   it("`sync migrate --dry-run` reports what would move without writing", () => {

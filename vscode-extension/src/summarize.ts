@@ -23,7 +23,7 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
-import { spawnSync } from "child_process";
+import { runCliSync } from "./cli";
 import { ampIO } from "./amp";
 import type { EntryType } from "infernoflow-amp";
 
@@ -60,15 +60,13 @@ async function summarizeViaProvider(transcript: string): Promise<CandidateEntry[
   try {
     const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!cwd) return [];
-    const cli = vscode.workspace.getConfiguration("infernoflow").get<string>("cliPath", "infernoflow");
-    const result = spawnSync(cli, ["context", "--summarize", "--json"], {
+    // No shell (0.46.0): runCliSync resolves the CLI's .mjs and runs it with node.
+    const result = runCliSync(["context", "--summarize", "--json"], {
       cwd,
-      encoding: "utf8",
       env:      { ...process.env, NO_COLOR: "1" },
       timeout:  60_000,
-      shell:    process.platform === "win32",
     });
-    if (result.status === 0 && result.stdout) {
+    if (result && result.status === 0 && result.stdout) {
       const parsed = parseAiResponse(result.stdout);
       if (parsed.length > 0) return parsed;
     }

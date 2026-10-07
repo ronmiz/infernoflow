@@ -1,5 +1,14 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.21 — 2026-10-06 — security hardening
+
+Pairs with CLI 0.46.1.
+- **Restricted Mode:** in an untrusted workspace the extension only shows memory — it does not install, probe or run the CLI until you trust the workspace.
+- A CLI launcher found **inside the workspace** is never used.
+- `infernoflow.cliPath` is now a **machine-level** setting — a workspace's `.vscode/settings.json` can no longer point it at a program of its choosing — and it is restricted in untrusted workspaces.
+- The CLI is run **without a shell** (its JavaScript entry point is run with `node`), so no workspace text reaches `cmd.exe`.
+- Entries written from the extension are passed through the same **secret redaction** as the CLI.
+
 ## 0.7.20 — 2026-07-04 — leaner injected protocol block
 
 Pairs with CLI 0.44.12. The rule-file writer now honors

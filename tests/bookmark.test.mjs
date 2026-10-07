@@ -115,7 +115,10 @@ describe("infernoflow bookmark", () => {
     // Bare bookmark (no --note) → should auto-harvest the transcript above.
     spawnSync(process.execPath, [BIN, "bookmark", "resume point"], {
       cwd: dir, encoding: "utf8",
-      env: { ...process.env, USERPROFILE: home, HOME: home },
+      // PWD as a shell sets it: the folder's spelling may differ from the
+      // resolved cwd (macOS /var → /private/var), and Claude Code names the
+      // transcript folder after the spelling it saw.
+      env: { ...process.env, USERPROFILE: home, HOME: home, PWD: dir },
     });
 
     const b = bookmarks()[0];

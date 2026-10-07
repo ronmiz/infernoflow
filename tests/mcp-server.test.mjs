@@ -46,7 +46,7 @@ async function driveServer(cwd, messages) {
     const timer = setTimeout(() => {
       proc.kill();
       reject(new Error(`MCP server timed out\nstdout:\n${outBuf}`));
-    }, 8_000);
+    }, 60_000);
 
     proc.on("exit", () => {
       clearTimeout(timer);
@@ -123,11 +123,12 @@ describe("MCP server bootstrap", () => {
     expect(list).toBeDefined();
     const ampWrite = list.result.tools.find(t => t.name === "amp_write");
     expect(ampWrite).toBeDefined();
-    // The type enum on the schema must match the AMP spec.
+    // The type enum comes from the single schema (lib/schema.mjs): the AMP
+    // spec types plus `preference` (stored as note + meta.subtype).
     const typeEnum = ampWrite.inputSchema.properties.type.enum;
-    expect(typeEnum.sort()).toEqual(
-      ["attempt", "decision", "detection", "gotcha", "note", "pattern"].sort()
-    );
+    const { AGENT_TYPES } = await import("../lib/schema.mjs");
+    expect([...typeEnum].sort()).toEqual([...AGENT_TYPES].sort());
+    expect(typeEnum).toEqual(expect.arrayContaining(["attempt", "decision", "detection", "gotcha", "note", "pattern", "preference"]));
     expect(ampWrite.inputSchema.required).toContain("type");
     expect(ampWrite.inputSchema.required).toContain("msg");
   });
