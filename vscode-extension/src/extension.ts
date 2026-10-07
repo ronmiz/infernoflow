@@ -33,7 +33,7 @@ import { AutoCapture }             from "./autoCapture";
 // activation write (shared `<!-- infernoflow:start -->` markers, so the CLI's
 // richer write still replaces it cleanly — no duplicate block) closes that gap
 // without bringing back the v0.43 per-edit churn that blocked branch switches.
-import { rebuildAiRuleFiles }      from "./contextSync";
+import { rebuildAiRuleFilesOnStartup } from "./contextSync";
 import { registerCommands }        from "./commands";
 import { ensureCliAndSetup }       from "./cliInstaller";
 import { registerLmTools }         from "./lmTools";
@@ -137,7 +137,8 @@ export function activate(context: vscode.ExtensionContext): void {
   // (no Node). One-time write on activation only; idempotent and shared-marker
   // so a later CLI write replaces it without duplicating. Never blocks activation.
   if (isAutoSyncEnabled() && ampIO.isInitialised()) {
-    try { rebuildAiRuleFiles(); } catch { /* non-fatal — sidebar still works */ }
+    // Only in projects set up on this machine (a fresh clone is left untouched).
+    rebuildAiRuleFilesOnStartup().catch(() => { /* non-fatal — sidebar still works */ });
   }
   // Keep the (currently no-op) debounced hook registered for future use.
   scheduleRebuild();

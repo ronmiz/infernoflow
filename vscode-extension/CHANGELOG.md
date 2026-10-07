@@ -1,13 +1,26 @@
 # Changelog — infernoflow VS Code extension
 
-## 0.7.21 — 2026-10-06 — security hardening
+## 0.7.21 — 2026-10-07 — security hardening, shared memory, CLI parity
 
-Pairs with CLI 0.46.1.
-- **Restricted Mode:** in an untrusted workspace the extension only shows memory — it does not install, probe or run the CLI until you trust the workspace.
+Pairs with CLI 0.46.2.
+
+### Security
+- **Restricted Mode:** in an untrusted workspace memory is read-only — the extension does not install, probe or run the CLI, write entries or rule files, or delete anything until you trust the workspace.
 - A CLI launcher found **inside the workspace** is never used.
 - `infernoflow.cliPath` is now a **machine-level** setting — a workspace's `.vscode/settings.json` can no longer point it at a program of its choosing — and it is restricted in untrusted workspaces.
 - The CLI is run **without a shell** (its JavaScript entry point is run with `node`), so no workspace text reaches `cmd.exe`.
 - Entries written from the extension are passed through the same **secret redaction** as the CLI.
+- **Copilot's `amp_write` asks before saving** and shows exactly what will be written (project memory is shared through git); entries are limited to 1,000 characters. `amp_read` frames memory as information to verify, not instructions.
+
+### Fixed
+- **Shared memory:** the extension reads the same files as the CLI — including the shared branch file (`.ai-memory/branches/<branch>.jsonl`) — so entries from teammates appear in the sidebar, Problems panel, status bar and Copilot. Before, it read only this machine's local file.
+- **Writes reach the team:** entries logged from the extension go to the shared branch file with the author stamped, like `infernoflow log` (they used to stay in a local-only file), and the CLI doesn't list them as "new from git".
+- **Rule files match the CLI:** the block is framed as data, leaves out resolved entries and old commit notes, shows authors, and `CLAUDE.md` is left alone when Claude Code gets memory from the session hook (no more re-added block or dirty `git status`). At start-up the rule files are only refreshed in projects set up on this machine — opening a freshly cloned repo changes nothing.
+- Entries about a file record the commit they were written at, so the CLI can mark them *may be stale* when the file changes.
+- In a project where the CLI never ran, the first entry adds the CLI's `.gitignore` / `.gitattributes` blocks, so personal files stay out of git and branch memory merges cleanly.
+- Gotchas marked fixed (`infernoflow resolve`) no longer show in the Problems panel.
+- A freshly cloned project (`.ai-memory/` without the local `sessions.jsonl`) is recognised as initialised.
+- Deleting an entry removes it from every memory file, not just the local one.
 
 ## 0.7.20 — 2026-07-04 — leaner injected protocol block
 

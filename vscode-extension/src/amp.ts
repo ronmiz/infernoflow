@@ -14,6 +14,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { AMP, AMPEntry, AMPConfig, EntryType, HealthScore } from "infernoflow-amp";
 import { redactSecrets } from "./redact";
+import { readAllEntries, deleteEntriesEverywhere, writeEntry, visible } from "./store";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -60,6 +61,10 @@ class AmpIO {
     if (!root) return;
     this.root = root;
     this.amp = new AMP(root);
+    // The bundled lib's health score and handoff read only this machine's
+    // mirror; point them at the full memory (shared branch files included).
+    const r = root;
+    (this.amp as unknown as { readAll: () => AMPEntry[] }).readAll = () => visible(readAllEntries(r));
 
     // v0.44.1: watch EVERY .jsonl file under the memory dirs, not just
     // sessions.jsonl. v0.44 introduced branch-aware writes (branches/<branch>.jsonl)
@@ -88,28 +93,46 @@ class AmpIO {
     return this.root ? ampSessionsPath(this.root) : undefined;
   }
 
-  /** True iff the project has been initialised (.ai-memory/ or inferno/). */
+  /**
+   * True iff the project has been initialised. `.ai-memory/sessions.jsonl` is
+   * a gitignored local mirror, so a fresh clone has only `.ai-memory/` (with
+   * `branches/*.jsonl`) — the folder itself is the marker.
+   */
   isInitialised(): boolean {
-    return !!this.sessionsPath();
+    if (!this.root) return false;
+    return fs.existsSync(path.join(this.root, ".ai-memory")) || !!this.sessionsPath();
   }
 
-  /** Read all entries normalised to AMP shape. Returns [] if not initialised. */
+  /**
+   * Read all entries (shared branch files, personal global.jsonl and this
+   * machine's mirror), de-duplicated. Returns [] if not initialised.
+   */
   readEntries(): AMPEntry[] {
-    if (!this.amp) return [];
-    try { return this.amp.readAll(); } catch { return []; }
+    if (!this.root) return [];
+    try { return readAllEntries(this.root); } catch { return []; }
   }
 
-  /** Append a new entry. AMP fills in id/ts/etc. */
+  /**
+   * Append a new entry the way the CLI does: to the current branch's shared
+   * file (tracked in git), mirrored to this machine's file, with the author
+   * stamped and secrets redacted. Never in an untrusted workspace.
+   */
   write(entry: { type: EntryType; msg: string; file?: string; line?: number; tags?: string[]; source?: string }): AMPEntry | undefined {
     if (!this.amp || !this.root) return undefined;
+    if (!vscode.workspace.isTrusted) {
+      vscode.window.showErrorMessage("infernoflow: memory is read-only in an untrusted workspace. Trust the workspace to log entries.");
+      return undefined;
+    }
     try {
       // Memory is committed with the repo — redact secrets before writing (CLI parity).
-      return this.amp.write({
+      const written = writeEntry(this.root, {
         ...entry,
         msg: redactSecrets(entry.msg),
         ...(entry.tags ? { tags: entry.tags.map(t => redactSecrets(t)) } : {}),
         source: entry.source || "vscode-extension",
       });
+      this.listeners.forEach(l => { try { l(); } catch { /* ignore */ } });
+      return written;
     } catch (err: unknown) {
       const m = err instanceof Error ? err.message : String(err);
       vscode.window.showErrorMessage(`infernoflow: failed to write entry — ${m}`);
@@ -135,32 +158,15 @@ class AmpIO {
    */
   deleteEntries(ids: string[]): number {
     if (!this.root || ids.length === 0) return 0;
-    const sessionsPath = this.sessionsPath();
-    if (!sessionsPath || !fs.existsSync(sessionsPath)) return 0;
-    const idSet = new Set(ids);
-
+    if (!vscode.workspace.isTrusted) return 0;   // Restricted Mode: never change files
     try {
-      const lines = fs.readFileSync(sessionsPath, "utf8").split("\n");
-      let removed = 0;
-      const kept: string[] = [];
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        try {
-          const entry = JSON.parse(line);
-          if (entry.id && idSet.has(entry.id)) {
-            removed++;
-            continue;
-          }
-          kept.push(line);
-        } catch {
-          // Preserve malformed lines verbatim
-          kept.push(line);
-        }
-      }
-      if (removed === 0) return 0;
-      fs.writeFileSync(sessionsPath, kept.length ? kept.join("\n") + "\n" : "", "utf8");
+      // Every memory file: the shared branch files, global.jsonl and the local mirror.
+      const present = new Set(this.readEntries().map(e => e.id).filter(Boolean));
+      const found = [...new Set(ids)].filter(id => present.has(id)).length;
+      const removedLines = deleteEntriesEverywhere(this.root, ids);
+      if (removedLines === 0) return 0;
       this.listeners.forEach(l => { try { l(); } catch { /* ignore */ } });
-      return removed;
+      return found;
     } catch (err: unknown) {
       const m = err instanceof Error ? err.message : String(err);
       vscode.window.showErrorMessage(`infernoflow: failed to delete entries — ${m}`);
@@ -225,6 +231,7 @@ class AmpIO {
   /** Run the legacy → AMP migration via the underlying lib (when needed). */
   migrate(): { migrated: number; reason: string } {
     if (!this.root) return { migrated: 0, reason: "no workspace" };
+    if (!vscode.workspace.isTrusted) return { migrated: 0, reason: "workspace not trusted" };
     // The infernoflow-amp lib doesn't ship a migrate() yet; do it inline so
     // the extension can offer a one-click fix without shelling out.
     const legacy = path.join(this.root, "inferno", "sessions.jsonl");

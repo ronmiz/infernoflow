@@ -13,6 +13,7 @@
 
 import * as vscode from "vscode";
 import { ampIO } from "./amp";
+import { isResolved, isNoise } from "./store";
 
 const SOURCE = "infernoflow";
 
@@ -59,8 +60,9 @@ export class InfernoDiagnostics {
 
   private refreshDocument(doc: vscode.TextDocument): void {
     if (doc.uri.scheme !== "file") return;
+    // A gotcha marked fixed (`infernoflow resolve`) no longer warns.
     const entries = ampIO.forFile(doc.uri.fsPath).filter(
-      e => e.type === "gotcha" || e.type === "attempt",
+      e => (e.type === "gotcha" || e.type === "attempt") && !isResolved(e) && !isNoise(e),
     );
     if (entries.length === 0) {
       this.collection.delete(doc.uri);

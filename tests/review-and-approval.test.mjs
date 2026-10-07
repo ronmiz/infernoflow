@@ -299,3 +299,18 @@ describe("R3.7 GitHub Action lists memory a PR adds", () => {
     expect(r.status).toBe(0);
   });
 });
+
+describe("VS Code extension stays in sync with the CLI's clean-tree policy", () => {
+  it("the extension's managed .gitignore / .gitattributes blocks match lib/cleanTree.mjs", () => {
+    const cli = fs.readFileSync(path.join(ROOT, "lib", "cleanTree.mjs"), "utf8");
+    const ext = fs.readFileSync(path.join(ROOT, "vscode-extension", "src", "store.ts"), "utf8");
+    const lines = (text, re) => text.match(re)[1].split("\n").map(l => l.trim().replace(/,$/, ""))
+      .filter(l => l.startsWith('"') && l !== '""').map(l => JSON.parse(l));
+    expect(lines(ext, /GITIGNORE_BLOCK = \[([\s\S]*?)\]\.join/)).toEqual(lines(cli, /MANAGED_GITIGNORE_LINES = \[([\s\S]*?)\]\.join/));
+    expect(lines(ext, /GITATTRIBUTES_BLOCK = \[([\s\S]*?)\]\.join/)).toEqual(lines(cli, /MANAGED_GITATTRIBUTES_LINES = \[([\s\S]*?)\]\.join/));
+    expect(ext).toContain('const MANAGED_START = "# >>> infernoflow:start"');
+    expect(cli).toContain('GITIGNORE_START = "# >>> infernoflow:start"');
+    expect(ext).toContain('const MANAGED_END   = "# <<< infernoflow:end"');
+    expect(cli).toContain('GITIGNORE_END   = "# <<< infernoflow:end"');
+  });
+});
