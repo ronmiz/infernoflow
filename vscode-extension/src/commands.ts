@@ -559,6 +559,54 @@ async function deleteEntryCommand(entry: unknown): Promise<void> {
 
 // ── Public registration ─────────────────────────────────────────────────────
 
+// ── Bookmarks ────────────────────────────────────────────────────────────────
+
+/** Reveal a file:line referenced by an entry, if the file still exists. */
+async function revealEntryFile(root: string, entry: { file?: string; line?: number }): Promise<boolean> {
+  if (!entry.file) return false;
+  const abs = path.isAbsolute(entry.file) ? entry.file : path.join(root, entry.file);
+  if (!fs.existsSync(abs)) return false;
+  const line = entry.line && entry.line > 0 ? entry.line - 1 : 0;
+  await vscode.commands.executeCommand("vscode.open", vscode.Uri.file(abs), { selection: new vscode.Range(line, 0, line, 0) });
+  return true;
+}
+
+/**
+ * "Jump to" a bookmark: open its saved Tier-2 context (rendered), and/or reveal
+ * its file:line. The context body lives at the deterministic sidecar path
+ * `.ai-memory/details/<id>.md`, so we read it directly — no dependency on the
+ * bundled infernoflow-amp exposing detailRef.
+ */
+async function jumpToBookmarkCommand(arg: unknown): Promise<void> {
+  const entry = (arg && typeof arg === "object" && "entry" in (arg as Record<string, unknown>))
+    ? (arg as { entry: { id?: string; msg?: string; file?: string; line?: number } }).entry
+    : (arg as { id?: string; msg?: string; file?: string; line?: number });
+  const root = workspaceRoot();
+  if (!root || !entry || !entry.id) { vscode.window.showWarningMessage("No bookmark selected."); return; }
+
+  const detailPath = path.join(root, ".ai-memory", "details", `${entry.id}.md`);
+  if (fs.existsSync(detailPath)) {
+    const uri = vscode.Uri.file(detailPath);
+    await vscode.commands.executeCommand("markdown.showPreview", uri); // render the saved context
+    if (entry.file) await revealEntryFile(root, entry);                 // and jump to the code, if any
+    return;
+  }
+  if (await revealEntryFile(root, entry)) return;                       // marker with a file → jump there
+  vscode.window.showInformationMessage(`🔖 ${entry.msg} — marker only (no saved context).`);
+}
+
+/** Drop a bookmark at the active file:line from the extension (marker; rich context via CLI/AI). */
+async function bookmarkThisCommand(): Promise<void> {
+  const label = await vscode.window.showInputBox({
+    prompt: "🔖 Bookmark label — a named resume point",
+    placeHolder: "e.g. before the SP refactor",
+  });
+  if (!label || !label.trim()) return;
+  const ctx = activeFileContext();
+  const entry = ampIO.write({ type: "note", msg: label.trim(), tags: ["bookmark"], file: ctx.file, line: ctx.line });
+  if (entry) notify(`🔖 Bookmark saved: ${label.trim()}${ctx.file ? ` (${ctx.file}${ctx.line ? ":" + ctx.line : ""})` : ""}`);
+}
+
 export function registerCommands(context: vscode.ExtensionContext, refresh: () => void): void {
   const reg = (id: string, fn: (...args: unknown[]) => unknown) =>
     context.subscriptions.push(vscode.commands.registerCommand(id, fn));
@@ -585,6 +633,8 @@ export function registerCommands(context: vscode.ExtensionContext, refresh: () =
     refresh();
   });
   reg("infernoflow.manageEntries", async () => { await manageEntriesCommand(); refresh(); });
+  reg("infernoflow.jumpToBookmark", async (arg: unknown) => { await jumpToBookmarkCommand(arg); });
+  reg("infernoflow.bookmarkThis",   async () => { await bookmarkThisCommand(); refresh(); });
   reg("infernoflow.cleanupOrphaned", async () => { await cleanupOrphanedCommand(); refresh(); });
   reg("infernoflow.handleOrphaned",  async (entry: unknown) => { await handleOrphanedCommand(entry); refresh(); });
   reg("infernoflow.summarizeSession", async () => { await summarizeSessionCommand(); refresh(); });

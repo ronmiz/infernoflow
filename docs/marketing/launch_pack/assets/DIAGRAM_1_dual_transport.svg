@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700">
+  <defs>
+    <linearGradient id="fire" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6B35"/>
+      <stop offset="100%" stop-color="#F7931E"/>
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e2230"/>
+      <stop offset="100%" stop-color="#141826"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#7c8496"/>
+    </marker>
+    <marker id="arrowFire" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#FF6B35"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="700" fill="#0d0f16"/>
+
+  <!-- Title -->
+  <text x="600" y="55" text-anchor="middle" fill="#ffffff" font-family="-apple-system, Segoe UI, sans-serif" font-size="32" font-weight="700">One product · two transports · one disk file</text>
+  <text x="600" y="88" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, Segoe UI, sans-serif" font-size="16">Every AI coding tool reaches the same six `amp_*` tools, whichever path is available.</text>
+
+  <!-- LEFT column: LMT path -->
+  <g>
+    <rect x="60" y="150" width="340" height="270" rx="16" fill="url(#cardGrad)" stroke="#2a3040" stroke-width="1.5"/>
+    <text x="230" y="185" text-anchor="middle" fill="#FF6B35" font-family="-apple-system, sans-serif" font-size="13" font-weight="600" letter-spacing="1.5">TRANSPORT 1</text>
+    <text x="230" y="215" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="20" font-weight="700">VS Code Language</text>
+    <text x="230" y="240" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="20" font-weight="700">Model Tools (LMT)</text>
+
+    <text x="230" y="280" text-anchor="middle" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="13">Registered by the VS Code</text>
+    <text x="230" y="300" text-anchor="middle" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="13">extension automatically.</text>
+
+    <rect x="90" y="325" width="280" height="34" rx="8" fill="#0a0d14" stroke="#2a3040"/>
+    <text x="230" y="347" text-anchor="middle" fill="#7cd992" font-family="Menlo, Consolas, monospace" font-size="12">vscode.lm.registerTool()</text>
+
+    <text x="230" y="382" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="12" font-style="italic">Zero per-project config.</text>
+    <text x="230" y="400" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="12" font-style="italic">Works if MCP isn't wired.</text>
+  </g>
+
+  <!-- RIGHT column: MCP path -->
+  <g>
+    <rect x="800" y="150" width="340" height="270" rx="16" fill="url(#cardGrad)" stroke="#2a3040" stroke-width="1.5"/>
+    <text x="970" y="185" text-anchor="middle" fill="#FF6B35" font-family="-apple-system, sans-serif" font-size="13" font-weight="600" letter-spacing="1.5">TRANSPORT 2</text>
+    <text x="970" y="215" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="20" font-weight="700">Model Context</text>
+    <text x="970" y="240" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="20" font-weight="700">Protocol (MCP)</text>
+
+    <text x="970" y="280" text-anchor="middle" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="13">Wired by `infernoflow init`</text>
+    <text x="970" y="300" text-anchor="middle" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="13">into each IDE's config.</text>
+
+    <rect x="830" y="325" width="280" height="34" rx="8" fill="#0a0d14" stroke="#2a3040"/>
+    <text x="970" y="347" text-anchor="middle" fill="#87ceeb" font-family="Menlo, Consolas, monospace" font-size="12">.cursor/mcp.json / .vscode/mcp.json</text>
+
+    <text x="970" y="382" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="12" font-style="italic">Cross-client. Same tools,</text>
+    <text x="970" y="400" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="12" font-style="italic">any MCP-capable AI.</text>
+  </g>
+
+  <!-- CENTER: shared destination -->
+  <g>
+    <rect x="440" y="180" width="320" height="210" rx="16" fill="rgba(255,107,53,0.08)" stroke="#FF6B35" stroke-width="2"/>
+    <text x="600" y="215" text-anchor="middle" fill="#FF6B35" font-family="-apple-system, sans-serif" font-size="13" font-weight="600" letter-spacing="1.5">SHARED · ONE SOURCE OF TRUTH</text>
+    <text x="600" y="255" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="20" font-weight="700">The six `amp_*` tools</text>
+    <text x="600" y="284" text-anchor="middle" fill="#a0a6b1" font-family="Menlo, Consolas, monospace" font-size="13">amp_write · amp_read · amp_search</text>
+    <text x="600" y="304" text-anchor="middle" fill="#a0a6b1" font-family="Menlo, Consolas, monospace" font-size="13">amp_bookmark · amp_handoff · amp_health</text>
+
+    <rect x="470" y="325" width="260" height="42" rx="8" fill="#0a0d14" stroke="#FF6B35" stroke-width="1"/>
+    <text x="600" y="343" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11">writes to</text>
+    <text x="600" y="360" text-anchor="middle" fill="#7cd992" font-family="Menlo, Consolas, monospace" font-size="13">.ai-memory/</text>
+  </g>
+
+  <!-- Arrows from LMT → center -->
+  <line x1="400" y1="285" x2="440" y2="285" stroke="#FF6B35" stroke-width="2.5" marker-end="url(#arrowFire)"/>
+  <!-- Arrows from MCP → center -->
+  <line x1="800" y1="285" x2="760" y2="285" stroke="#FF6B35" stroke-width="2.5" marker-end="url(#arrowFire)" transform="rotate(180 780 285)"/>
+
+  <!-- BOTTOM: IDE strip showing which uses which -->
+  <text x="600" y="475" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="13" letter-spacing="1">EACH IDE USES WHAT SUITS IT</text>
+
+  <g transform="translate(90, 505)">
+    <rect width="230" height="140" rx="10" fill="#0d1117" stroke="#2a3040"/>
+    <text x="115" y="30" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="15" font-weight="700">GitHub Copilot Chat</text>
+    <text x="115" y="55" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="11">(VS Code)</text>
+    <rect x="20" y="70" width="90" height="26" rx="6" fill="rgba(255,107,53,0.15)" stroke="#FF6B35"/>
+    <text x="65" y="87" text-anchor="middle" fill="#FF6B35" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">LMT ✓</text>
+    <rect x="120" y="70" width="90" height="26" rx="6" fill="rgba(255,107,53,0.15)" stroke="#FF6B35"/>
+    <text x="165" y="87" text-anchor="middle" fill="#FF6B35" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">MCP ✓</text>
+    <text x="115" y="120" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11">MCP GA since VS Code 1.102</text>
+  </g>
+
+  <g transform="translate(340, 505)">
+    <rect width="180" height="140" rx="10" fill="#0d1117" stroke="#2a3040"/>
+    <text x="90" y="35" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="15" font-weight="700">Cursor</text>
+    <rect x="45" y="60" width="90" height="26" rx="6" fill="rgba(255,107,53,0.15)" stroke="#FF6B35"/>
+    <text x="90" y="77" text-anchor="middle" fill="#FF6B35" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">MCP ✓</text>
+    <text x="90" y="110" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11">+ hook fallback</text>
+    <text x="90" y="125" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="10">(beforeSubmitPrompt)</text>
+  </g>
+
+  <g transform="translate(540, 505)">
+    <rect width="180" height="140" rx="10" fill="#0d1117" stroke="#2a3040"/>
+    <text x="90" y="35" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="15" font-weight="700">Claude Code</text>
+    <rect x="45" y="60" width="90" height="26" rx="6" fill="rgba(255,107,53,0.15)" stroke="#FF6B35"/>
+    <text x="90" y="77" text-anchor="middle" fill="#FF6B35" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">MCP ✓</text>
+    <text x="90" y="110" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11">+ transcript harvest</text>
+    <text x="90" y="125" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="10">(reads on-disk .jsonl)</text>
+  </g>
+
+  <g transform="translate(740, 505)">
+    <rect width="180" height="140" rx="10" fill="#0d1117" stroke="#2a3040"/>
+    <text x="90" y="35" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="15" font-weight="700">Windsurf</text>
+    <rect x="35" y="60" width="110" height="26" rx="6" fill="rgba(90,100,120,0.15)" stroke="#5b6172"/>
+    <text x="90" y="77" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">MCP planned</text>
+    <text x="90" y="110" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11">rule files today</text>
+    <text x="90" y="125" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="10">(.windsurfrules)</text>
+  </g>
+
+  <g transform="translate(940, 505)">
+    <rect width="180" height="140" rx="10" fill="#0d1117" stroke="#2a3040"/>
+    <text x="90" y="35" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="15" font-weight="700">Copilot (JetBrains)</text>
+    <rect x="35" y="60" width="110" height="26" rx="6" fill="rgba(90,100,120,0.15)" stroke="#5b6172"/>
+    <text x="90" y="77" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">Read-only</text>
+    <text x="90" y="110" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="11">rule files today</text>
+    <text x="90" y="125" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="10">(no interactive tools)</text>
+  </g>
+</svg>

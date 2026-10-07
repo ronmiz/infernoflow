@@ -1,0 +1,5 @@
+Author here — happy to answer questions. Quick heads-up on how the harvest works since it's the most novel piece:
+
+Claude Code writes every session to disk as JSONL at ~/.claude/projects/<encoded-cwd>/*.jsonl (where <encoded-cwd> is the abs path with every non-alphanumeric replaced by "-"). When you drop a bookmark without a --note, infernoflow finds the newest transcript for the current project, parses the recent user/assistant turns, and stores them as a markdown snapshot in .ai-memory/details/<id>.md. Deterministic — the model isn't involved.
+
+For Cursor / Windsurf we fall back to marker-only bookmarks (label without context). Working on cross-transport harvest for other IDEs.

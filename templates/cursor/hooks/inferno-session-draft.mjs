@@ -151,6 +151,27 @@ const TRIGGER_RES = [
   /\bdoesn['’]?t work\b/i,
 ];
 
+// Deterministic BOOKMARK triggers — an explicit "bookmark this" is an intentional
+// resume point (not a trouble signal), so it takes precedence and drops a real
+// bookmark (which auto-captures the session transcript). No AI cooperation needed.
+const BOOKMARK_RES = [
+  /\bbookmark (?:this|it|here)(?: point)?\b/i,
+  /\bmark this (?:point|spot|moment|here)\b/i,
+  /\bsave (?:this )?(?:point|checkpoint|resume point)\b/i,
+];
+
+/** Strip the trigger phrase to reuse the rest of the prompt as the bookmark label. */
+function deriveBookmarkLabel(prompt) {
+  const label = prompt
+    .replace(/\bbookmark (?:this|it|here)(?: point)?\b/ig, "")
+    .replace(/\bmark this (?:point|spot|moment|here)\b/ig, "")
+    .replace(/\bsave (?:this )?(?:point|checkpoint|resume point)\b/ig, "")
+    .replace(/[\s:.!,–—-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (label.slice(0, 80).trim()) || "Session bookmark";
+}
+
 function memoryRootExists() {
   return fs.existsSync(path.join(projectRoot(), ".ai-memory")) ||
          fs.existsSync(path.join(projectRoot(), "inferno"));
@@ -166,10 +187,41 @@ function cheapHash(s) {
   return String(h);
 }
 
+function handleBookmarkTrigger(prompt) {
+  const now = Date.now();
+  const stateFile = triggerStatePath();
+  let state = {};
+  try { state = JSON.parse(fs.readFileSync(stateFile, "utf8")); } catch {}
+  const h = cheapHash(prompt.slice(0, 200));
+  if (state.lastBmHash === h) return;              // same prompt — don't double-fire
+
+  const label = deriveBookmarkLabel(prompt);
+  let wrote = false;
+  try {
+    // The `bookmark` command (no --marker) auto-captures the session transcript
+    // as the resume point. Needs infernoflow >= 0.44.10 on PATH; if the global
+    // CLI is older / missing, this no-ops and the AI's amp_bookmark path covers it.
+    const bin = process.platform === "win32" ? "infernoflow.cmd" : "infernoflow";
+    const r = spawnSync(bin, ["bookmark", label], {
+      cwd: projectRoot(), encoding: "utf8", timeout: 12000, shell: process.platform === "win32",
+    });
+    wrote = r.status === 0;
+  } catch { /* CLI unavailable — skip */ }
+
+  if (wrote) {
+    try { fs.writeFileSync(stateFile, JSON.stringify({ ...state, lastBmHash: h }), "utf8"); } catch {}
+    process.stderr.write("[inferno-session-draft] auto-bookmarked resume point\n");
+  }
+}
+
 function handleUserPrompt(text) {
   const trimmed = (text || "").trim();
   if (!trimmed) return;
   if (!memoryRootExists()) return;                 // only inside infernoflow projects
+
+  // Bookmark trigger takes precedence — "bookmark this" is intentional, not trouble.
+  if (BOOKMARK_RES.some((re) => re.test(trimmed))) { handleBookmarkTrigger(trimmed); return; }
+
   if (!TRIGGER_RES.some((re) => re.test(trimmed))) return;
 
   const now = Date.now();
@@ -205,7 +257,7 @@ function handleUserPrompt(text) {
   }
 
   if (wrote) {
-    try { fs.writeFileSync(stateFile, JSON.stringify({ lastTs: now, lastHash: h }), "utf8"); } catch {}
+    try { fs.writeFileSync(stateFile, JSON.stringify({ ...state, lastTs: now, lastHash: h }), "utf8"); } catch {}
     process.stderr.write("[inferno-session-draft] auto-captured trigger to memory\n");
   }
 }

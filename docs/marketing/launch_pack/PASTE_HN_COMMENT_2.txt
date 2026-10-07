@@ -1,0 +1,7 @@
+One expected question: "How is this different from writing rules into CLAUDE.md?"
+
+Static rules are one-way: you write, the AI reads. They don't grow with the project. Every gotcha you hit, every decision with a "because," every dead end you tried, has to be manually distilled and typed.
+
+infernoflow's difference: the AI captures them by itself, mid-session, via MCP or LMT. They persist in git-tracked, branch-aware JSONL. When your teammate checks out your branch, they inherit your memory automatically. Zero manual distillation.
+
+The static rule files (CLAUDE.md / .cursorrules / copilot-instructions.md) are output surfaces — infernoflow writes to them automatically, in a marker-wrapped block. Your manual edits outside the block are never touched.

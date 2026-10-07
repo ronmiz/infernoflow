@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700">
+  <defs>
+    <linearGradient id="fire2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6B35"/>
+      <stop offset="100%" stop-color="#F7931E"/>
+    </linearGradient>
+    <linearGradient id="cardGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e2230"/>
+      <stop offset="100%" stop-color="#141826"/>
+    </linearGradient>
+    <marker id="arrow2" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto">
+      <path d="M0,0 L14,7 L0,14 z" fill="#FF6B35"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="700" fill="#0d0f16"/>
+
+  <!-- Title -->
+  <text x="600" y="55" text-anchor="middle" fill="#ffffff" font-family="-apple-system, Segoe UI, sans-serif" font-size="32" font-weight="700">3 paths to bookmark. Same schema. Same file.</text>
+  <text x="600" y="85" text-anchor="middle" fill="#8a92a4" font-family="-apple-system, Segoe UI, sans-serif" font-size="16">Whichever entry point fires — the resume point lands in the same place.</text>
+
+  <!-- Path 1: CLI -->
+  <g transform="translate(60, 150)">
+    <rect width="320" height="270" rx="16" fill="url(#cardGrad2)" stroke="#2a3040" stroke-width="1.5"/>
+    <circle cx="35" cy="35" r="16" fill="#FF6B35"/>
+    <text x="35" y="41" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="16" font-weight="700">1</text>
+    <text x="65" y="41" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="20" font-weight="700">CLI</text>
+
+    <text x="20" y="80" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="13">You type in terminal:</text>
+    <rect x="20" y="94" width="280" height="42" rx="6" fill="#0a0d14" stroke="#2a3040"/>
+    <text x="30" y="121" fill="#7cd992" font-family="Menlo, Consolas, monospace" font-size="13">$ infernoflow bookmark</text>
+    <text x="30" y="140" fill="#7cd992" font-family="Menlo, Consolas, monospace" font-size="13">    "before auth rewrite"</text>
+
+    <text x="20" y="180" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="13">✓ Explicit &amp; deterministic</text>
+    <text x="20" y="203" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="13">✓ Works everywhere</text>
+    <text x="20" y="226" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="13">✓ Great for scripts / CI</text>
+
+    <text x="20" y="255" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="11" font-style="italic">You control it entirely</text>
+  </g>
+
+  <!-- Path 2: MCP -->
+  <g transform="translate(440, 150)">
+    <rect width="320" height="270" rx="16" fill="url(#cardGrad2)" stroke="#2a3040" stroke-width="1.5"/>
+    <circle cx="35" cy="35" r="16" fill="#FF6B35"/>
+    <text x="35" y="41" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="16" font-weight="700">2</text>
+    <text x="65" y="41" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="20" font-weight="700">MCP tool</text>
+
+    <text x="20" y="80" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="13">AI calls on its own:</text>
+    <rect x="20" y="94" width="280" height="42" rx="6" fill="#0a0d14" stroke="#2a3040"/>
+    <text x="30" y="121" fill="#87ceeb" font-family="Menlo, Consolas, monospace" font-size="13">amp_bookmark({</text>
+    <text x="30" y="140" fill="#87ceeb" font-family="Menlo, Consolas, monospace" font-size="13">    label: "..." })</text>
+
+    <text x="20" y="180" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="13">✓ Autonomous — no prompt needed</text>
+    <text x="20" y="203" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="13">✓ AI decides when it matters</text>
+    <text x="20" y="226" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="13">✓ Cursor + Claude Code + MCP</text>
+
+    <text x="20" y="255" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="11" font-style="italic">AI is the driver</text>
+  </g>
+
+  <!-- Path 3: Hook -->
+  <g transform="translate(820, 150)">
+    <rect width="320" height="270" rx="16" fill="url(#cardGrad2)" stroke="#2a3040" stroke-width="1.5"/>
+    <circle cx="35" cy="35" r="16" fill="#FF6B35"/>
+    <text x="35" y="41" text-anchor="middle" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="16" font-weight="700">3</text>
+    <text x="65" y="41" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="20" font-weight="700">Chat phrase</text>
+
+    <text x="20" y="80" fill="#8a92a4" font-family="-apple-system, sans-serif" font-size="13">You say in chat:</text>
+    <rect x="20" y="94" width="280" height="42" rx="6" fill="#0a0d14" stroke="#2a3040"/>
+    <text x="30" y="121" fill="#ffd580" font-family="Menlo, Consolas, monospace" font-size="13">"bookmark this before</text>
+    <text x="30" y="140" fill="#ffd580" font-family="Menlo, Consolas, monospace" font-size="13">the tricky refactor"</text>
+
+    <text x="20" y="180" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="13">✓ beforeSubmitPrompt hook</text>
+    <text x="20" y="203" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="13">✓ Catches BEFORE AI sees it</text>
+    <text x="20" y="226" fill="#a0a6b1" font-family="-apple-system, sans-serif" font-size="13">✓ Backstop if AI ignores</text>
+
+    <text x="20" y="255" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="11" font-style="italic">Deterministic. AI-cooperation-free.</text>
+  </g>
+
+  <!-- Arrows converging -->
+  <line x1="220" y1="425" x2="500" y2="510" stroke="#FF6B35" stroke-width="2" marker-end="url(#arrow2)"/>
+  <line x1="600" y1="425" x2="600" y2="500" stroke="#FF6B35" stroke-width="2" marker-end="url(#arrow2)"/>
+  <line x1="980" y1="425" x2="700" y2="510" stroke="#FF6B35" stroke-width="2" marker-end="url(#arrow2)"/>
+
+  <!-- Convergence: the single output -->
+  <g transform="translate(300, 530)">
+    <rect width="600" height="130" rx="16" fill="rgba(255,107,53,0.08)" stroke="#FF6B35" stroke-width="2"/>
+    <text x="300" y="35" text-anchor="middle" fill="#FF6B35" font-family="-apple-system, sans-serif" font-size="15" font-weight="700" letter-spacing="1.5">SAME SCHEMA · SAME FILE · SAME BEHAVIOR</text>
+
+    <rect x="35" y="55" width="230" height="55" rx="8" fill="#0a0d14" stroke="#2a3040"/>
+    <text x="150" y="76" text-anchor="middle" fill="#a0a6b1" font-family="Menlo, Consolas, monospace" font-size="11">Tier-1 · lean index</text>
+    <text x="150" y="97" text-anchor="middle" fill="#7cd992" font-family="Menlo, Consolas, monospace" font-size="13">.ai-memory/sessions.jsonl</text>
+
+    <rect x="335" y="55" width="230" height="55" rx="8" fill="#0a0d14" stroke="#2a3040"/>
+    <text x="450" y="76" text-anchor="middle" fill="#a0a6b1" font-family="Menlo, Consolas, monospace" font-size="11">Tier-2 · rich detail</text>
+    <text x="450" y="97" text-anchor="middle" fill="#87ceeb" font-family="Menlo, Consolas, monospace" font-size="13">.ai-memory/details/&lt;id&gt;.md</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="600" y="685" text-anchor="middle" fill="#5b6172" font-family="-apple-system, sans-serif" font-size="12">On Claude Code, path #3 also auto-harvests the session transcript into Tier-2 · Zero AI calls · Deterministic</text>
+</svg>

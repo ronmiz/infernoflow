@@ -2,7 +2,7 @@
   "name": "infernoflow",
   "displayName": "infernoflow",
   "description": "Persistent memory for AI coding sessions \u2014 live sidebar over .ai-memory/ (AMP). Captures gotchas, decisions, dead ends and replays them into Cursor / Copilot / Claude / Windsurf.",
-  "version": "0.7.18",
+  "version": "0.7.20",
   "publisher": "infernoflow",
   "license": "MIT",
   "repository": {
@@ -183,6 +183,18 @@
         "title": "Manage entries (bulk select & delete)",
         "category": "infernoflow",
         "icon": "$(checklist)"
+      },
+      {
+        "command": "infernoflow.bookmarkThis",
+        "title": "Bookmark this point",
+        "category": "infernoflow",
+        "icon": "$(bookmark)"
+      },
+      {
+        "command": "infernoflow.jumpToBookmark",
+        "title": "Jump to bookmark",
+        "category": "infernoflow",
+        "icon": "$(bookmark)"
       },
       {
         "command": "infernoflow.cleanupOrphaned",
@@ -418,8 +430,9 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "test": "npm run compile && node scripts/lm-tools-smoke.cjs",
+    "test": "npm run compile && node scripts/lm-tools-smoke.cjs && node scripts/bookmark-smoke.cjs",
     "test:lmtools": "node scripts/lm-tools-smoke.cjs",
+    "test:bookmark": "node scripts/bookmark-smoke.cjs",
     "package": "vsce package",
     "publish": "vsce publish"
   },

@@ -113,6 +113,7 @@ const INFERNOFLOW_BIN = resolveInfernoflowBin();
 // Falls back to shell-out via runCmd() if the AMP layer can't be loaded.
 let ampIo = null;
 let refreshRuleFiles = null;
+let harvestSnapshot = null;
 if (INFERNOFLOW_ROOT) {
   try {
     for (const c of [
@@ -126,6 +127,12 @@ if (INFERNOFLOW_ROOT) {
       path.join(INFERNOFLOW_ROOT, "dist", "lib", "ruleFiles.mjs"),
     ]) {
       if (fs.existsSync(c)) { refreshRuleFiles = (await import(pathToFileURL(c).href)).refreshRuleFilesFromMemory; break; }
+    }
+    for (const c of [
+      path.join(INFERNOFLOW_ROOT, "lib",  "transcript.mjs"),
+      path.join(INFERNOFLOW_ROOT, "dist", "lib", "transcript.mjs"),
+    ]) {
+      if (fs.existsSync(c)) { harvestSnapshot = (await import(pathToFileURL(c).href)).harvestSnapshot; break; }
     }
   } catch { /* swallow — fallback path handles it */ }
 }
@@ -224,8 +231,9 @@ function isCmdError(result) {
 const TOOLS = [
   // ── AMP-spec memory tools (the product) ──────────────────────────────────
   { name: "amp_read",    description: "AMP: read session memory entries with optional filters.", inputSchema: { type: "object", properties: { file: { type: "string" }, type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] }, query: { type: "string" }, limit: { type: "number" } } } },
-  { name: "amp_write",   description: "AMP: log a new entry. Required: type + msg. Optional: file, line, tags.", inputSchema: { type: "object", properties: { type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] }, msg: { type: "string" }, file: { type: "string" }, line: { type: "number" }, tags: { type: "array", items: { type: "string" } } }, required: ["type","msg"] } },
+  { name: "amp_write",   description: "AMP: log a new entry. Required: type + msg (one sentence). Optional: file, line, tags, detail. Use 'detail' for a rich multi-paragraph body (repro steps, code, full reasoning, or a session snapshot) — it's stored in a sidecar and loaded on demand, so it never bloats the always-on memory index.", inputSchema: { type: "object", properties: { type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] }, msg: { type: "string" }, file: { type: "string" }, line: { type: "number" }, tags: { type: "array", items: { type: "string" } }, detail: { type: "string", description: "Optional rich body (Tier-2). Stored in details/<id>.md; NOT injected into rule files. Put the long-form context here; keep 'msg' to one summary sentence." } }, required: ["type","msg"] } },
   { name: "amp_search",  description: "AMP: search entries by keyword. Optional type filter.", inputSchema: { type: "object", properties: { query: { type: "string" }, type: { type: "string", enum: ["gotcha","decision","attempt","note","detection","pattern"] } }, required: ["query"] } },
+  { name: "amp_bookmark", description: "AMP: drop a named session bookmark — a resume point. Required: label (short name). Optional: note. If note is OMITTED, the current session transcript is auto-captured as the bookmark's context (the 'save everything here' resume point). Use when the user says 'bookmark this' / 'mark this point', or before a risky change / when the context window is filling up, so the exact state can be recalled later and appears in the next session's handoff. Bookmarks are never auto-pruned.", inputSchema: { type: "object", properties: { label: { type: "string" }, note: { type: "string", description: "Optional explicit context. Omit to auto-capture the session transcript instead. Stored in a sidecar; not injected into rule files." } }, required: ["label"] } },
   { name: "amp_handoff", description: "AMP: generate the handoff document for the next AI session. format=markdown|json (default: markdown).", inputSchema: { type: "object", properties: { format: { type: "string", enum: ["markdown","json"] } } } },
   { name: "amp_health",  description: "AMP: get the session health score (0-100, A-F grade).", inputSchema: { type: "object", properties: {} } },
 
@@ -392,6 +400,7 @@ function handleTool(id, name, input) {
         if (input.file)                       entry.file = input.file;
         if (input.line)                       entry.line = input.line;
         if (input.tags && input.tags.length)  entry.tags = input.tags;
+        if (input.detail && String(input.detail).trim()) entry.detail = String(input.detail);
         try {
           const written = ampIo.appendEntry(process.cwd(), entry);
           // NOTE: rule-file refresh deliberately NOT called here — clean-tree
@@ -401,7 +410,8 @@ function handleTool(id, name, input) {
           // are for cold-start injection of the *next* session.
           text = `✔ Logged [${written.type}] ${written.id}\n  msg:  ${written.msg}` +
                  (written.file ? `\n  file: ${written.file}${written.line ? ":" + written.line : ""}` : "") +
-                 (written.tags ? `\n  tags: ${written.tags.join(", ")}` : "");
+                 (written.tags ? `\n  tags: ${written.tags.join(", ")}` : "") +
+                 (written.meta && written.meta.detailRef ? `\n  detail: ${written.meta.detailRef}` : "");
         } catch (err) {
           return sendError(id, -32000, `amp_write failed (in-process): ${err.message}`);
         }
@@ -415,6 +425,40 @@ function handleTool(id, name, input) {
         if (input.line)                      extras.push("--line", String(input.line));
         if (input.tags && input.tags.length) extras.push("--tags", JSON.stringify(input.tags.join(",")));
         text = runCmd(`log ${m} --type ${t} ${extras.join(" ")}`);
+      }
+    } else if (name === "amp_bookmark") {
+      // A bookmark is a `note` entry tagged "bookmark"; the optional `note`
+      // becomes its Tier-2 detail (a resume point the next session can recall).
+      if (ampIo) {
+        const entry = {
+          ts:      new Date().toISOString(),
+          type:    "note",
+          summary: input.label || "",
+          agent:   process.env.INFERNOFLOW_AGENT
+                   || (process.env.CLAUDE_CODE_SESSION ? "claude"
+                   :  process.env.CURSOR_SESSION       ? "cursor"
+                   :  process.env.COPILOT_SESSION      ? "copilot"
+                   :                                     "claude"),
+          tags:    ["bookmark"],
+        };
+        // Context: explicit note wins; otherwise auto-capture the session
+        // transcript (the "save everything here" resume point).
+        if (input.note && String(input.note).trim()) {
+          entry.detail = String(input.note);
+        } else if (harvestSnapshot) {
+          try { const snap = harvestSnapshot(process.cwd()); if (snap) entry.detail = snap; } catch { /* best-effort */ }
+        }
+        try {
+          const written = ampIo.appendEntry(process.cwd(), entry);
+          text = `🔖 Bookmark saved: ${written.msg} (${written.id})` +
+                 (written.meta && written.meta.detailRef ? `\n  context: ${written.meta.detailRef}` : "");
+        } catch (err) {
+          return sendError(id, -32000, `amp_bookmark failed (in-process): ${err.message}`);
+        }
+      } else {
+        const l = JSON.stringify(input.label || "");
+        const extras = input.note ? `--note ${JSON.stringify(input.note)}` : "";
+        text = runCmd(`bookmark ${l} ${extras}`);
       }
     } else if (name === "amp_handoff") {
       // switch writes a file; we read it back to return the content

@@ -1,5 +1,29 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.20 — 2026-07-04 — leaner injected protocol block
+
+Pairs with CLI 0.44.12. The rule-file writer now honors
+`config.injection.protocolStyle` (`compact` default / `full` / `off`) — the
+extension writes the same ~3-line compact protocol as the CLI instead of the
+full ~18-line trigger table, saving ~430 tokens per file per AI turn. Kept
+byte-identical with the CLI's block. Bumps `RECOMMENDED_CLI_VERSION` to 0.44.12.
+
+## 0.7.19 — 2026-07-03 — Bookmarks in the sidebar (jump to resume points)
+
+### New
+- **🔖 Bookmarks section in the sidebar.** Named resume points now appear in
+  the infernoflow tree, newest first, with a ● when they carry saved context.
+- **Click to jump.** Clicking a bookmark opens its saved Tier-2 context
+  (rendered markdown) and/or reveals its `file:line` in the editor — the IDE
+  equivalent of `infernoflow bookmark show`. The context body is read directly
+  from the deterministic sidecar path `.ai-memory/details/<id>.md`, so it works
+  without the bundled `infernoflow-amp` package needing the sidecar feature.
+- **"Bookmark this point…" action** in Memory Actions — drops a named marker at
+  the current file:line (rich context can be attached via the CLI/AI).
+- New commands: `infernoflow.jumpToBookmark`, `infernoflow.bookmarkThis`.
+- Runtime smoke (`npm run test:bookmark`) pins the tag round-trip through the
+  bundled package so sidebar-created bookmarks are always tagged correctly.
+
 ## 0.7.18 — 2026-06-24 — Copilot Chat can finally auto-capture (LM Tools)
 
 ### New

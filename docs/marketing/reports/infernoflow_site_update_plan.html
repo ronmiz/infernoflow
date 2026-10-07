@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>infernoflow.dev — תוכנית עדכון האתר</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #0d0d0f; color: #f1f0ee; direction: rtl; max-width: 1400px; margin: 0 auto; padding: 20px; }
+  h1 { color: #f97316; margin: 0 0 8px; font-size: 30px; }
+  .subtitle { color: #8b8a96; margin-bottom: 24px; font-size: 14px; }
+  .card { background: #131316; border-radius: 12px; padding: 22px; box-shadow: 0 4px 12px rgba(0,0,0,.3); margin-bottom: 20px; border: 1px solid #2a2a32; }
+  .card h2 { margin: 0 0 14px; font-size: 20px; color: #f97316; border-bottom: 2px solid #2a2a32; padding-bottom: 10px; }
+  .card h3 { color: #fb923c; margin: 18px 0 8px; font-size: 16px; }
+  .card p, .card li { line-height: 1.7; color: #c8c7c1; }
+  code, pre { background: #1e1e24; padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #fbbf24; }
+  pre { padding: 14px; overflow-x: auto; line-height: 1.5; direction: ltr; text-align: left; border: 1px solid #2a2a32; margin: 10px 0; }
+  .issue-block { padding: 14px 18px; margin: 12px 0; border-radius: 10px; background: #1a1a1f; border-right: 4px solid #f56565; }
+  .issue-block h4 { margin: 0 0 6px; color: #fb923c; font-size: 15px; }
+  .issue-block p { font-size: 13px; color: #a8a99d; margin: 4px 0; }
+  .issue-block .before-after { background: #0d0d0f; padding: 10px 14px; border-radius: 6px; margin: 8px 0; font-size: 12px; line-height: 1.5; }
+  .issue-block .old { color: #f56565; text-decoration: line-through; }
+  .issue-block .new { color: #48bb78; }
+  .issue-block.critical { border-right-color: #f56565; background: rgba(245,101,101,0.05); }
+  .issue-block.important { border-right-color: #ecc94b; background: rgba(236,201,75,0.05); }
+  .issue-block.nice { border-right-color: #4299e1; background: rgba(66,153,225,0.05); }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .kpi { background: #131316; padding: 16px; border-radius: 12px; border-right: 4px solid #f97316; }
+  .kpi.bad { border-right-color: #f56565; }
+  .kpi.good { border-right-color: #48bb78; }
+  .kpi .label { font-size: 11px; color: #8b8a96; margin-bottom: 4px; text-transform: uppercase; }
+  .kpi .value { font-size: 22px; font-weight: 800; color: #f1f0ee; }
+  .kpi .sub { font-size: 11px; color: #718096; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #2a2a32; color: #f97316; padding: 10px 8px; text-align: right; font-weight: 700; }
+  td { padding: 10px 8px; border-bottom: 1px solid #2a2a32; color: #c8c7c1; }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; margin: 2px; }
+  .badge-critical { background: #f56565; color: #0d0d0f; }
+  .badge-important { background: #ecc94b; color: #0d0d0f; }
+  .badge-nice { background: #4299e1; color: white; }
+  .step { padding: 14px 18px; margin: 10px 0; background: #1a1a1f; border-radius: 10px; border-right: 3px solid #f97316; }
+  .step h4 { margin: 0 0 6px; color: #f97316; font-size: 15px; }
+  .step p { margin: 6px 0; font-size: 13px; color: #c8c7c1; line-height: 1.6; }
+  .step .meta { font-size: 11px; color: #8b8a96; }
+</style>
+</head>
+<body>
+
+<h1>🔥 infernoflow.dev — תוכנית עדכון האתר</h1>
+<div class="subtitle">מה שגיליתי בקוד הנוכחי + מפת הדרכים לעדכון מלא</div>
+
+<div class="kpi-grid">
+  <div class="kpi bad"><div class="label">Hero badge</div><div class="value">v0.43.6</div><div class="sub">מיושן ב־7 גרסאות!</div></div>
+  <div class="kpi bad"><div class="label">Features חסרים</div><div class="value">2</div><div class="sub">Bookmark + Copilot LMT</div></div>
+  <div class="kpi bad"><div class="label">Features מיושנים</div><div class="value">3</div><div class="sub">Git hooks, Contracts, MCP</div></div>
+  <div class="kpi"><div class="label">גודל האתר</div><div class="value">544 שורות</div><div class="sub">HTML+CSS single file</div></div>
+</div>
+
+<div class="card">
+  <h2>📍 שאלה שיווקית ראשונה — איזה קובץ אנחנו מעדכנים?</h2>
+  <p>אמרת שהאתר נמצא ב־<code>C:\Ron\projects\infernoflow-site</code>. אני מצאתי גם עותק ב־<code>C:\Ron\projects\infernoflow-pkg\docs\infernoflow-site\index.html</code> (544 שורות). לפני שאעדכן:</p>
+  <ul>
+    <li><b>אופציה A:</b> קובץ ה־docs הוא ה־Source of Truth (העתק שאני עורך פורש ל־Vercel)</li>
+    <li><b>אופציה B:</b> ה־<code>C:\Ron\projects\infernoflow-site\</code> הוא ה־Source (עם git repo נפרד)</li>
+  </ul>
+  <p><b>עליך להעניק לי גישה לתיקייה של האתר האמיתי</b> דרך <code>request_cowork_directory</code>. אני אשלח בקשה תוך רגע.</p>
+  <p>בינתיים — הנה התוכנית המלאה. אני יכול להכין הכל על העותק ב־docs/ ולתת לך patch להעתיק.</p>
+</div>
+
+<div class="card">
+  <h2>🚨 בעיות קריטיות (P0) — 4 שינויים חובה</h2>
+
+  <div class="issue-block critical">
+    <h4>1. Hero badge מיושן: <span class="badge badge-critical">קריטי</span></h4>
+    <p>הכיתוב הנוכחי אומר "v0.43.6 — one focused thing". חסרנו את ה־headline features של 0.44.0-10!</p>
+    <div class="before-after">
+      <p class="old">🔥 v0.43.6 — one focused thing: persistent memory for AI sessions</p>
+      <p class="new">🆕 v0.44.10 — session bookmarks + Copilot Chat integration (VS Code LMT)</p>
+    </div>
+  </div>
+
+  <div class="issue-block critical">
+    <h4>2. OG description לא-defensible: <span class="badge badge-critical">קריטי</span></h4>
+    <p>אותה בעיה כמו ב־README — הטענה "forgets everything" ניתנת להפרכה.</p>
+    <div class="before-after">
+      <p class="old">Your AI forgets everything when the session ends. infernoflow fixes that.</p>
+      <p class="new">Every new AI session starts cold — the gotchas you found, the decisions you made, don't survive. infernoflow makes them stick.</p>
+    </div>
+  </div>
+
+  <div class="issue-block critical">
+    <h4>3. חסר Bookmark feature: <span class="badge badge-critical">קריטי</span></h4>
+    <p>ה־headline של v0.44.10 לא מופיע בכלל באתר! צריך feature card חדש:</p>
+    <div class="before-after">
+      <p class="new"><b>🔖 Session bookmarks (New!)</b><br>Drop a named resume point mid-session. <code>bookmark "before the SP refactor"</code> auto-captures the current session transcript. Say "bookmark this" in chat and the Cursor hook does it for you. Never lose your place.</p>
+    </div>
+  </div>
+
+  <div class="issue-block critical">
+    <h4>4. חסר Copilot LMT feature: <span class="badge badge-critical">קריטי</span></h4>
+    <p><b>⚠️ תוקן 17/7/2026:</b> הטענה המקורית כאן ("Copilot לא תומך ב־MCP") שגויה — Copilot Chat תומך ב־MCP מאז VS Code 1.102 (GA יולי 2025). הזווית הנכונה: dual transport — LMT בלי קונפיגורציה + MCP. הטקסט המוצע עודכן בהתאם.</p>
+    <div class="before-after">
+      <p class="new"><b>🤖 Works with Copilot Chat — via LMT + MCP</b><br>infernoflow's VS Code extension registers <code>amp_write</code> / <code>amp_read</code> as native VS Code Language Model Tools — zero config, Copilot calls them on its own. Copilot Chat also supports MCP (VS Code 1.102+), and <code>infernoflow init</code> wires that too.</p>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>⚠️ שיפורים חשובים (P1) — 3 עדכונים</h2>
+
+  <div class="issue-block important">
+    <h4>5. Feature "Auto-capture from git hooks" מטעה: <span class="badge badge-important">חשוב</span></h4>
+    <p>בפועל היום, ה־capture העיקרי הוא דרך <code>amp_write</code> MCP tool ו־Cursor hook (regex triggers). git hooks הם שני-שלישי.</p>
+    <div class="before-after">
+      <p class="old"><b>🪝 Auto-capture from git hooks</b><br>Every commit is analyzed. Decisions, bug fixes, and WIP work are captured silently — no manual logging required.</p>
+      <p class="new"><b>🪝 Auto-capture via MCP + hooks</b><br>Your AI agent calls <code>amp_write</code> directly through MCP — gotchas, decisions, and failed attempts get logged as you work. A Cursor <code>beforeSubmitPrompt</code> hook backstops the AI with deterministic regex triggers (<code>!!</code>, <code>retry</code>, <code>bookmark this</code>). Optional git hook for commit messages too.</p>
+    </div>
+  </div>
+
+  <div class="issue-block important">
+    <h4>6. Feature "Capability contracts" - כבר לא רלוונטי: <span class="badge badge-important">חשוב</span></h4>
+    <p>ב־v0.44.0 חתכת ~9000 LOC של ה־contract layer. כתוב באתר "infernoflow tracks what your codebase can do" — אבל זה לא ה־focus יותר.</p>
+    <div class="before-after">
+      <p class="old"><b>🔍 Capability contracts</b><br>infernoflow tracks what your codebase can do — not just what it contains.</p>
+      <p class="new"><b>🌿 Branch-aware memory</b><br>Memory routes into <code>.ai-memory/branches/&lt;branch&gt;.jsonl</code> — travels with git. Switch branches, your AI sees the right context. Teammates inherit your memory by checking out your branch.</p>
+    </div>
+  </div>
+
+  <div class="issue-block important">
+    <h4>7. MCP tools list מיושן: <span class="badge badge-important">חשוב</span></h4>
+    <p>"implement, check, review, synthesize" — כל אלה שמות ישנים מ־v0.43. השמות הנוכחיים הם <code>amp_*</code> + <code>infernoflow_*</code>.</p>
+    <div class="before-after">
+      <p class="old"><b>📡 MCP server included</b><br>Ships with MCP tools your AI calls automatically: implement, check, review, synthesize, and more.</p>
+      <p class="new"><b>📡 10 MCP tools included</b><br>Ships with tools your AI calls automatically: <code>amp_write</code>, <code>amp_read</code>, <code>amp_search</code>, <code>amp_bookmark</code>, <code>amp_handoff</code>, <code>amp_health</code>, plus four <code>infernoflow_*</code> helpers. Zero configuration.</p>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>💎 Nice-to-have (P2) — 3 שיפורים</h2>
+
+  <div class="issue-block nice">
+    <h4>8. Add "Security & privacy" section: <span class="badge badge-nice">nice</span></h4>
+    <p>כמו שהוספתי לREADME. Local-first, no telemetry, no network calls, no postinstall — זה שיפור אמון.</p>
+  </div>
+
+  <div class="issue-block nice">
+    <h4>9. Demo GIF / short video: <span class="badge badge-nice">nice</span></h4>
+    <p>יש docs/DEMO_GIF.md עם shot list מפורט. אין GIF/video באתר. הצגה ויזואלית תהפוך את הlanding page מ־"מעניין" ל־"אני חייב את זה".</p>
+  </div>
+
+  <div class="issue-block nice">
+    <h4>10. Social proof (npm badges, GitHub stars): <span class="badge badge-nice">nice</span></h4>
+    <p>הוסף badges של gate npm downloads, GitHub stars, VS Code installs (אחרי הlaunch כדי שיהיו מספרים אמיתיים).</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>📋 הצעת הbig-picture — מבנה ה-Landing החדש</h2>
+  <table>
+    <thead><tr><th>Section</th><th>שינויים</th></tr></thead>
+    <tbody>
+      <tr><td>Hero + badge</td><td>עדכן ל־v0.44.10 · bookmark headline</td></tr>
+      <tr><td>Works with</td><td>נשמר (הוסף Windsurf/JetBrains אם רלוונטי)</td></tr>
+      <tr><td>🔥 <b>Features grid</b></td><td><b>שכתוב מלא</b> — 6 cards חדשים</td></tr>
+      <tr><td>🆕 Bookmark showcase</td><td><b>Section חדש</b> — הסבר עם code snippets</td></tr>
+      <tr><td>🆕 Copilot LMT callout</td><td><b>Section חדש</b> — הזווית המבדילה</td></tr>
+      <tr><td>How it works</td><td>נשמר (3 steps)</td></tr>
+      <tr><td>🆕 Security section</td><td><b>הוסף</b> — 6 bullet points</td></tr>
+      <tr><td>Final CTA</td><td>נשמר (Install + Star)</td></tr>
+      <tr><td>Footer + Links</td><td>הוסף לינקים לBLOG_POST.md ולAMP spec</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>🚀 השלבים המוצעים — סדר עבודה</h2>
+
+  <div class="step">
+    <h4>שלב 1 (5 דק') — הענק גישה לתיקיית הסייט</h4>
+    <p class="meta">✅ אני מבקש · ⏳ אתה מאשר</p>
+    <p>אני שולח בקשה ל־<code>C:\Ron\projects\infernoflow-site</code>. אתה מאשר בפופאפ. אחרי זה יש לי גישת read/write ישירה.</p>
+  </div>
+
+  <div class="step">
+    <h4>שלב 2 (10 דק') — 4 תיקונים קריטיים</h4>
+    <p class="meta">✅ אני עושה בעצמי</p>
+    <p>Hero badge · og:description · הוספת Bookmark card · הוספת Copilot LMT card</p>
+  </div>
+
+  <div class="step">
+    <h4>שלב 3 (10 דק') — 3 עדכונים חשובים</h4>
+    <p class="meta">✅ אני עושה בעצמי</p>
+    <p>Update git hooks card · replace Capability contracts card · MCP tools names</p>
+  </div>
+
+  <div class="step">
+    <h4>שלב 4 (5 דק') — Security section</h4>
+    <p class="meta">✅ אני עושה בעצמי</p>
+    <p>הוספת section של 6 bullet points + link ל־SECURITY.md</p>
+  </div>
+
+  <div class="step">
+    <h4>שלב 5 (5 דק') — Preview + push</h4>
+    <p class="meta">✅ אתה מפעיל</p>
+    <p>Preview מקומי (<code>npx serve</code>) · commit · push · Vercel auto-deploys</p>
+  </div>
+
+  <div class="step">
+    <h4>שלב 6 (2 דק') — תיקון Vercel DNS redirect</h4>
+    <p class="meta">✅ אתה מפעיל</p>
+    <p><code>infernoflow.dev</code> → <code>www.infernoflow.dev</code> (או להיפך) בpanel של Vercel</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>📊 סיכום — 10 שינויים, זמן משוער 40 דק'</h2>
+  <ul>
+    <li>4 קריטיים (Hero + og + Bookmark + LMT)</li>
+    <li>3 חשובים (Git hooks + Contracts→Branches + MCP names)</li>
+    <li>3 nice-to-have (Security + Demo + Social proof)</li>
+  </ul>
+  <p><b>אחרי העדכון:</b> האתר יציג את המוצר המלא (bookmark + LMT), יהיה defensible ב־HN, ויענה על שאלות אבטחה מראש. יחד עם README המעודכן ו־npm publish — זו חבילת launch מקצה לקצה.</p>
+</div>
+
+<div class="card" style="background: linear-gradient(135deg, #131316, #1a1a1f); border: 2px solid #f97316;">
+  <h2>✅ ההצעה שלי — בחר את הצעד הבא</h2>
+  <ol>
+    <li><b>"תבקש גישה לתיקיית הסייט"</b> → אני שולח בקשת <code>request_cowork_directory</code> ל־<code>C:\Ron\projects\infernoflow-site</code></li>
+    <li><b>"התחל לעבוד על העותק ב־docs"</b> → אני מעדכן <code>docs/infernoflow-site/index.html</code> ואתה מסנכרן ידנית לrepo האמיתי</li>
+    <li><b>"תראה לי preview של השינויים לפני"</b> → אני בונה HTML mockup של איך זה יראה אחרי</li>
+    <li><b>"בוא נבצע רק את ה־4 הקריטיים"</b> → מינימום מאמץ, מקסימום השפעה</li>
+  </ol>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>infernoflow - דוח שיווקי אסטרטגי</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #0f1419; color: #e6e1cf; direction: rtl; max-width: 1400px; margin: 0 auto; padding: 20px; }
+  h1 { color: #ff8c42; margin: 0 0 8px; font-size: 32px; }
+  .subtitle { color: #a8a99d; margin-bottom: 24px; font-size: 15px; }
+  .hero { background: linear-gradient(135deg, #ff8c42, #c0392b); color: white; padding: 28px; border-radius: 14px; margin-bottom: 22px; }
+  .hero h2 { margin: 0 0 12px; color: white; font-size: 22px; }
+  .hero p { margin: 6px 0; font-size: 14px; line-height: 1.7; opacity: 0.95; }
+  .card { background: #1a2028; border-radius: 12px; padding: 22px; box-shadow: 0 4px 12px rgba(0,0,0,.3); margin-bottom: 20px; border: 1px solid #2d3748; }
+  .card h2 { margin: 0 0 14px; font-size: 20px; color: #ff8c42; border-bottom: 2px solid #2d3748; padding-bottom: 10px; }
+  .card h3 { color: #f4b785; margin: 16px 0 8px; font-size: 16px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .kpi { background: #1a2028; padding: 16px; border-radius: 12px; border-right: 4px solid #ff8c42; }
+  .kpi.good { border-right-color: #48bb78; }
+  .kpi.warn { border-right-color: #ecc94b; }
+  .kpi.bad { border-right-color: #f56565; }
+  .kpi .label { font-size: 11px; color: #a8a99d; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi .value { font-size: 26px; font-weight: 800; color: #e6e1cf; }
+  .kpi .sub { font-size: 11px; color: #718096; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #2d3748; color: #ff8c42; padding: 11px 8px; text-align: right; font-weight: 700; }
+  td { padding: 10px 8px; border-bottom: 1px solid #2d3748; color: #cbd5e0; }
+  tr:hover td { background: #232b36; }
+  .num { text-align: left; direction: ltr; font-weight: 600; }
+  .pos { color: #48bb78; }
+  .neg { color: #f56565; }
+  .warn-text { color: #ecc94b; }
+  .chart-wrap { position: relative; height: 340px; margin: 14px 0; background: #0f1419; padding: 12px; border-radius: 8px; }
+  code, pre { background: #0f1419; padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12px; color: #f4b785; }
+  pre { padding: 12px; overflow-x: auto; line-height: 1.5; direction: ltr; text-align: left; border: 1px solid #2d3748; }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; margin: 2px; }
+  .badge-easy { background: #48bb78; color: #0f1419; }
+  .badge-med { background: #ecc94b; color: #0f1419; }
+  .badge-hard { background: #f56565; color: white; }
+  .highlight { padding: 14px 18px; margin: 10px 0; border-radius: 10px; background: #232b36; border-right: 4px solid #ff8c42; font-size: 13px; line-height: 1.7; }
+  .highlight.win { background: rgba(72,187,120,0.1); border-right-color: #48bb78; }
+  .highlight.risk { background: rgba(245,101,101,0.1); border-right-color: #f56565; }
+  .highlight.info { background: rgba(66,153,225,0.1); border-right-color: #4299e1; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+  .action-item { background: #232b36; padding: 14px 16px; border-radius: 10px; margin: 10px 0; border-right: 3px solid #4299e1; }
+  .action-item h4 { margin: 0 0 6px; color: #ff8c42; font-size: 15px; }
+  .action-item .meta { font-size: 11px; color: #a8a99d; margin: 4px 0; }
+  .action-item p { margin: 6px 0; font-size: 13px; color: #cbd5e0; line-height: 1.6; }
+  .channels { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .channel { background: #232b36; border-radius: 10px; padding: 18px; position: relative; }
+  .channel.top::before { content: '⭐'; position: absolute; top: 12px; left: 12px; font-size: 22px; }
+  .channel h4 { margin: 0 0 4px; color: #ff8c42; font-size: 16px; }
+  .channel .roi { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; margin: 4px 0; }
+  .roi-high { background: #48bb78; color: #0f1419; }
+  .roi-med { background: #ecc94b; color: #0f1419; }
+  .roi-low { background: #718096; color: white; }
+  .snippet { background: #0f1419; padding: 14px; border-radius: 8px; margin: 10px 0; border: 1px dashed #4299e1; direction: ltr; text-align: left; font-size: 13px; line-height: 1.6; color: #e6e1cf; }
+  ol, ul { padding-right: 24px; line-height: 1.8; }
+  li { margin: 4px 0; color: #cbd5e0; }
+</style>
+</head>
+<body>
+
+<h1>🔥 infernoflow — דוח שיווקי אסטרטגי</h1>
+<div class="subtitle">ניתוח מלא של מצב הספרייה ותוכנית פעולה שיווקית · יולי 2026</div>
+
+<div class="hero">
+  <h2>💡 המסקנה בכותרת אחת</h2>
+  <p><b>המוצר קיים ובוגר. הפוזישן חד. הבעיה: תעבורה סלולרית וללא צמיחה קבועה.</b> חטיפי צמיחה קורים כשמישהו מפרסם - אחרת הביקוש שוקע. מה שחסר: <b>מנוע ביקוש שיטתי</b>. הדוח הזה בונה אותו.</p>
+</div>
+
+<div class="kpis">
+  <div class="kpi good"><div class="label">גרסאות</div><div class="value">43</div><div class="sub">מאז 02/2026 - קצב פיתוח מרשים</div></div>
+  <div class="kpi"><div class="label">גרסה נוכחית</div><div class="value">0.43.2</div><div class="sub">stable, זמינה</div></div>
+  <div class="kpi good"><div class="label">הורדות סה"כ</div><div class="value">19,656</div><div class="sub">מאז השקה (5 חודשים)</div></div>
+  <div class="kpi warn"><div class="label">30 ימים אחרונים</div><div class="value">2,237</div><div class="sub" class="neg">-9% מ־30 קודמים</div></div>
+  <div class="kpi bad"><div class="label">שיא יומי</div><div class="value">1,595</div><div class="sub">22/04 - מומנטום נשבר</div></div>
+  <div class="kpi warn"><div class="label">ממוצע יומי</div><div class="value">189</div><div class="sub">שברמת מוצר טוב, לא מוצר ויראלי</div></div>
+</div>
+
+<div class="card">
+  <h2>📊 ניתוח הורדות - מה קרה בפועל</h2>
+  <div class="chart-wrap"><canvas id="ch-downloads"></canvas></div>
+  <div class="grid2">
+    <div class="highlight win">
+      <b>🚀 ה־Launch spike עבד:</b> ב־22 באפריל היה שיא של 1,595 הורדות ליום. הימים 21/4 - 3/5 היו "שבוע ההשקה" - כנראה HN, Reddit, טוויטר. השילוב יצר ~13,000 הורדות בשבועיים.
+    </div>
+    <div class="highlight risk">
+      <b>💤 מה קורה עכשיו:</b> יש spike של 100-500 הורדות כל 3-5 ימים (כנראה כשמישהו מפרסם), אבל <b>הרמה הבסיסית קרסה ל־10-30 הורדות יומיות</b>. אין ביקוש חוזר.
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>🎯 מה יש למוצר שעובד (Product-Market Fit signals)</h2>
+  <div class="grid2">
+    <div>
+      <h3>💚 חזקות ברורות</h3>
+      <ul>
+        <li><b>פוזישן חד:</b> "Persistent memory for AI coding sessions" - פותר כאב אמיתי שכל משתמש Cursor/Copilot מכיר</li>
+        <li><b>Zero runtime deps:</b> נדיר, נקודת מכירה חזקה</li>
+        <li><b>Cross-IDE:</b> Cursor + Claude Code + Copilot - לא מבודל</li>
+        <li><b>Git-tracked memory:</b> "teammates inherit context" - זווית וירטואלית חזקה</li>
+        <li><b>Local-first, no SaaS:</b> משתמשים שאונאלוונטים מהענן זה חלום</li>
+        <li><b>Dogfooded:</b> יש ראיות אמיתיות של שימוש (infernotest_01)</li>
+      </ul>
+    </div>
+    <div>
+      <h3>🟡 חולשות שיש לתקוף</h3>
+      <ul>
+        <li><b>Discoverability:</b> Google לא יודע על הכלי. אין SEO כמעט</li>
+        <li><b>Social proof:</b> אין GitHub stars מוצגים, אין testimonials</li>
+        <li><b>Retention loop:</b> אין מנגנון שמושך את המשתמש חזרה</li>
+        <li><b>Category:</b> "AI memory" זו קטגוריה חדשה - חינוך דרוש</li>
+        <li><b>Onboarding friction:</b> `npm install -g` דורש הבנה של MCP - חסם למי שרק שמע</li>
+        <li><b>Comms:</b> ה־README מעולה טכנית, קר רגשית. Devs צוחקים ומתחברים לרגש</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>🎯 קהל היעד - Personas מדויקים</h2>
+  <table>
+    <thead><tr><th>Persona</th><th>איפה נמצאים</th><th>הכאב שלהם</th><th>איך מדברים אליהם</th><th>גודל</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Cursor Power User</b></td>
+        <td>r/cursor, Cursor Discord, X (Cursor community)</td>
+        <td>"בכל chat חדש אני מסביר את אותם הדברים"</td>
+        <td>"stop paying tokens to re-derive"</td>
+        <td>🔥 גדול, אקטיבי</td>
+      </tr>
+      <tr>
+        <td><b>Claude Code Adopter</b></td>
+        <td>anthropic Discord, r/ClaudeAI, X</td>
+        <td>"Claude Code חכם אבל שוכח בין sessions"</td>
+        <td>"CLAUDE.md that stays useful"</td>
+        <td>🚀 גדל מהר</td>
+      </tr>
+      <tr>
+        <td><b>Copilot + VS Code Team Lead</b></td>
+        <td>LinkedIn, dev.to, HN</td>
+        <td>"אני והצוות שלי חוזרים על אותן שגיאות"</td>
+        <td>"team knowledge that ships with the branch"</td>
+        <td>💼 ארגונים</td>
+      </tr>
+      <tr>
+        <td><b>AI Tools Builder / Consultant</b></td>
+        <td>Twitter/X AI, Substack, YouTube</td>
+        <td>מחפשים כלים שיוכלו להמליץ עליהם ללקוחות</td>
+        <td>"the missing MCP for real agent workflows"</td>
+        <td>👑 קטן אבל high-leverage</td>
+      </tr>
+      <tr>
+        <td><b>DevRel / DX Engineer</b></td>
+        <td>DevRel groups, Slack communities</td>
+        <td>מחפשים סטוריז מוצלחות לספר לצוותים</td>
+        <td>"how we cut 40% context re-derivation"</td>
+        <td>🎓 משפיענים</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>🚀 תוכנית שיווק 90 ימים - 3 גלים</h2>
+
+  <h3>גל 1 (חודש 1) — Foundation: SEO + Content Base</h3>
+  <div class="highlight info">
+    המטרה: להעביר את המוצר מ־"מי ששמע מפרסם" ל־"מי שמחפש - מוצא". בונים תשתית שתמשוך תעבורה בלי לפרסם.
+  </div>
+  <div class="action-item">
+    <h4>1.1 - עמוד נחיתה עצמאי (infernoflow.dev)</h4>
+    <div class="meta">🎯 השפעה: גבוהה · ⏱️ מאמץ: יום עבודה · <span class="badge badge-easy">קל</span></div>
+    <p>Homepage שאינה GitHub. עם demo GIF של המוצר בפעולה, hero copy שמכה, "Get started" button ל־npm install. מעביר את המבקר מ־"מעניין" ל־"install now" ב־30 שניות.</p>
+    <p><b>מה אני מייצר לך:</b> HTML+CSS מוכן, ניתן להעלות ל־Cloudflare Pages בחינם.</p>
+  </div>
+  <div class="action-item">
+    <h4>1.2 - 12 מאמרי SEO ממוקדי long-tail</h4>
+    <div class="meta">🎯 השפעה: גבוהה מאוד (טווח ארוך) · ⏱️ מאמץ: 2 שבועות · <span class="badge badge-med">בינוני</span></div>
+    <p>מאמרים שאני כותב וממקד למילות מפתח:</p>
+    <ul>
+      <li>"How to fix Cursor forgetting context between chats" (סימוני חיפוש: 800+/חודש)</li>
+      <li>"CLAUDE.md best practices - what to actually put there"</li>
+      <li>"Cursor rules file examples for real projects"</li>
+      <li>"MCP servers you should be using in 2026"</li>
+      <li>"How teams share AI context via Git"</li>
+      <li>"Copilot instructions vs Cursor rules - the difference"</li>
+      <li>"The .ai-memory folder pattern explained"</li>
+      <li>"Stop copy-pasting context to Cursor - here's why"</li>
+      <li>"Persistent AI memory: local-first vs SaaS approach"</li>
+      <li>"AMP protocol - what it is and why it matters"</li>
+      <li>"Cursor beforeSubmitPrompt hook practical examples"</li>
+      <li>"AI coding productivity - the context problem"</li>
+    </ul>
+    <p><b>מה אני מייצר:</b> 12 מאמרים של 1500-2500 מילים כל אחד, מוכנים לפרסום.</p>
+  </div>
+  <div class="action-item">
+    <h4>1.3 - Demo Video (60 שניות) + GIF</h4>
+    <div class="meta">🎯 השפעה: גבוהה · ⏱️ מאמץ: 2-3 שעות · <span class="badge badge-med">בינוני</span></div>
+    <p>הצג בפעולה: Cursor session, AI שוכח, אתה מפעיל infernoflow, ה־AI פתאום זוכר. תשתמש ב־Terminal Recording tool (asciinema) או OBS. GIF ב־README + Twitter/X + הדף.</p>
+    <p><b>מה אני מייצר:</b> Storyboard מלא + script של מה להראות + הטקסטים שמופיעים בסרטון.</p>
+  </div>
+  <div class="action-item">
+    <h4>1.4 - השקה מחדש של README (V2)</h4>
+    <div class="meta">🎯 השפעה: בינונית-גבוהה · ⏱️ מאמץ: יום · <span class="badge badge-easy">קל</span></div>
+    <p>ה־README הנוכחי טכני מעולה, אבל דורש 30 שניות של קריאה כדי להבין. גרסה חדשה: <b>3 שורות ראשונות</b> = "before/after" ויזואלי + demo GIF ב־top fold. הכל השאר נשאר.</p>
+  </div>
+
+  <h3>גל 2 (חודש 2) — Distribution: Launch Amplification</h3>
+  <div class="highlight info">
+    המטרה: לייצר spikes חוזרים באופן מבוקר. במקום לחכות שמישהו יפרסם - אנחנו מפרסמים.
+  </div>
+  <div class="channels">
+    <div class="channel top">
+      <h4>Hacker News - Show HN</h4>
+      <span class="roi roi-high">ROI: 10x</span>
+      <p><b>Show HN: infernoflow — I built a tool that stops AI agents from forgetting context between sessions</b></p>
+      <p>עיתוי: יום שני בבוקר PT (הכי חזק). Include: link, story אישי (3 שורות), demo GIF, GitHub link. תגובה על כל הערה בשעה הראשונה.</p>
+      <div class="snippet">Title: Show HN: Infernoflow – persistent memory for AI coding sessions<br>URL: infernoflow.dev</div>
+    </div>
+    <div class="channel top">
+      <h4>Reddit - r/cursor, r/ClaudeAI</h4>
+      <span class="roi roi-high">ROI: 8-10x</span>
+      <p>Native post עם story ("Every time my Cursor session restarted..."). לא spam. תעזור לאנשים בקבוצה שבוע לפני כדי לבנות אמינות.</p>
+      <p>Subreddits בסדר עדיפות: r/cursor, r/ClaudeAI, r/vscode, r/GithubCopilot, r/ChatGPTCoding</p>
+    </div>
+    <div class="channel top">
+      <h4>Twitter/X Thread</h4>
+      <span class="roi roi-high">ROI: 5-15x בהתחשב בגורם ויראלי</span>
+      <p>Thread של 8-12 טוויטים, המחשות ויזואליות בכל אחד. Tag Cursor אבל בלי לחפור. פרסום ביום שני 15:00 UTC.</p>
+    </div>
+    <div class="channel">
+      <h4>Product Hunt Launch</h4>
+      <span class="roi roi-med">ROI: 3-5x</span>
+      <p>עדיף לחכות עד שיש 100+ GitHub stars ו־demo מלוטש. עצב את ה־maker profile מראש.</p>
+    </div>
+    <div class="channel">
+      <h4>Dev.to Cross-post</h4>
+      <span class="roi roi-med">ROI: 4-6x</span>
+      <p>קרוב פוסטים מהבלוג. יש קהל dev גדול. Tag: #ai #productivity #cursor</p>
+    </div>
+    <div class="channel">
+      <h4>Discord communities</h4>
+      <span class="roi roi-med">ROI: 3-5x</span>
+      <p>Cursor Discord, MCP Discord, Anthropic Discord. עזור אנשים, הפוזישן הופך אמיתי.</p>
+    </div>
+  </div>
+
+  <h3>גל 3 (חודש 3) — Retention & Compounding</h3>
+  <div class="highlight info">
+    המטרה: מעבר מ־"install ואולי אשתמש" ל־"אני משתמש כל יום ומספר לאחרים".
+  </div>
+  <div class="action-item">
+    <h4>3.1 - Newsletter שבועי: "AI Memory Weekly"</h4>
+    <div class="meta">🎯 השפעה: אורך שני · ⏱️ 4 שעות/שבוע · <span class="badge badge-med">בינוני</span></div>
+    <p>ניוזלטר קצר (5 דקות קריאה) עם: gotcha מובחר מהקהילה, טיפ MCP, שינויים ב־Cursor/Claude, הצצה ל־infernoflow feature. Substack חינם. הכתובה: <b>MailerLite</b> - פחות עמלות מ־Substack.</p>
+    <p>Growth loop: כל edition מסתיים ב־"send in your gotcha, get featured"</p>
+  </div>
+  <div class="action-item">
+    <h4>3.2 - Case Studies וידאו</h4>
+    <div class="meta">🎯 השפעה: גבוהה · ⏱️ שבוע ראשון · <span class="badge badge-med">בינוני</span></div>
+    <p>מצא 3 משתמשים אמיתיים (מ־Discord, מ־Reddit), עשה 15-min ראיון על "how infernoflow saved me X hours". פרסם ב־YouTube + Twitter. Social proof חזק במיוחד לקטגוריה חדשה.</p>
+  </div>
+  <div class="action-item">
+    <h4>3.3 - GitHub Sponsors + מודל תמיכה</h4>
+    <div class="meta">🎯 השפעה: הכנסה + סטטוס · ⏱️ יום התקנה · <span class="badge badge-easy">קל</span></div>
+    <p>הפעל GitHub Sponsors. מציע tiers: $5 (kudos), $20 (early features), $100 (team logo in README). Cloud של OSS + מונטיזציה.</p>
+  </div>
+  <div class="action-item">
+    <h4>3.4 - Integrations עם המערכת האקולוגית</h4>
+    <div class="meta">🎯 השפעה: אקספוננציאלית · ⏱️ 2-4 שבועות · <span class="badge badge-hard">קשה</span></div>
+    <p>Integration עם: Cursor's marketplace (אם קיים), Claude Code plugins, GitHub Copilot workspace. כל אינטגרציה = הפצה חדשה + credibility.</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>🎨 מה אני מייצר לך בפועל - Deliverables ראשונים</h2>
+  <table>
+    <thead><tr><th>#</th><th>Deliverable</th><th>מוכן תוך</th><th>מה זה נותן</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Landing page (infernoflow.dev) - HTML/CSS מלא</td><td class="pos">היום</td><td>Convert visitors → installs</td></tr>
+      <tr><td>2</td><td>README V2 עם Hero section</td><td class="pos">היום</td><td>Better first impression</td></tr>
+      <tr><td>3</td><td>Show HN post - טקסט + comments תגובות מוכנות</td><td class="pos">היום</td><td>Launch spike ×10</td></tr>
+      <tr><td>4</td><td>Reddit posts (r/cursor, r/ClaudeAI) - 3 גרסאות</td><td>יום 2</td><td>Native discovery</td></tr>
+      <tr><td>5</td><td>Twitter/X thread (12 tweets)</td><td>יום 2</td><td>Viral potential</td></tr>
+      <tr><td>6</td><td>4 מאמרי SEO ראשונים (2000+ מילים כל אחד)</td><td>שבוע 1</td><td>Long-term organic traffic</td></tr>
+      <tr><td>7</td><td>Demo video script + storyboard</td><td>יום 3</td><td>Visual proof, shareable</td></tr>
+      <tr><td>8</td><td>Newsletter template + editorial calendar 4 שבועות</td><td>שבוע 2</td><td>Retention engine</td></tr>
+      <tr><td>9</td><td>Cold outreach templates ל־DevRel/influencers (10 שמות)</td><td>יום 5</td><td>Amplification</td></tr>
+      <tr><td>10</td><td>Analytics dashboard - איך למדוד ROI</td><td>יום 4</td><td>Data-driven decisions</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>📈 יעדים ריאליים ל־90 יום</h2>
+  <div class="grid2">
+    <div>
+      <h3>Baseline (מה שיש עכשיו)</h3>
+      <ul>
+        <li>~2,237 הורדות/חודש</li>
+        <li>~75/יום ממוצע</li>
+        <li>ללא spikes קבועים</li>
+        <li>~5% מסתמכים על ריטנשן</li>
+      </ul>
+    </div>
+    <div>
+      <h3>יעד 90 יום (עם ביצוע התוכנית)</h3>
+      <ul>
+        <li class="pos">10,000-15,000 הורדות/חודש (+400%)</li>
+        <li class="pos">300-500 הורדות/יום ממוצע</li>
+        <li class="pos">Baseline מ־Google organic (חדש)</li>
+        <li class="pos">500-1000 GitHub stars</li>
+        <li class="pos">300-500 newsletter subscribers</li>
+        <li class="pos">10-15 blog mentions/videos</li>
+      </ul>
+    </div>
+  </div>
+  <div class="highlight win">
+    <b>💡 הריאליזם:</b> זה יעד <b>יומרני אבל בר-השגה</b>. יש הוכחה שהמוצר עובד - כשמישהו מפרסם, יש spike. המשמעות: <b>אין בעיית מוצר</b>, יש בעיית distribution. זה נפתר.
+  </div>
+</div>
+
+<div class="card">
+  <h2>💰 עלויות התוכנית</h2>
+  <table>
+    <thead><tr><th>פריט</th><th>עלות</th><th>הכרחי?</th></tr></thead>
+    <tbody>
+      <tr><td>Domain (infernoflow.dev) - כבר יש</td><td>$0</td><td>יש</td></tr>
+      <tr><td>Cloudflare Pages hosting</td><td>$0</td><td>הכרחי</td></tr>
+      <tr><td>Google Analytics</td><td>$0</td><td>הכרחי</td></tr>
+      <tr><td>MailerLite (עד 1000 מנויים)</td><td>$0</td><td>מומלץ</td></tr>
+      <tr><td>Substack (חינם, לוקח 10% אם תגבה כסף)</td><td>$0</td><td>אלטרנטיבה</td></tr>
+      <tr><td>Video editing (או iMovie/OpenShot)</td><td>$0-15/חודש</td><td>מומלץ</td></tr>
+      <tr><td>Buffer/Hootsuite לתזמון פוסטים</td><td>$0 חינם, $6/חודש pro</td><td>opt.</td></tr>
+      <tr><td>Ads ל־Google (opt.)</td><td>$100-500/חודש</td><td>מנפח מהיר</td></tr>
+      <tr><td class="pos"><b>סה"כ מינימום נדרש</b></td><td class="pos"><b>$0-30/חודש</b></td><td>—</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>⚠️ סיכונים ומה עושים איתם</h2>
+  <div class="highlight risk">
+    <b>1. השוק צר מדי:</b> "AI memory" זו קטגוריה חדשה. אנשים לא מחפשים אותה כי לא יודעים שהיא קיימת.<br>
+    <b>הפתרון:</b> תוכן שמסביר את הבעיה קודם ("Do you re-explain the same thing to Cursor?"), רק אחר כך את הפתרון. Content marketing חינוכי.
+  </div>
+  <div class="highlight risk">
+    <b>2. Cursor/Anthropic בונים feature מתחרה:</b> יכול להיות שהם מוסיפים memory native.<br>
+    <b>הפתרון:</b> ההיתרון של infernoflow הוא cross-IDE + local-first + Git-tracked. גם אם Cursor יוסיף - זה יהיה vendor-specific ולא cross-team. תדגיש את זה.
+  </div>
+  <div class="highlight risk">
+    <b>3. Onboarding קשה למי שלא יודע MCP:</b> חלק מהמשתמשים הפוטנציאליים לא ידעו איך להגדיר.<br>
+    <b>הפתרון:</b> Video onboarding של 2 דקות. `infernoflow init --yes` עושה הכל אוטומטית - יש להדגיש.
+  </div>
+  <div class="highlight risk">
+    <b>4. תלות בפלטפורמות זרות:</b> כל תעבורה מ־HN/Reddit רגישה לאלגוריתם.<br>
+    <b>הפתרון:</b> SEO organic + newsletter הם asset שאתה בעל. השקעה בבסיס.
+  </div>
+</div>
+
+<div class="card">
+  <h2>🎬 הצעד הבא - Q&A שאני צריך תשובות כדי להתחיל</h2>
+  <ol>
+    <li><b>יש לך domain רשום (infernoflow.dev)?</b> אם כן - נעביר את ה־landing page. אם לא, לרשום היום ($12/שנה).</li>
+    <li><b>יש GitHub Sponsors פעיל?</b> קל להפעיל, יוצר monetization path.</li>
+    <li><b>איך אתה יכול להשקיע זמן?</b> (א) שעה ביום | (ב) 3 שעות בשבוע | (ג) יום שלם בשבוע</li>
+    <li><b>איזה עוד ערוצים יש לך?</b> Twitter/X handle? LinkedIn active? YouTube channel?</li>
+    <li><b>יש מטרה עסקית?</b> (א) DevRel/consulting | (ב) SaaS eventually | (ג) OSS pure | (ד) job leverage</li>
+  </ol>
+  <div class="highlight info">
+    <b>ברגע שתענה לי על ה־5 האלה - אני מייצר לך את 10 ה־deliverables מהטבלה למעלה, ותוך שבוע יש לך מכונת שיווק פעילה.</b>
+  </div>
+</div>
+
+<script>
+const dl = [{"downloads":640,"day":"2026-02-26"},{"downloads":116,"day":"2026-02-27"},{"downloads":12,"day":"2026-02-28"},{"downloads":25,"day":"2026-03-01"},{"downloads":13,"day":"2026-03-02"},{"downloads":7,"day":"2026-03-03"},{"downloads":20,"day":"2026-03-04"},{"downloads":9,"day":"2026-03-05"},{"downloads":0,"day":"2026-03-06"},{"downloads":4,"day":"2026-03-07"},{"downloads":0,"day":"2026-03-08"},{"downloads":2,"day":"2026-03-09"},{"downloads":12,"day":"2026-03-10"},{"downloads":1,"day":"2026-03-11"},{"downloads":13,"day":"2026-03-12"},{"downloads":1,"day":"2026-03-13"},{"downloads":4,"day":"2026-03-14"},{"downloads":251,"day":"2026-03-17"},{"downloads":23,"day":"2026-03-18"},{"downloads":20,"day":"2026-03-19"},{"downloads":109,"day":"2026-03-20"},{"downloads":542,"day":"2026-03-27"},{"downloads":379,"day":"2026-04-10"},{"downloads":216,"day":"2026-04-12"},{"downloads":548,"day":"2026-04-17"},{"downloads":664,"day":"2026-04-21"},{"downloads":1595,"day":"2026-04-22"},{"downloads":627,"day":"2026-04-23"},{"downloads":363,"day":"2026-04-24"},{"downloads":883,"day":"2026-04-25"},{"downloads":648,"day":"2026-04-26"},{"downloads":279,"day":"2026-04-27"},{"downloads":1127,"day":"2026-04-28"},{"downloads":1426,"day":"2026-04-29"},{"downloads":385,"day":"2026-04-30"},{"downloads":1058,"day":"2026-05-01"},{"downloads":845,"day":"2026-05-02"},{"downloads":485,"day":"2026-05-03"},{"downloads":75,"day":"2026-05-04"},{"downloads":314,"day":"2026-05-05"},{"downloads":198,"day":"2026-05-06"},{"downloads":74,"day":"2026-05-07"},{"downloads":520,"day":"2026-05-08"},{"downloads":424,"day":"2026-05-09"},{"downloads":59,"day":"2026-05-10"},{"downloads":165,"day":"2026-05-11"},{"downloads":131,"day":"2026-05-12"},{"downloads":435,"day":"2026-05-13"},{"downloads":143,"day":"2026-05-14"},{"downloads":294,"day":"2026-05-15"},{"downloads":40,"day":"2026-05-16"},{"downloads":10,"day":"2026-05-17"},{"downloads":50,"day":"2026-05-18"},{"downloads":237,"day":"2026-05-19"},{"downloads":164,"day":"2026-05-20"},{"downloads":36,"day":"2026-05-21"},{"downloads":5,"day":"2026-05-22"},{"downloads":24,"day":"2026-05-23"},{"downloads":179,"day":"2026-05-24"},{"downloads":122,"day":"2026-05-25"},{"downloads":10,"day":"2026-05-26"},{"downloads":10,"day":"2026-05-27"},{"downloads":1,"day":"2026-05-28"},{"downloads":7,"day":"2026-05-29"},{"downloads":145,"day":"2026-05-30"},{"downloads":11,"day":"2026-05-31"},{"downloads":6,"day":"2026-06-01"},{"downloads":6,"day":"2026-06-02"},{"downloads":149,"day":"2026-06-03"},{"downloads":0,"day":"2026-06-04"},{"downloads":8,"day":"2026-06-05"},{"downloads":0,"day":"2026-06-06"},{"downloads":9,"day":"2026-06-07"},{"downloads":6,"day":"2026-06-08"},{"downloads":10,"day":"2026-06-09"},{"downloads":16,"day":"2026-06-10"},{"downloads":7,"day":"2026-06-11"},{"downloads":7,"day":"2026-06-12"},{"downloads":5,"day":"2026-06-13"},{"downloads":24,"day":"2026-06-14"},{"downloads":4,"day":"2026-06-15"},{"downloads":5,"day":"2026-06-16"},{"downloads":13,"day":"2026-06-17"},{"downloads":2,"day":"2026-06-18"},{"downloads":525,"day":"2026-06-19"},{"downloads":15,"day":"2026-06-20"},{"downloads":5,"day":"2026-06-21"},{"downloads":139,"day":"2026-06-22"},{"downloads":346,"day":"2026-06-23"},{"downloads":134,"day":"2026-06-24"},{"downloads":32,"day":"2026-06-25"},{"downloads":159,"day":"2026-06-26"},{"downloads":32,"day":"2026-06-27"},{"downloads":10,"day":"2026-06-28"},{"downloads":16,"day":"2026-06-29"},{"downloads":25,"day":"2026-06-30"},{"downloads":29,"day":"2026-07-01"},{"downloads":20,"day":"2026-07-02"},{"downloads":158,"day":"2026-07-03"},{"downloads":33,"day":"2026-07-04"},{"downloads":12,"day":"2026-07-05"},{"downloads":281,"day":"2026-07-06"},{"downloads":15,"day":"2026-07-07"},{"downloads":158,"day":"2026-07-08"}];
+
+new Chart(document.getElementById('ch-downloads'), {
+  type: 'line',
+  data: {
+    labels: dl.map(d => d.day),
+    datasets: [{
+      label: 'הורדות יומיות',
+      data: dl.map(d => d.downloads),
+      borderColor: '#ff8c42',
+      backgroundColor: 'rgba(255,140,66,0.15)',
+      borderWidth: 2,
+      tension: 0.2,
+      fill: true,
+      pointRadius: 0,
+      pointHoverRadius: 5
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#e6e1cf' } },
+      annotation: {}
+    },
+    scales: {
+      x: { ticks: { color: '#a8a99d', maxTicksLimit: 12 }, grid: { color: '#2d3748' } },
+      y: { ticks: { color: '#a8a99d' }, grid: { color: '#2d3748' } }
+    }
+  }
+});
+</script>
+</body>
+</html>

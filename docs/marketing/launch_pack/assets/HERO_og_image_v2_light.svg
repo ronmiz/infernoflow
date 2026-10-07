@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="fireLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E85D25"/>
+      <stop offset="60%" stop-color="#F27A1B"/>
+      <stop offset="100%" stop-color="#F5A623"/>
+    </linearGradient>
+    <linearGradient id="bgLight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FAF7F2"/>
+      <stop offset="100%" stop-color="#F2EDE4"/>
+    </linearGradient>
+    <radialGradient id="softGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#E85D25" stop-opacity="0.09"/>
+      <stop offset="100%" stop-color="#E85D25" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bgLight)"/>
+
+  <circle cx="1080" cy="140" r="240" fill="url(#softGlow)"/>
+  <circle cx="120" cy="540" r="200" fill="url(#softGlow)" opacity="0.7"/>
+
+  <text x="60" y="65" fill="#8A7B67" font-family="-apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" letter-spacing="2">🔥 INFERNOFLOW</text>
+
+  <!-- Main headline — same README-verbatim opening as v1 -->
+  <text x="60" y="225" fill="#1A1710" font-family="-apple-system, Segoe UI, sans-serif" font-size="60" font-weight="800" letter-spacing="-1">Every new AI session</text>
+  <text x="60" y="295" fill="#1A1710" font-family="-apple-system, Segoe UI, sans-serif" font-size="60" font-weight="800" letter-spacing="-1">starts cold.</text>
+  <text x="60" y="370" fill="url(#fireLight)" font-family="-apple-system, Segoe UI, sans-serif" font-size="60" font-weight="800" letter-spacing="-1">infernoflow makes them stick.</text>
+
+  <text x="60" y="423" fill="#5A5245" font-family="-apple-system, Segoe UI, sans-serif" font-size="22" font-weight="400">Persistent memory for AI coding sessions.</text>
+  <text x="60" y="452" fill="#5A5245" font-family="-apple-system, Segoe UI, sans-serif" font-size="22" font-weight="400">Cursor · Claude Code · Copilot Chat · Windsurf.</text>
+
+  <line x1="60" y1="490" x2="1140" y2="490" stroke="#D9CFC0" stroke-width="1"/>
+
+  <g transform="translate(60, 515)">
+    <circle r="4" fill="#E85D25" cx="4" cy="12"/>
+    <text x="20" y="10" fill="#1A1710" font-family="-apple-system, sans-serif" font-size="16" font-weight="700">Session bookmarks</text>
+    <text x="20" y="33" fill="#8A7B67" font-family="-apple-system, sans-serif" font-size="13">Auto-harvest transcripts</text>
+  </g>
+
+  <g transform="translate(320, 515)">
+    <circle r="4" fill="#E85D25" cx="4" cy="12"/>
+    <text x="20" y="10" fill="#1A1710" font-family="-apple-system, sans-serif" font-size="16" font-weight="700">Editor squigglies</text>
+    <text x="20" y="33" fill="#8A7B67" font-family="-apple-system, sans-serif" font-size="13">Gotchas as Problems</text>
+  </g>
+
+  <g transform="translate(560, 515)">
+    <circle r="4" fill="#E85D25" cx="4" cy="12"/>
+    <text x="20" y="10" fill="#1A1710" font-family="-apple-system, sans-serif" font-size="16" font-weight="700">Open protocol (AMP)</text>
+    <text x="20" y="33" fill="#8A7B67" font-family="-apple-system, sans-serif" font-size="13">Vendor-neutral, MIT</text>
+  </g>
+
+  <g transform="translate(870, 515)">
+    <circle r="4" fill="#E85D25" cx="4" cy="12"/>
+    <text x="20" y="10" fill="#1A1710" font-family="-apple-system, sans-serif" font-size="16" font-weight="700">Local-first</text>
+    <text x="20" y="33" fill="#8A7B67" font-family="-apple-system, sans-serif" font-size="13">No telemetry, no SaaS</text>
+  </g>
+
+  <text x="60" y="595" fill="#8A7B67" font-family="-apple-system, sans-serif" font-size="15" font-weight="600">infernoflow.dev  ·  npm i -g infernoflow</text>
+
+  <g transform="translate(1010, 200)">
+    <path d="M0,-120 Q30,-70 25,-30 Q50,-50 55,-10 Q60,40 30,80 Q0,120 -30,80 Q-60,40 -55,-10 Q-50,-50 -25,-30 Q-30,-70 0,-120 Z"
+          fill="url(#fireLight)"/>
+    <path d="M0,-70 Q15,-40 12,-15 Q25,-25 28,-5 Q30,25 15,45 Q0,60 -15,45 Q-30,25 -28,-5 Q-25,-25 -12,-15 Q-15,-40 0,-70 Z"
+          fill="#FDF3E4" opacity="0.55"/>
+  </g>
+</svg>

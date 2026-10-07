@@ -1,0 +1,7 @@
+Every new AI session starts cold.
+
+The gotchas you found — gone.
+The decisions you made — gone.
+The dead ends you already tried — you're about to try them again.
+
+I shipped a fix. 🧵
