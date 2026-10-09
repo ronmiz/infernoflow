@@ -13,14 +13,17 @@ if (!fs.existsSync(gitDir)) {
 
 fs.mkdirSync(hooksDir, { recursive: true });
 
+// Uses the global `infernoflow` (npm i -g infernoflow); skipped if it isn't installed.
 const preCommit = `#!/bin/sh
-echo "[inferno hooks] pre-commit: infernoflow run --provider auto --dry-run"
-npx infernoflow run "sync check" --provider auto --dry-run
+command -v infernoflow >/dev/null 2>&1 || exit 0
+echo "[inferno hooks] pre-commit: infernoflow check --strict"
+infernoflow check --strict
 `;
 
 const prePush = `#!/bin/sh
-echo "[inferno hooks] pre-push: infernoflow run --provider auto --json"
-npx infernoflow run "sync check" --provider auto --json
+command -v infernoflow >/dev/null 2>&1 || exit 0
+echo "[inferno hooks] pre-push: infernoflow check --strict"
+infernoflow check --strict
 `;
 
 const writeHook = (name, content) => {

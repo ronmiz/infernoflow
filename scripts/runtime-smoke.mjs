@@ -19,8 +19,8 @@ const dir  = fs.mkdtempSync(path.join(os.tmpdir(), "infernoflow-rt-"));
 const env  = { ...process.env, NO_COLOR: "1", HOME: home, USERPROFILE: home, APPDATA: path.join(home, "AppData", "Roaming"), XDG_CONFIG_HOME: path.join(home, ".config") };
 
 let failed = 0;
-function step(name, args, check) {
-  const r = spawnSync(process.execPath, [BIN, ...args], { cwd: dir, env, encoding: "utf8", timeout: 60_000 });
+function step(name, args, check, timeout = 60_000) {
+  const r = spawnSync(process.execPath, [BIN, ...args], { cwd: dir, env, encoding: "utf8", timeout });
   const out = (r.stdout || "") + (r.stderr || "");
   let ok = r.status === 0;
   try { if (ok && check) ok = check(out) !== false; } catch { ok = false; }
@@ -41,6 +41,10 @@ step("resume", ["resume"], o => o.includes("store:"));
 step("secret is redacted", ["log", "token ghp_" + "a".repeat(36), "--type", "note", "--quiet"], () =>
   !fs.readFileSync(path.join(dir, ".ai-memory", "sessions.jsonl"), "utf8").includes("ghp_" + "a".repeat(36)));
 step("doctor runs", ["doctor"], () => true);
+// 0.46.3: the whole chain in a sandbox — MCP server (every listed tool is
+// called, memory and full mode), prompt/session hooks with sample input, git
+// drift without git, and who each entry is attributed to.
+step("doctor --e2e", ["doctor", "--e2e"], o => /all good|warnings/.test(o), 240_000);
 
 for (const d of [dir, home]) { try { fs.rmSync(d, { recursive: true, force: true }); } catch {} }
 if (failed) { console.error(`\n${failed} runtime check(s) failed on Node ${process.version}`); process.exit(1); }

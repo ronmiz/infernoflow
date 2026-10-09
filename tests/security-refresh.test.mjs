@@ -71,7 +71,7 @@ describe("upgrade backfill replaces outdated security-sensitive copies", () => {
     expect(cursorHook).toBe(fs.readFileSync(TMPL_CURSOR_HOOK, "utf8"));
 
     const claudeHook = fs.readFileSync(path.join(project, ".claude", "hooks", "log-frustration.mjs"), "utf8");
-    expect(claudeHook).toContain("infernoflow-hook-version: 4");
+    expect(claudeHook).toContain("infernoflow-hook-version: 5");
     expect(claudeHook).not.toMatch(/shell:\s*process\.platform/);
 
     // The user is told, on stderr, and asked to restart their AI tool.
@@ -138,5 +138,36 @@ describe("Claude Code prompt hook never uses a shell", () => {
     // R5.2 (0.46.1): at most 60 characters of the prompt are kept.
     const logged = JSON.parse(text.split("\n").find(l => l.includes("User frustration:"))).msg;
     expect(logged.length).toBeLessThanOrEqual("User frustration: ".length + 60);
+  });
+});
+
+describe("0.46.3: a newer copy is never replaced by an older infernoflow", () => {
+  let project, home;
+  beforeEach(() => { project = oldProject(); home = tmp("infernoflow-home-"); });
+  afterEach(() => { for (const d of [project, home]) { try { fs.rmSync(d, { recursive: true, force: true }); } catch {} } });
+
+  it("hooks and server written by a later version are left alone", () => {
+    const newerHook = "// infernoflow-hook-version: 99\n// from the future\n";
+    const newerServer = '// infernoflow-server-version: 99\nconsole.error("[infernoflow MCP] future");\n';
+    fs.writeFileSync(path.join(project, ".claude", "hooks", "log-frustration.mjs"), newerHook);
+    fs.writeFileSync(path.join(project, ".cursor", "hooks", "inferno-session-draft.mjs"), newerHook);
+    fs.writeFileSync(path.join(project, ".cursor", "inferno-mcp-server.mjs"), newerServer);
+    spawnSync(process.execPath, [BIN, "log", "--show"], { cwd: project, encoding: "utf8", timeout: 30_000, env: isolatedEnv(home) });
+    expect(fs.readFileSync(path.join(project, ".claude", "hooks", "log-frustration.mjs"), "utf8")).toBe(newerHook);
+    expect(fs.readFileSync(path.join(project, ".cursor", "hooks", "inferno-session-draft.mjs"), "utf8")).toBe(newerHook);
+    expect(fs.readFileSync(path.join(project, ".cursor", "inferno-mcp-server.mjs"), "utf8")).toBe(newerServer);
+  });
+});
+
+describe("the MCP server template's version marker is bumped with every change", () => {
+  // Copies are only replaced by a NEWER version (0.46.3), so a changed
+  // template with the same number would never reach existing projects.
+  // When this fails: bump "infernoflow-server-version" and record the new hash.
+  const KNOWN = { 1: "b8fd0a82562476aa13e1b7182dcc07551ab7e8ee4bc7d789550fa54920233c5c" };
+  it("the current template matches the hash recorded for its version", async () => {
+    const { createHash } = await import("node:crypto");
+    const text = fs.readFileSync(TMPL_SERVER, "utf8").replace(/\r\n/g, "\n");
+    const version = Number((/infernoflow-server-version:\s*(\d+)/.exec(text) || [])[1]);
+    expect(createHash("sha256").update(text).digest("hex"), "template changed — bump infernoflow-server-version").toBe(KNOWN[version]);
   });
 });

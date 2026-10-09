@@ -23,6 +23,7 @@ infernoflow is a local-first CLI + VS Code extension + open protocol (AMP) that 
 - **Stale and resolved entries** — entries about a file that changed since are marked *may be stale*; `infernoflow resolve <id>` retires one from AI context.
 - **Review what arrives through git** (0.46.1) — memory added by teammates is listed until you review it, and the GitHub Action shows memory changes in each PR.
 - **Safer by default** — only read-only MCP tools are pre-approved; the memory-keeper agent is limited to single `infernoflow` commands; secrets are redacted; MCP is registered per project.
+- **`infernoflow doctor --e2e`** (0.46.3) — an end-to-end self-test in a throw-away sandbox: CLI, the MCP server with every tool called, the prompt and session hooks, git drift, attribution. Also: prompt hooks ignore agent/tool text, memory-mode projects aren't offered contract tools, git drift reports git failures, and every entry names who wrote it.
 
 Full list: [CHANGELOG.md](./CHANGELOG.md).
 
@@ -62,7 +63,7 @@ Both are installed automatically by `infernoflow init` (fresh **and** on re-run 
 
 Every new AI session today starts cold. The agent re-reads your code, re-derives the obvious, and re-makes the same wrong move someone else made yesterday. infernoflow closes that loop in four stages:
 
-1. **Capture** — while you and the agent work, moments worth saving get logged automatically: a gotcha hit, a decision made, an attempted fix that failed, a pattern noticed, a resume point marked. The AI writes them via the `amp_write` MCP tool. A protocol block injected into the rule files teaches it exactly when. A Cursor `beforeSubmitPrompt` hook backstops the AI by scanning your prompt for triggers (`!!`, `retry`, `not working`, `still broken`, `bookmark this`) and writing the entry deterministically when the AI doesn't.
+1. **Capture** — while you and the agent work, moments worth saving get logged automatically: a gotcha hit, a decision made, an attempted fix that failed, a pattern noticed, a resume point marked. The AI writes them via the `amp_write` MCP tool. A protocol block injected into the rule files teaches it exactly when. Prompt hooks (Claude Code `UserPromptSubmit`, Cursor `beforeSubmitPrompt`) backstop the AI by scanning **the text you typed** — subagent hand-backs, system reminders, fenced or indented code, quotes and stack traces are skipped — for trouble signals (`not working`, `still broken`, `same error`; `!!` / `retry` only in short prompts) and writing the entry deterministically when the AI doesn't. The Cursor hook also turns *"bookmark this"* into a bookmark.
 2. **Link** — each captured moment becomes a structured AMP entry (`gotcha | decision | attempt | note | detection | pattern | bookmark`) with timestamp, `file:line`, tags, and a stable AMP id.
 3. **Persist** — entries land in `.ai-memory/branches/<branch>.jsonl` (git-tracked, travels with your branch — teammates inherit it) plus `.ai-memory/global.jsonl` (personal preferences, gitignored, synced across your machines via any OS-synced folder).
 4. **Restore** — when a new session starts, the agent reads `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` at boot. The most relevant entries are already there. **Warm start; no cold derivation.**
@@ -219,9 +220,11 @@ When the MCP server is wired, your AI agent can call these directly in chat:
 | `amp_handoff` | Generate the handoff document for the next AI session |
 | `amp_health` | Session health score (A–F) |
 | `infernoflow_status` | Memory + project health at a glance |
-| `infernoflow_check` | Validate the capability contract (read-only) |
-| `infernoflow_context` | Generate AI-ready context for a task |
-| `infernoflow_git_drift` | Detect which capabilities recent commits affected |
+| `infernoflow_check` | Validate the capability contract (read-only). **Full mode only** — not listed in memory-mode projects |
+| `infernoflow_context` | Generate AI-ready context for a task. **Full mode only** |
+| `infernoflow_git_drift` | Files changed in the last commits and working tree — and, in full mode, which capabilities they affect. Says so when git is unavailable instead of reporting "no changes" |
+
+Entries are stamped with who wrote them: the MCP client that called the tool (Claude, Cursor, Copilot, Windsurf…), `claude` for CLI calls from Claude Code, `memory-keeper` / `hook` for the agent and the prompt hooks, `human` for you. Set `INFERNOFLOW_AGENT` to override the automatic detection. Like the author, this is what the writer claims — useful for triage, not proof.
 
 The `amp_*` tools follow the [AMP MCP spec §7.3](docs/protocol/PROTOCOL.md#73-mcp-tool-interface) — vendor-neutral. Any AMP-Full client only needs to know those six names. The same six are also available as CLI aliases (`infernoflow amp read | write | search | bookmark | handoff | health`) so the CLI and MCP surfaces match name-for-name.
 
@@ -271,6 +274,8 @@ The extension is **window only** in v0.7.9+ — the CLI is the single canonical 
 - **PowerShell script execution blocked.** `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
 - **Box-drawing chars look broken.** Force UTF-8 first: `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8`. Should auto-fall-back to ASCII on legacy PowerShell. If not, open an issue.
 - **`infernoflow doctor`** — full diagnostic if anything looks wrong. Includes the MCP runtime stamp check + AI provider detection + git hooks status.
+- **`infernoflow doctor --e2e`** — if memory isn't being captured or a tool fails, this runs the whole chain in a temporary sandbox (your project and settings aren't touched): log → ask → forget, the MCP server with every tool called, the prompt and session hooks with sample input, git drift, and attribution. Paste its output into an issue.
+- **`infernoflow check` says *memory mode*.** That's expected after a plain `init`: capability contracts are optional. Enable them with `infernoflow init --mode full --adopt`. In CI use `infernoflow check --strict`, which fails when the contract is missing.
 
 ---
 
@@ -298,8 +303,8 @@ Local-first by design:
 - ✅ **API keys never live in the project** — environment variables are used as-is; pasted keys go to `~/.infernoflow/ai-credentials.json` (owner-only).
 - ✅ **No shell is used to run commands** from the MCP server or the prompt hooks (since 0.44.20), and MCP tool arguments are validated against their schema.
 - ✅ **Only read-only tools are pre-approved** in Claude Code (`permissions.allow` in `.claude/settings.json`). Tools that write memory ask for your permission like any other tool, so text the AI reads can't silently write to shared memory.
-- ✅ **Memory is data, not instructions.** Injected memory is framed that way, each entry records its author, entries about a changed file are marked *may be stale*, and memory that arrived through git is listed until you review it (`resume` / `recap`).
-- ✅ **The frustration hook keeps only a 60-character prefix** of the prompt that triggered it.
+- ✅ **Memory is data, not instructions.** Injected memory is framed that way, each entry records its author and the tool that wrote it, entries about a changed file are marked *may be stale*, and memory that arrived through git is listed until you review it (`resume` / `recap`).
+- ✅ **The frustration hook keeps only a 60-character prefix** of the prompt that triggered it, and skips agent hand-backs, system reminders, code, quotes and stack traces in it.
 
 The optional `infernoflow ai setup` command wires an AI provider (Anthropic / OpenAI / Google / Ollama) for a few enrichment commands — same trust model as using that provider directly. Off by default.
 

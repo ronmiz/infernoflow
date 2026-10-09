@@ -1,6 +1,6 @@
 /**
  * store-smoke — the extension reads and writes the same memory layout as the
- * CLI (0.7.21 / CLI 0.46.2):
+ * CLI (0.7.22 / CLI 0.46.3):
  *   - reads shared branch files + the local mirror, de-duplicated
  *   - writes land in the shared branch file like the CLI's (no CLI run, no side
  *     effects); nothing is written in an untrusted workspace
@@ -67,9 +67,13 @@ const store = require(path.join(extDir, "out", "store.js"));
     assert.ok(!bf.includes("ghp_" + "a".repeat(36)), "secret not redacted");
     assert.ok(fs.readFileSync(path.join(ws, ".ai-memory", "sessions.jsonl"), "utf8").includes(w1.id), "not mirrored locally");
     assert.strictEqual(w1.meta.author, "Ext Tester");
+    assert.strictEqual(w1.meta.agent, "human", "a sidebar write is the user's");
+    const wc = ampIO.write({ type: "note", msg: "copilot wrote this", source: "copilot-lm-tool" });
+    assert.strictEqual(wc.tool, "copilot", "Copilot tool writes must be attributed to copilot");
+    assert.strictEqual(wc.meta.agent, undefined);
     const viaCli = JSON.parse(cli("log", "--json").stdout || "[]");
     assert.ok(viaCli.some(e => e.id === w1.id), "the CLI does not see the extension's entry");
-    console.log("✔ write goes to the shared branch file (author stamped, secret redacted) and the CLI reads it");
+    console.log("✔ write goes to the shared branch file (author + writer stamped, secret redacted) and the CLI reads it");
 
     // 2. Untrusted: memory is read-only.
     trusted = false;

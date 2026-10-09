@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // infernoflow memory-keeper guard (PreToolUse on Bash, scoped to that subagent).
-// infernoflow-hook-version: 4
+// infernoflow-hook-version: 5
 // The memory-keeper reads transcripts — content it must treat as data. To keep
 // a hostile transcript from turning it into a general shell, its Bash calls may
 // only be a single read/log `infernoflow …` command. Anything with pipes,
