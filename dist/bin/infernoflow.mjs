@@ -22,7 +22,7 @@
   ${i("Setup")}
     ${s("init")}              60-second setup ${e("(memory mode by default)")}
     ${s("setup")}             Re-run IDE wiring ${e("(idempotent \u2014 MCP + hooks)")}
-    ${s("doctor")}            Diagnose your setup
+    ${s("doctor")}            Diagnose your setup ${e("(--e2e: full self-test in a sandbox)")}
     ${s("context")}           Generate AI-ready context for new sessions
 
   ${i("Subsystems")} ${e("\u2014 grouped, run for verbs:")}

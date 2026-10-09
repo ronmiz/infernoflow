@@ -1,5 +1,21 @@
 # Changelog — infernoflow
 
+## 0.46.3 — 2026-10-09 — field findings: hook noise, memory mode, git drift, attribution, end-to-end self-test
+
+### Fixed
+- **Prompt hooks react to what you typed, not to agent or tool text.** Subagent hand-backs, system reminders, task notifications, pasted logs, code, stack traces and quoted tool output (e.g. "No changed files detected…") reach the Claude Code / Cursor prompt hooks like a typed prompt and were logged as *User frustration*. Both hooks now drop those parts first, then look for word-bounded phrases (`not working`, `still broken`, `this is broken`, `same error`, `no change`, …); `!!` at the end of a word and "retry" count only in short prompts. Work per prompt is bounded (a huge paste is handled in milliseconds). One implementation (`lib/frustration.mjs`) shared by both hooks; hook version 5 — existing copies are replaced on the first command after upgrading. Unfenced output pasted as plain text can still trigger the hook.
+- **`curate` / `doctor` find entries the old hooks logged from machine text** (agent hand-backs, system reminders, infernoflow's own "No changed files" output); `infernoflow curate --apply` removes them. Entries a person may have typed are kept.
+- **Memory-mode projects** (no `inferno/contract.json`) are no longer told to run `infernoflow init`: `check` reports *memory mode* and exits 0 (`--json`: `{"ok":true,"mode":"memory","skipped":true}`), `context` shows the memory resume, and `generate-skills` explains it needs full mode. The MCP server lists `infernoflow_check` / `infernoflow_context` only in full mode (calling them anyway returns a hint, not an error); `setup` pre-approves `infernoflow_check` only there, and switching to full mode (`init --mode full`) adds it.
+- **`check` stays a real gate:** a contract that git knows about but is missing from disk fails, and **`check --strict`** (used by the generated CI workflow and git hooks) fails in memory mode, so a pull request that deletes `inferno/` can't pass.
+- **Full-mode projects' generated CI workflow, git hooks and npm scripts** called commands that no longer exist (`run "sync check"`, `doc-gate`, `pr-impact`) and failed. New projects get `infernoflow check --strict`; for an existing project, replace the step in `.github/workflows/` with `npx --yes infernoflow check --strict`.
+- **Git drift no longer reports "No changed files" when git failed.** Outside a repository it says git is unavailable; in a repository with no commits every file counts as changed; with fewer commits than requested it compares with the start of history; in a shallow clone (CI, cloud agents) with the oldest fetched commit. The CLI's drift detection (used by `context --watch`) got the same fixes and no longer uses a shell. In memory mode the report lists changed files without capability mapping.
+- **Entries name who wrote them.** MCP writes are attributed to the calling client (`clientInfo` from `initialize`: Claude, Cursor, Copilot in VS Code, Windsurf, or the client's own name) instead of always "claude"; CLI writes from Claude Code are "claude" (it sets `CLAUDECODE=1`; the old check never matched, so they were "human"); the memory-keeper agent and the prompt hooks are named as such. `INFERNOFLOW_AGENT` overrides the automatic detection (an explicit `--agent` still wins); `bookmark` accepts `--agent`.
+- **Hooks and the MCP server copy written by a newer infernoflow are no longer replaced by an older one** (they are committed with the repo, so teammates on different versions rewrote each other's copies). Takes effect for versions from 0.46.3 on.
+
+### Added
+- **`infernoflow doctor --e2e`** — an end-to-end self-test in a throw-away sandbox (temp project, temp HOME and an isolated git config; your project, settings and repositories are not touched): log → ask → forget, the MCP server with every listed tool called (memory and full mode), the prompt and session hooks with sample input, git drift without git, and attribution. `--json` supported. Without git installed it reports *skipped*.
+- CI runs it on the built `dist/` (Node 18/20, Linux and Windows) and in the test suite on Linux, Windows and macOS. It caught a bug before release: the build minifies `lib/`, which renamed the functions the prompt hook embeds.
+
 ## 0.46.2 — 2026-10-07 — macOS path fixes
 
 ### Fixed

@@ -1,3 +1,4 @@
+// infernoflow-server-version: 1  (bump when this file changes; copies are only replaced by a newer version)
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -329,6 +330,48 @@ const TOOLS = [
   { name: "infernoflow_git_drift", description: "Detect which capabilities may be affected by recent code changes — useful when memory needs branch-aware revalidation.", inputSchema: { type: "object", properties: { sinceCommits: { type: "integer", minimum: 1, maximum: 100, description: "How many commits back to check (default: 1, max: 100)" } } } },
 ];
 
+// ── Contract tools only where a contract exists (0.46.3) ────────────────────
+// Memory mode (the default) has no capability contract, so `check` / `context`
+// can only fail there. They're listed only when inferno/contract.json exists
+// (an `inferno/` folder alone can be a pre-0.44 memory store), and a call made
+// from a cached tool list gets a normal answer instead of an error.
+// ── Who is writing (0.46.3) ────────────────────────────────────────────────
+// Entries used to be stamped "claude" whatever the client was (Copilot and
+// Cursor writes looked like Claude's). The MCP client names itself in
+// `initialize` (clientInfo.name) — that is the reliable signal.
+let CLIENT_NAME = "";
+function agentFromClient(name) {
+  const n = String(name || "").toLowerCase();
+  if (!n) return "";
+  if (n.includes("claude")) return "claude";            // claude-code, claude-ai (Desktop)
+  if (n.includes("cursor")) return "cursor";
+  if (n.includes("windsurf") || n.includes("codeium")) return "windsurf";
+  if (n.includes("copilot") || n.includes("visual studio code") || n.includes("vscode")) return "copilot";
+  return n.replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32) || "other";
+}
+function agentName() {
+  const forced = String(process.env.INFERNOFLOW_AGENT || "").trim();
+  if (forced) return forced.slice(0, 32);
+  const fromClient = agentFromClient(CLIENT_NAME);
+  if (fromClient) return fromClient;
+  if (process.env.CLAUDECODE === "1" || process.env.CLAUDE_CODE_SESSION) return "claude";
+  if (process.env.CURSOR_SESSION) return "cursor";
+  if (process.env.COPILOT_SESSION) return "copilot";
+  return "other";
+}
+
+const CONTRACT_TOOLS = new Set(["infernoflow_check", "infernoflow_context"]);
+function hasContract() {
+  try { return fs.existsSync(path.join(PROJECT_DIR, "inferno", "contract.json")); } catch { return false; }
+}
+function listedTools() {
+  return hasContract() ? TOOLS : TOOLS.filter(t => !CONTRACT_TOOLS.has(t.name));
+}
+const NO_CONTRACT_TEXT =
+  "This project uses memory mode — no capability contract is set up, so there is nothing to check or build context from. " +
+  "For project memory use amp_resume (where were we?), amp_search or amp_read. " +
+  "To enable capability contracts: infernoflow init --mode full --adopt";
+
 // ── Input validation ─────────────────────────────────────────────────────────
 // SECURITY: tool arguments come from the model, and the model can be steered by
 // anything it reads (a README, an issue, a memory entry pulled from git). The
@@ -394,21 +437,65 @@ function detectGitDrift(sinceCommits) {
   const infernoDir = path.join(cwd, "inferno");
 
   // SECURITY: git is run with an argument array and no shell.
-  const runGit = (args) => {
-    try { return execFileSync("git", args, { cwd, encoding: "utf8", timeout: 10_000, stdio: ["ignore", "pipe", "ignore"], windowsHide: true, shell: false }); }
-    catch { return ""; }
+  // Returns the output, or null when git fails — a failure must never look
+  // like "nothing changed" (0.46.3: it used to report "No changed files" in a
+  // folder that is not a repository, or that has no commits yet).
+  const runGit = (args, input) => {
+    try {
+      return execFileSync("git", args, { cwd, encoding: "utf8", timeout: 10_000, input, stdio: [input === undefined ? "ignore" : "pipe", "pipe", "ignore"], windowsHide: true, shell: false });
+    } catch { return null; }
   };
   const n = Number.isInteger(sinceCommits) && sinceCommits >= 1 && sinceCommits <= 100 ? sinceCommits : 1;
 
-  const changedSet = new Set();
-  const addLines = (out) => out.split("\n").map(l => l.trim()).filter(Boolean).forEach(f => changedSet.add(f));
+  if ((runGit(["rev-parse", "--is-inside-work-tree"]) || "").trim() !== "true") {
+    return "Git drift is unavailable: this project folder is not a git repository (or git is not installed), so changes can't be detected. Nothing was checked.";
+  }
 
-  addLines(runGit(["diff", "--name-only", "HEAD"]));
-  addLines(runGit(["diff", "--name-only", `HEAD~${n}`, "HEAD"]));
+  const changedSet = new Set();
+  const addLines = (out) => (out || "").split("\n").map(l => l.trim()).filter(Boolean).forEach(f => changedSet.add(f));
+  let note = "";
+
+  const hasHead = runGit(["rev-parse", "--verify", "-q", "HEAD"]) !== null;
+  if (!hasHead) {
+    // No commits yet: everything in the index plus untracked files is new.
+    note = "This repository has no commits yet — every file counts as changed.";
+    addLines(runGit(["ls-files"]));
+  } else {
+    let base = `HEAD~${n}`;
+    if (runGit(["rev-parse", "--verify", "-q", `HEAD~${n}^{commit}`]) === null) {
+      if ((runGit(["rev-parse", "--is-shallow-repository"]) || "").trim() === "true") {
+        // A shallow clone (CI, cloud agents): older history isn't here. Compare
+        // with the oldest commit we have — not with an empty tree, which would
+        // list every file in the project as changed.
+        base = ((runGit(["rev-list", "--max-parents=0", "HEAD"]) || "").trim().split("\n")[0] || "").trim();
+        note = "Shallow clone — only part of the history was fetched, so changes are compared with the oldest fetched commit (changes made in that commit itself can't be seen).";
+      } else {
+        // Fewer commits than asked for: compare with the start of history.
+        base = (runGit(["hash-object", "-t", "tree", "--stdin"], "") || "").trim();
+        const count = parseInt((runGit(["rev-list", "--count", "HEAD"]) || "").trim(), 10);
+        note = Number.isInteger(count) && count > 0
+          ? `Only ${count} commit${count === 1 ? "" : "s"} in this repository — compared against the start of history.`
+          : `Fewer than ${n} commits in this repository — compared against the start of history.`;
+      }
+    }
+    const committed = base ? runGit(["diff", "--name-only", base, "HEAD"]) : null;
+    if (committed === null) return "Git drift failed: git could not compare the last " + n + " commit(s). Nothing was checked.";
+    addLines(runGit(["diff", "--name-only", "HEAD"]));
+    addLines(committed);
+  }
   addLines(runGit(["ls-files", "--others", "--exclude-standard"]));
 
   const changedFiles = Array.from(changedSet).sort();
-  if (!changedFiles.length) return "No changed files detected since last commit.";
+  if (!changedFiles.length) return (note ? note + "\n" : "") + `No changed files in the last ${n} commit${n === 1 ? "" : "s"} or the working tree.`;
+
+  // Memory mode: there are no capabilities to map files to — just list them.
+  if (!hasContract()) {
+    const out = [`## infernoflow git drift report`, ...(note ? [note] : []), `Changed files (last ${n} commit${n === 1 ? "" : "s"} + working tree): ${changedFiles.length}`, ""];
+    for (const f of changedFiles.slice(0, 30)) out.push(`  - ${f}`);
+    if (changedFiles.length > 30) out.push(`  ... +${changedFiles.length - 30} more`);
+    out.push("", "Before relying on memory about these files, check it with amp_search (entries may describe code that has since changed).");
+    return out.join("\n");
+  }
 
   // Load capabilities registry
   let capabilities = [];
@@ -477,6 +564,7 @@ function detectGitDrift(sinceCommits) {
   // Format output
   const lines = [
     `## infernoflow git drift report`,
+    ...(note ? [note] : []),
     `Changed files: ${changedFiles.length}`,
     `Affected capabilities: ${affected.length}`,
     "",
@@ -562,6 +650,9 @@ function handleTool(id, name, rawInput) {
     }
     const input = checked.value;
     let text = "";
+    if (CONTRACT_TOOLS.has(name) && !hasContract()) {
+      return sendResult(id, { content: [{ type: "text", text: NO_CONTRACT_TEXT }] });
+    }
     // ── Read-only contract helpers ─────────────────────────────────────────
     if (name === "infernoflow_check") {
       text = runCli(["check"]);
@@ -596,11 +687,7 @@ function handleTool(id, name, rawInput) {
           ts:      new Date().toISOString(),
           type:    input.type || "note",
           summary: input.msg || "",
-          agent:   process.env.INFERNOFLOW_AGENT
-                   || (process.env.CLAUDE_CODE_SESSION ? "claude"
-                   :  process.env.CURSOR_SESSION       ? "cursor"
-                   :  process.env.COPILOT_SESSION      ? "copilot"
-                   :                                     "claude"),
+          agent:   agentName(),
         };
         const routed = routeByFile(input.file);
         if (routed.file)                      entry.file = routed.file;
@@ -632,6 +719,7 @@ function handleTool(id, name, rawInput) {
         if (input.file)                      args.push("--file", asCliText(input.file));
         if (input.line)                      args.push("--line", String(input.line));
         if (input.tags && input.tags.length) args.push("--tags", input.tags.map(asCliText).join(","));
+        args.push("--agent", agentName());
         text = runCli(args);
       }
     } else if (name === "amp_bookmark") {
@@ -642,11 +730,7 @@ function handleTool(id, name, rawInput) {
           ts:      new Date().toISOString(),
           type:    "note",
           summary: input.label || "",
-          agent:   process.env.INFERNOFLOW_AGENT
-                   || (process.env.CLAUDE_CODE_SESSION ? "claude"
-                   :  process.env.CURSOR_SESSION       ? "cursor"
-                   :  process.env.COPILOT_SESSION      ? "copilot"
-                   :                                     "claude"),
+          agent:   agentName(),
           tags:    ["bookmark"],
         };
         // Context: explicit note wins; otherwise auto-capture the session
@@ -669,6 +753,7 @@ function handleTool(id, name, rawInput) {
       } else {
         const args = ["bookmark", asCliText(input.label)];
         if (input.note) args.push("--note", asCliText(input.note));
+        args.push("--agent", agentName());
         text = runCli(args);
       }
     } else if (name === "amp_handoff") {
@@ -721,8 +806,12 @@ const rl = readline.createInterface({ input: process.stdin });
 rl.on("line", (line) => {
   let msg; try { msg = JSON.parse(line); } catch { return; }
   const { id, method, params } = msg;
-  if (method === "initialize") { sendResult(id, { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "infernoflow", version: "1.0.0" } }); return; }
-  if (method === "tools/list") { sendResult(id, { tools: TOOLS }); return; }
+  if (method === "initialize") {
+    try { CLIENT_NAME = String((params && params.clientInfo && params.clientInfo.name) || "").slice(0, 100); } catch { CLIENT_NAME = ""; }
+    sendResult(id, { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "infernoflow", version: "1.0.0" } });
+    return;
+  }
+  if (method === "tools/list") { sendResult(id, { tools: listedTools() }); return; }
   if (method === "tools/call") { handleTool(id, params.name, params.arguments || {}); return; }
   if (id !== undefined) sendError(id, -32601, `Method not found: ${method}`);
 });

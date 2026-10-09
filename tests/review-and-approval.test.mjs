@@ -13,7 +13,7 @@ import * as os   from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { writeClaudeSettings, MCP_READ_TOOLS, MCP_WRITE_TOOLS, MCP_TOOLS, CAPTURE_HOOK_VERSION } from "../lib/commands/setup.mjs";
+import { writeClaudeSettings, MCP_READ_TOOLS, MCP_WRITE_TOOLS, MCP_TOOLS, MCP_CONTRACT_TOOLS, CAPTURE_HOOK_VERSION } from "../lib/commands/setup.mjs";
 import { _resetProjectRootCache } from "../lib/projectRoot.mjs";
 import { _resetBranchCache } from "../lib/git/branch.mjs";
 import { _resetGitStampCache } from "../lib/amp/io.mjs";
@@ -58,6 +58,8 @@ describe("setup pre-approves only read-only MCP tools", () => {
   it("writes permissions.allow (read tools only), withdraws write approvals, drops our legacy allowedTools, keeps the user's own", () => {
     const dir = tmp("infernoflow-allow-");
     fs.mkdirSync(path.join(dir, ".claude"));
+    fs.mkdirSync(path.join(dir, "inferno"));                         // full mode
+    fs.writeFileSync(path.join(dir, "inferno", "contract.json"), "{}");
     fs.writeFileSync(path.join(dir, ".claude", "settings.json"), JSON.stringify({
       allowedTools: ["Bash(npm test)", "mcp__infernoflow__amp_write", "mcp__infernoflow__amp_read"],
       permissions: { allow: ["Read(src/**)", "mcp__infernoflow__amp_write", "mcp__infernoflow__*"], deny: ["Bash(rm:*)"] },
@@ -74,12 +76,23 @@ describe("setup pre-approves only read-only MCP tools", () => {
     for (const t of MCP_WRITE_TOOLS) expect(s.permissions.allow).not.toContain(`mcp__infernoflow__${t}`);
   });
 
-  it("a fresh project gets no top-level allowedTools at all", () => {
+  it("a fresh (memory-mode) project gets no top-level allowedTools and no contract-tool approvals", () => {
     const dir = tmp("infernoflow-allow2-");
     writeClaudeSettings(dir, false);
     const s = JSON.parse(fs.readFileSync(path.join(dir, ".claude", "settings.json"), "utf8"));
     expect(s.allowedTools).toBeUndefined();
-    expect(s.permissions.allow.length).toBe(MCP_READ_TOOLS.length);
+    const expected = MCP_READ_TOOLS.filter(t => !MCP_CONTRACT_TOOLS.includes(t));
+    expect(s.permissions.allow.sort()).toEqual(expected.map(t => `mcp__infernoflow__${t}`).sort());
+  });
+
+  it("0.46.3: a stale infernoflow_check approval is withdrawn in memory mode", () => {
+    const dir = tmp("infernoflow-allow3-");
+    fs.mkdirSync(path.join(dir, ".claude"));
+    fs.writeFileSync(path.join(dir, ".claude", "settings.json"), JSON.stringify({ permissions: { allow: ["mcp__infernoflow__infernoflow_check"] } }));
+    writeClaudeSettings(dir, false);
+    const s = JSON.parse(fs.readFileSync(path.join(dir, ".claude", "settings.json"), "utf8"));
+    expect(s.permissions.allow).not.toContain("mcp__infernoflow__infernoflow_check");
+    expect(s.permissions.allow).toContain("mcp__infernoflow__amp_resume");
   });
 });
 
@@ -127,12 +140,12 @@ describe("memory-keeper guard fails closed and can't mark entries reviewed", () 
 });
 
 describe("R5.2 frustration hook keeps at most 60 characters", () => {
-  it("the installed hook (version 4) keeps a 60-character prefix", () => {
+  it("the installed hook (version 5) keeps a 60-character prefix", () => {
     const dir = repo();
-    expect(CAPTURE_HOOK_VERSION).toBe(4);
+    expect(CAPTURE_HOOK_VERSION).toBe(5);
     expect(cli(["setup", "--yes"], dir).status).toBe(0);
     const hook = path.join(dir, ".claude", "hooks", "log-frustration.mjs");
-    expect(fs.readFileSync(hook, "utf8")).toContain("infernoflow-hook-version: 4");
+    expect(fs.readFileSync(hook, "utf8")).toContain("infernoflow-hook-version: 5");
     expect(fs.readFileSync(hook, "utf8")).toContain(".slice(0, 60)");
     // The end-to-end check (hook → CLI → entry length) is in security-refresh.test.mjs.
   }, 60_000);

@@ -200,7 +200,7 @@ const HELP = `
   ${bold("Setup")}
     ${cyan("init")}              60-second setup ${gray("(memory mode by default)")}
     ${cyan("setup")}             Re-run IDE wiring ${gray("(idempotent — MCP + hooks)")}
-    ${cyan("doctor")}            Diagnose your setup
+    ${cyan("doctor")}            Diagnose your setup ${gray("(--e2e: full self-test in a sandbox)")}
     ${cyan("context")}           Generate AI-ready context for new sessions
 
   ${bold("Subsystems")} ${gray("— grouped, run for verbs:")}

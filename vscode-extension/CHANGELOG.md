@@ -1,5 +1,12 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.7.22 — 2026-10-09 — entries name who wrote them
+
+Pairs with CLI 0.46.3.
+
+### Fixed
+- Entries Copilot saves through `amp_write` are attributed to Copilot (`tool: "copilot"`); entries you log from the sidebar or commands are marked as yours — the same attribution the CLI and MCP server now use.
+
 ## 0.7.21 — 2026-10-07 — security hardening, shared memory, CLI parity
 
 Pairs with CLI 0.46.2.

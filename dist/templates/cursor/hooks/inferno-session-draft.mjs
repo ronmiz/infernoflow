@@ -18,7 +18,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawnSync, execFileSync } from "node:child_process";
 
-// infernoflow-hook-version: 4
+// infernoflow-hook-version: 5
 // SECURITY (0.44.20): the CLI is run as `node infernoflow.mjs ...` with NO
 // shell. Before 0.44.20 this hook used spawnSync("infernoflow.cmd", args,
 // { shell: true }) on Windows, which hands the prompt text to cmd.exe
@@ -180,15 +180,48 @@ async function readStdin() {
 // working", …) we write an `attempt` entry ourselves. Bounded hard against
 // noise: a 90s cooldown + identical-prompt dedupe, so a frustrated burst of
 // "still broken!! retry!!" produces ONE entry, not ten.
-const TRIGGER_RES = [
-  /(?:^|\s)!!+/,
-  /\bretry(?:ing)?\b/i,
-  /\bnot working\b/i,
-  /\bstill (?:broken|failing|not working|doesn['’]?t)\b/i,
-  /\bsame (?:error|issue|problem)\b/i,
-  /\bno change\b/i,
-  /\bdoesn['’]?t work\b/i,
-];
+// 0.46.3: only text the human typed counts (pasted logs, code, quotes and
+// machine-generated messages are ignored). Identical copy of lib/frustration.mjs
+// — tests/frustration.test.mjs keeps them in sync.
+function humanText(prompt) {
+  if (typeof prompt !== "string") return "";
+  if (/^\s*<(agent-message|system-reminder|task-notification|command-|local-command|user-prompt-submit-hook|bash-|tool-|function_)/i.test(prompt)) return "";
+  if (/^\s*\[(?:Subagent hand-back|Request interrupted)/i.test(prompt)) return "";
+  if (/^\s*Caveat: The messages below were generated/i.test(prompt)) return "";
+  // Bound the work: this runs on every prompt. A huge paste keeps its start
+  // and end, where a person's own words usually are.
+  let p = prompt.length > 20000 ? prompt.slice(0, 10000) + "\n" + prompt.slice(-10000) : prompt;
+  // Line-anchored patterns use [ \t]*, never \s* — with the m flag \s* also
+  // eats newlines and backtracks badly over blank lines.
+  p = p
+    .replace(/<([a-z][\w-]*)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")     // <tag>…</tag> blocks
+    .replace(/```[\s\S]*?(?:```|$)/g, " ")                            // fenced code (closed or not)
+    .replace(/^(?: {4}|\t).*$/gm, " ")                                // indented code
+    .replace(/^[ \t]*>.*$/gm, " ")                                    // quoted lines
+    .replace(/^[ \t]*(?:at [\w.$<>\[\]]+ \(.*\)|at \S+:\d+|(?:[A-Z]\w*)?(?:Error|Exception)\b[^\n]*:|Traceback \(|File "[^"\n]*", line \d).*$/gm, " ") // stack traces
+    .replace(/\s+/g, " ")
+    .trim();
+  // What a person types is short; keep both ends of anything longer.
+  return p.length > 500 ? p.slice(0, 250) + " … " + p.slice(-250) : p;
+}
+function isFrustration(text) {
+  if (typeof text !== "string" || !text) return false;
+  const PHRASES = [
+    /\bnot working\b/i,
+    /\bstill (?:broken|failing|fails|crashing|crashes|the same|nothing|doesn['’]?t work)\b/i,
+    /\bstill not (?:working|fixed|compiling|building|loading|passing|running|showing)\b/i,
+    /\bdoes(?:n['’]?t| not) work\b/i,
+    /\b(?:it|this|that|is|are|it['’]?s)\s+(?:still\s+|totally\s+|completely\s+)?broken\b/i,
+    /\bbroken again\b/i,
+    /\bsame (?:error|issue|problem)\b/i,
+    /\bno change\b/i,
+  ];
+  if (PHRASES.some((re) => re.test(text))) return true;
+  // Noisy signals only in a short prompt: "!!" ending a word ("fix it!!",
+  // "why!!", "!!") but not code like "!!value"; "retry".
+  const short = text.length <= 200;
+  return short && (/!{2,}(?=\s|$)/.test(text) || /\bretry(?:ing)?\b/i.test(text));
+}
 
 // Deterministic BOOKMARK triggers — an explicit "bookmark this" is an intentional
 // resume point (not a trouble signal), so it takes precedence and drops a real
@@ -253,14 +286,14 @@ function handleBookmarkTrigger(prompt) {
 }
 
 function handleUserPrompt(text) {
-  const trimmed = (text || "").trim();
+  const trimmed = humanText(text || "");
   if (!trimmed) return;
   if (!memoryRootExists()) return;                 // only inside infernoflow projects
 
   // Bookmark trigger takes precedence — "bookmark this" is intentional, not trouble.
   if (BOOKMARK_RES.some((re) => re.test(trimmed))) { handleBookmarkTrigger(trimmed); return; }
 
-  if (!TRIGGER_RES.some((re) => re.test(trimmed))) return;
+  if (!isFrustration(trimmed)) return;
 
   const now = Date.now();
   const stateFile = triggerStatePath();
@@ -272,13 +305,13 @@ function handleUserPrompt(text) {
   if (state.lastTs && now - state.lastTs < COOLDOWN_MS) return; // rate-limit
 
   const msg = "Auto-trigger — user signalled trouble: " +
-    trimmed.replace(/\s+/g, " ").slice(0, 60);   // R5.2: keep only a short prefix of the prompt
+    trimmed.replace(/^[\s-]+/, "").slice(0, 60);   // R5.2: keep only a short prefix of the prompt
 
   // Prefer the CLI (correct id / branch routing / AMP shape); fall back to a
   // direct sessions.jsonl append so capture still works without a global CLI.
   let wrote = false;
   try {
-    const r = runCli(["log", asCliText(msg), "--type", "attempt", "--source", "cursor-trigger", "--tags", "auto-trigger"], {
+    const r = runCli(["log", asCliText(msg), "--type", "attempt", "--source", "cursor-trigger", "--agent", "cursor-hook", "--tags", "auto-trigger"], {
       cwd: projectRoot(), encoding: "utf8", timeout: 15000,
     });
     wrote = !!r && r.status === 0;

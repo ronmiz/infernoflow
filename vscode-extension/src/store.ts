@@ -229,6 +229,10 @@ export function writeEntry(root: string, e: NewEntry): AMPEntry {
   if (Number.isInteger(e.line) && (e.line as number) > 0) entry.line = e.line;
   if (e.tags && e.tags.length) entry.tags = e.tags;
   if (e.source) entry.source = e.source;
+  // Who wrote it (CLI parity, 0.7.22): Copilot's tool calls are Copilot's;
+  // entries typed in the sidebar / commands are the user's.
+  if (e.source === "copilot-lm-tool") entry.tool = "copilot";
+  else if (!e.source || e.source === "vscode-extension") meta.agent = "human";
   entry.meta = meta;
   const line = JSON.stringify(entry) + "\n";
   const sessions = path.join(amp, "sessions.jsonl");
