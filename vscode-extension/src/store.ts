@@ -266,6 +266,7 @@ const GITIGNORE_BLOCK = [
   ".ai-memory/.hook-state.json",
   ".ai-memory/.trigger-state.json",
   ".ai-memory/.review-seen.log",
+  ".ai-memory/.maintenance-state.json",
   "# MCP runtime stamp (machine-specific).",
   ".ai-memory/.mcp-runtime.json",
   "# Build/publish hygiene — don't ship memory in published .NET / monorepo bundles.",

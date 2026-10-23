@@ -145,7 +145,8 @@ The injected memory block is paid for on every AI turn (and twice when a tool lo
     "archiveAfterDays": 30,
     "archivableTypes": ["note", "attempt", "detection"],
     "auto": false                             // true → silent prune on every `log`
-  }
+  },
+  "maintenance": "suggest"                    // "suggest" (default) · "auto" · "off"
 }
 ```
 
@@ -159,6 +160,8 @@ infernoflow prune --apply --max-age-days 14          # one-off cleanup
 ```
 
 **Rotation** archives stale `note` / `attempt` / `detection` entries to `.ai-memory/archive/sessions-YYYY-MM.jsonl` — invisible to the merged read (so the AI, sidebar, `ask`, and `refresh` stop surfacing them) but still on disk if you want them back. `gotcha`, `decision`, `pattern`, and `bookmark` entries are **never auto-pruned** — that's the knowledge you logged infernoflow FOR.
+
+**Maintenance hints** (0.46.5): when memory collects noise (duplicates, old commit notes, machine text), entries about files that changed since, or a pile of old notes, `status`, `recap` and the session-start context say so and name the command (`curate --apply`, `resume`, `prune --apply`). The session-start hint shows at most once a day and tells the AI to ask before running anything. `"auto"` does the safe part itself once a day (noise is archived then removed, old notes go to the archive); entries about changed files are still only suggested, because a person decides whether they're outdated. Thresholds are adjustable: `"maintenance": { "mode": "suggest", "thresholds": { "curate": 3, "stale": 3, "prune": 20 } }`.
 
 **Two-tier bodies:** any entry can carry a rich `detail` — stored in a single `.ai-memory/details.jsonl` (consolidated in 0.44.18; older per-entry `details/<id>.md` sidecars auto-migrate on the next write), loaded on demand via `readDetail()`, and **never injected into rule files**. The lean index stays lean; you pay for the body only when you open it. `log --detail`, `--detail-file`, MCP `amp_write` `detail`, and the new `amp_bookmark` tool all feed it.
 
