@@ -1,5 +1,10 @@
 # Changelog — infernoflow
 
+## 0.46.4 — official MCP Registry listing
+
+### Added
+- `mcpName` (`io.github.ronmiz/infernoflow`) in package.json and a `server.json`, so the MCP server can be listed in the official MCP Registry (registry.modelcontextprotocol.io). No code changes.
+
 ## 0.46.3 — 2026-10-09 — field findings: hook noise, memory mode, git drift, attribution, end-to-end self-test
 
 ### Fixed
