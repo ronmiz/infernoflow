@@ -1,6 +1,6 @@
 # Changelog — infernoflow
 
-## Unreleased
+## 0.46.5 — maintenance hints, per-command help
 
 ### Added
 - **Memory maintenance hints.** `status`, `recap` and the session-start context now point out when memory needs care: noisy entries `curate` would remove, entries about files that changed since they were written, or old notes `prune` would archive. Each hint names the command to run. The session-start hint appears at most once a day and tells the AI to mention it and ask before running anything. Set `"maintenance"` in `.ai-memory/amp.json`: `"suggest"` (default), `"auto"` (clean noise and archive old notes by itself, once a day, archived first; never resolves entries or touches gotchas and decisions) or `"off"`. Thresholds are configurable.
