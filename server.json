@@ -1,0 +1,35 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ronmiz/infernoflow",
+  "description": "Git-native memory for coding agents: gotchas, decisions and bookmarks as plain text in your repo.",
+  "repository": {
+    "url": "https://github.com/ronmiz/infernoflow",
+    "source": "github"
+  },
+  "version": "0.46.4",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "infernoflow",
+      "version": "0.46.4",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "INFERNOFLOW_PROJECT_DIR",
+          "description": "Absolute path of the project whose memory to use. Defaults to the open workspace folder.",
+          "isRequired": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}
