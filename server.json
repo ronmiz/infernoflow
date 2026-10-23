@@ -6,12 +6,12 @@
     "url": "https://github.com/ronmiz/infernoflow",
     "source": "github"
   },
-  "version": "0.46.4",
+  "version": "0.46.5",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "infernoflow",
-      "version": "0.46.4",
+      "version": "0.46.5",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

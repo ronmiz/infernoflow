@@ -91,7 +91,7 @@ const COMMAND_DESCRIPTIONS = {
 
   // ── Configuration / housekeeping ───────────────────────────────────────
   ai:        "Manage AI providers — setup, status, test, clear",
-  telemetry: "Opt-in anonymous telemetry (on | off | status)",
+  telemetry: "Opt-in anonymous telemetry (on | off | status) — off by default",
   uninstall: "Remove infernoflow from a project (--dry-run to preview)",
 
   // ── Contract validation (kept for users who use capability contracts) ──
@@ -165,17 +165,22 @@ function formatCommandsHelp() {
 }
 
 const COMMAND_GROUPS = {
-  "Memory":                       ["log", "ask", "resume", "switch", "recap", "status", "bookmark", "resolve", "refresh", "forget", "prune", "curate", "move", "transcript"],
-  "Setup":                        ["init", "setup", "doctor", "context", "mcp", "hook"],
-  "IDE wiring":                   ["install-cursor-hooks", "install-vscode-copilot-hooks", "generate-skills"],
-  "Configuration":                ["ai", "telemetry", "sync", "uninstall"],
-  "Contract":                     ["check"],
-  "AMP (use: infernoflow amp <verb>)": ["status", "migrate", "validate", "version"],
+  "Everyday":                         ["init", "log", "ask", "resume", "bookmark", "status"],
+  "Sessions":                         ["switch", "recap"],
+  "Keep memory clean":                ["resolve", "forget", "curate", "prune", "move", "refresh"],
+  "Setup & health":                   ["setup", "doctor", "uninstall"],
+  "Configuration":                    ["ai", "telemetry", "sync"],
+  "Full mode (capability contracts)": ["check", "context", "generate-skills"],
+  "Extra IDE wiring":                 ["install-cursor-hooks", "install-vscode-copilot-hooks"],
+  "Protocol":                         ["amp"],
+  "Run by your AI tools, not by hand": ["mcp", "hook", "transcript"],
 };
 
 function formatCommandGroups() {
+  const all = Object.values(COMMAND_GROUPS).flat();
+  const w = Math.max(...all.map((n) => n.length)) + 2;
   return Object.entries(COMMAND_GROUPS).map(([group, cmds]) =>
-    `  ${bold(group + ":")}\n    ${cmds.join("  ")}`
+    `  ${bold(group + ":")}\n` + cmds.map((c) => `    ${cyan(c.padEnd(w))}${gray(COMMAND_DESCRIPTIONS[c] || "")}`).join("\n")
   ).join("\n\n");
 }
 
@@ -183,31 +188,23 @@ const TOTAL_COMMANDS = Object.keys(COMMAND_HANDLERS).length;
 
 const HELP = `
   ${bold("🔥 infernoflow")} ${gray("v" + VERSION)}
-  ${gray("Persistent memory for AI coding sessions")}
+  ${gray("Project memory for AI coding sessions — every session starts warm")}
 
-  ${bold("Usage:")}
-    infernoflow [command] [options]
+  ${bold("Start here")}
+    ${cyan("init")}                  Set up memory in this project ${gray("(once)")}
+    ${cyan("log")} ${gray('"..."')}             Remember a gotcha, decision or dead end ${gray("(--type gotcha|decision|attempt)")}
+    ${cyan("ask")} ${gray('"..."')}             Search memory ${gray("(gotchas come first)")}
+    ${cyan("resume")}                "Where were we?"
+    ${cyan("bookmark")} ${gray('"..."')}        Drop a named resume point
+    ${cyan("status")}                Quick health check
 
-  ${bold("Memory")} ${gray("— capture, recall & curate")}
-    ${cyan("log")} ${gray('"..."')}         Add to session memory ${gray("(--type gotcha|decision|attempt)")}
-    ${cyan("ask")} ${gray('"..."')}         Search your memory by keyword ${gray("(gotchas surface first)")}
-    ${cyan("switch")}            Generate handoff for next AI agent
-    ${cyan("recap")}             End-of-session health score + unlogged changes
-    ${cyan("status")}            Quick health check
-    ${cyan("forget")}            Delete a bad entry ${gray("(--last for the newest, or by id/prefix)")}
-    ${cyan("prune")}             Archive stale notes/attempts ${gray("(dry-run; --apply to commit)")}
+  ${bold("Also useful")}
+    ${cyan("switch")}                Handoff for the next session ${gray("(--copy)")}
+    ${cyan("recap")}                 End-of-session summary
+    ${cyan("doctor")}                Diagnose the setup ${gray("(--e2e: full self-test)")}
 
-  ${bold("Setup")}
-    ${cyan("init")}              60-second setup ${gray("(memory mode by default)")}
-    ${cyan("setup")}             Re-run IDE wiring ${gray("(idempotent — MCP + hooks)")}
-    ${cyan("doctor")}            Diagnose your setup ${gray("(--e2e: full self-test in a sandbox)")}
-    ${cyan("context")}           Generate AI-ready context for new sessions
-
-  ${bold("Subsystems")} ${gray("— grouped, run for verbs:")}
-    ${cyan("amp")}               AI Memory Protocol ${gray("(status, migrate, validate)")}
-
-  ${gray("Run")} ${cyan("infernoflow commands")} ${gray("to see all " + TOTAL_COMMANDS + " commands grouped.")}
-  ${gray("Run")} ${cyan("infernoflow <command> --help")} ${gray("for command-specific options.")}
+  ${gray("Most of the time your AI tool does this for you through MCP.")}
+  ${gray("All " + TOTAL_COMMANDS + " commands:")} ${cyan("infernoflow commands")}   ${gray("Options for one:")} ${cyan("infernoflow <command> --help")}
 `;
 
 // ── Silent behavior observation ───────────────────────────────────────────
@@ -250,6 +247,18 @@ if (!commands.includes(cmd)) {
   process.exit(1);
 }
 
+// 0.46.5: `<command> --help` prints help and exits. Most commands used to
+// ignore --help and simply run (refresh rewrote rule files, setup wired MCP
+// configs), and the upgrade backfill below ran first in any case.
+const helpRequested = rest.includes("--help") || rest.includes("-h");
+if (helpRequested) {
+  const { OWN_HELP, formatCommandHelp } = await import("../lib/commandHelp.mjs");
+  if (!OWN_HELP.has(cmd)) {
+    console.log(formatCommandHelp(cmd, { bold, gray, cyan }) || `\n  ${COMMAND_DESCRIPTIONS[cmd] || cmd}\n`);
+    process.exit(0);
+  }
+}
+
 // D5 (0.46.0): `--project <dir>` runs any command against another project's
 // memory (for hooks, agents and multi-folder workspaces) — equivalent to
 // running it from that folder.
@@ -271,7 +280,7 @@ if (projIdx !== -1) {
 const args = [cmd, ...rest];
 
 // ── Silent version-skew backfill ──────────────────────────────────────────
-try {
+if (!helpRequested) try {
   const { runUpgradeBackfillIfNeeded } = await import("../lib/upgradeCheck.mjs");
   await runUpgradeBackfillIfNeeded(VERSION, cmd);
 } catch { /* never block the user's command on the upgrade check */ }

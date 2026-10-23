@@ -1,5 +1,18 @@
 # Changelog — infernoflow
 
+## 0.46.5 — maintenance hints, per-command help
+
+### Added
+- **Memory maintenance hints.** `status`, `recap` and the session-start context now point out when memory needs care: noisy entries `curate` would remove, entries about files that changed since they were written, or old notes `prune` would archive. Each hint names the command to run. The session-start hint appears at most once a day and tells the AI to mention it and ask before running anything. Set `"maintenance"` in `.ai-memory/amp.json`: `"suggest"` (default), `"auto"` (clean noise and archive old notes by itself, once a day, archived first; never resolves entries or touches gotchas and decisions) or `"off"`. Thresholds are configurable.
+
+### Changed
+- **`infernoflow --help` starts with the six everyday commands** (`init`, `log`, `ask`, `resume`, `bookmark`, `status`) plus `switch`, `recap` and `doctor`. `infernoflow commands` groups all 29 with a description each, and puts the ones your AI tool runs (`mcp`, `hook`, `transcript`) last.
+
+### Fixed
+- **`<command> --help` prints help and changes nothing.** Most commands ignored `--help` and just ran: `refresh --help` rewrote the rule files, `setup --help` rewrote the MCP configs, `install-*-hooks --help` installed hooks, `resume --help` created `.ai-memory/`, and the upgrade backfill ran before any of them. Every command now has its own help (usage, options, `--project`), answered before the command or the backfill runs; `-h` works too.
+- **Automatic resume points no longer quote machine text as a dead end.** When a session ended, the session-end hook copied open dead ends into the resume point, including "User frustration: <agent-message …" entries that the old prompt hooks (before 0.46.3) logged from subagent hand-backs. It now skips anything `curate` treats as machine text.
+- **`curate` cleans those lines out of existing automatic resume points.** They were never touched before (bookmarks are skipped), so the junk stayed in the resume point and `handoff.md` after `curate --apply` had removed the entry itself. The resume point is kept; only the machine-text lines (and an empty "Open dead ends" header) are removed, and the original body is archived with the other curated entries.
+
 ## 0.46.4 — official MCP Registry listing
 
 ### Added
