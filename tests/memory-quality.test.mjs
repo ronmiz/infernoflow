@@ -11,7 +11,7 @@ import * as os   from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { appendEntry, readEntries, _resetGitStampCache } from "../lib/amp/io.mjs";
+import { appendEntry, readEntries, readDetail, _resetGitStampCache } from "../lib/amp/io.mjs";
 import { _resetProjectRootCache } from "../lib/projectRoot.mjs";
 import { _resetBranchCache } from "../lib/git/branch.mjs";
 import { AGENT_TYPES } from "../lib/schema.mjs";
@@ -137,6 +137,40 @@ describe("D6 / D7 / D8 session hooks and resume", () => {
     expect(r.stdout).toContain("last session (automatic)");
     expect(r.stdout).toContain("fix the sensor search columns");
     expect(r.stdout).toContain("app.js");                       // uncommitted change listed
+  });
+
+  it("hook session-end does not copy machine text the old prompt hook logged into the resume point", () => {
+    // What the pre-0.46.3 prompt hook wrote for a subagent hand-back, plus a real dead end.
+    appendEntry(dir, { type: "attempt", source: "hook", msg: 'User frustration: <agent-message from="ad23bc82"> [Subagent hand-back', tags: ["needs-summary"] });
+    appendEntry(dir, { type: "attempt", result: "failed", msg: "tried a CTE for the report, it timed out on 2M rows" });
+    const transcript = path.join(dir, "t3.jsonl");
+    fs.writeFileSync(transcript, JSON.stringify({ type: "user", message: { content: "speed up the report" } }) + "\n");
+    cli(["hook", "session-end", "--transcript", transcript, "--reason", "other"], dir);
+    const auto = readEntries(dir).find(e => (e.tags || []).includes("auto-handoff"));
+    const body = readDetail(dir, auto);
+    expect(body).toContain("**Open dead ends:**");
+    expect(body).toContain("tried a CTE for the report");
+    expect(body).not.toContain("agent-message");
+  });
+
+  it("curate cleans machine text out of older automatic resume points and keeps them", () => {
+    appendEntry(dir, {
+      type: "note", summary: "Session ended — 2026-10-09 11:32", tags: ["bookmark", "auto-handoff"], agent: "hook", source: "session-end",
+      detail: '# Session ended — 2026-10-09 11:32 (other)\n**Last request:** run infernoflow curate\n\n**Open dead ends:**\n- User frustration: <agent-message from="ad23bc82"> [Subagent hand-back',
+      detailLocal: true, localOnly: true,
+    });
+    const dry = cli(["curate"], dir).stdout;
+    expect(dry).toMatch(/1\s+automatic resume points quoting that text/);
+    expect(dry).toContain("Dry run");
+    const r = cli(["curate", "--apply"], dir, { env: { INFERNOFLOW_HOME: tmp("infernoflow-cur-") } });
+    expect(r.stdout).toContain("cleaned 1 resume point");
+    const auto = readEntries(dir).find(e => (e.tags || []).includes("auto-handoff"));
+    expect(auto).toBeTruthy();                                   // the resume point itself is kept
+    const body = readDetail(dir, auto);
+    expect(body).toContain("**Last request:** run infernoflow curate");
+    expect(body).not.toContain("agent-message");
+    expect(body).not.toContain("Open dead ends");                // nothing left under the header
+    expect(cli(["curate"], dir).stdout).toContain("Nothing to curate");
   });
 
   it("an explicit bookmark stays the resume point after an automatic session end", () => {

@@ -1,5 +1,11 @@
 # Changelog — infernoflow
 
+## Unreleased
+
+### Fixed
+- **Automatic resume points no longer quote machine text as a dead end.** When a session ended, the session-end hook copied open dead ends into the resume point, including "User frustration: <agent-message …" entries that the old prompt hooks (before 0.46.3) logged from subagent hand-backs. It now skips anything `curate` treats as machine text.
+- **`curate` cleans those lines out of existing automatic resume points.** They were never touched before (bookmarks are skipped), so the junk stayed in the resume point and `handoff.md` after `curate --apply` had removed the entry itself. The resume point is kept; only the machine-text lines (and an empty "Open dead ends" header) are removed, and the original body is archived with the other curated entries.
+
 ## 0.46.4 — official MCP Registry listing
 
 ### Added
