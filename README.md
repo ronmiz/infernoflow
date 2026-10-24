@@ -9,6 +9,7 @@
 [![zero runtime dependencies](https://img.shields.io/badge/runtime%20deps-0-brightgreen)](./package.json)
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/infernoflow.infernoflow?label=VS%20Code&color=orange)](https://marketplace.visualstudio.com/items?itemName=infernoflow.infernoflow)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+[![infernoflow MCP server on Glama](https://glama.ai/mcp/servers/ronmiz/infernoflow/badges/score.svg)](https://glama.ai/mcp/servers/ronmiz/infernoflow)
 
 You spent 90 minutes yesterday teaching Claude that your auth API returns `200` even on errors — check the response body, not the status code. Today you ask the same kind of question and watch it write `if (response.ok) { return data }` all over again. The AI didn't get worse overnight. **It just doesn't have memory.**
 
