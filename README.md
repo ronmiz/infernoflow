@@ -15,10 +15,13 @@ You spent 90 minutes yesterday teaching Claude that your auth API returns `200` 
 
 infernoflow is a local-first CLI + VS Code extension + open protocol (AMP) that gives your AI persistent context across sessions. No SaaS. JSONL on disk. Three rule files your IDE already reads.
 
+Built-in assistant memory remembers *you*. infernoflow remembers the *codebase*: the memory lives in your repo under `.ai-memory/`, travels through git to your teammates, and works the same in Claude Code, Cursor and Copilot.
+
 ---
 
 ## What's new in 0.46
 
+- **Memory maintenance hints** (0.46.5): `status`, `recap` and the session start tell you when memory has duplicates, noise or entries about files that changed since, and name the command to fix it. Set `"maintenance": "auto"` in `.ai-memory/amp.json` to tidy up once a day, or `"off"`. Also: every command has its own `--help` that never runs the command.
 - **Fresh memory every Claude Code session** — a SessionStart hook injects current memory (framed as information to verify, not instructions); `CLAUDE.md` no longer carries a copy that goes stale.
 - **`infernoflow resume`** — "where were we?" in one call. Claude Code also leaves an automatic local resume point when a session ends.
 - **Stale and resolved entries** — entries about a file that changed since are marked *may be stale*; `infernoflow resolve <id>` retires one from AI context.
