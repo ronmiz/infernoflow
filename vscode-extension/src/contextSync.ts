@@ -88,16 +88,23 @@ function resolveInjectionSettings(cfg: { config?: Record<string, unknown> } | nu
 }
 
 /** Remove the infernoflow-managed block from a de-selected target file. */
+// Keep the file's own line endings (git checks rule files out with CRLF on
+// Windows); a block with the same text is never rewritten. Same as the CLI.
+function eolOf(text: string): string { return /\r\n/.test(text) ? "\r\n" : "\n"; }
+function withEol(text: string, eol: string): string { const lf = text.replace(/\r\n/g, "\n"); return eol === "\n" ? lf : lf.replace(/\n/g, eol); }
+
 function stripManagedBlock(absPath: string): boolean {
   if (!fs.existsSync(absPath)) return false;
-  const text = fs.readFileSync(absPath, "utf8");
+  const raw = fs.readFileSync(absPath, "utf8");
+  const eol = eolOf(raw);
+  const text = raw.replace(/\r\n/g, "\n");
   const s = text.indexOf(SECTION_START);
   const e = text.indexOf(SECTION_END);
   if (s === -1 || e === -1 || e <= s) return false;
   const before = text.slice(0, s).replace(/\s+$/, "");
   const after  = text.slice(e + SECTION_END.length).replace(/^\s+/, "");
   const next   = before && after ? before + "\n\n" + after : (before || after);
-  fs.writeFileSync(absPath, next ? next.replace(/\s*$/, "") + "\n" : "", "utf8");
+  fs.writeFileSync(absPath, next ? withEol(next.replace(/\s*$/, "") + "\n", eol) : "", "utf8");
   return true;
 }
 
@@ -374,9 +381,11 @@ function buildSection(scored: ScoredEntry[], activeFile: string | undefined, com
  * 100 times produces the same output as running it once.
  */
 function updateRuleFile(absPath: string, sectionMd: string): void {
+  let raw = "";
   let content = "";
   if (fs.existsSync(absPath)) {
-    content = fs.readFileSync(absPath, "utf8");
+    raw = fs.readFileSync(absPath, "utf8");
+    content = raw.replace(/\r\n/g, "\n");
   } else {
     fs.mkdirSync(path.dirname(absPath), { recursive: true });
   }
@@ -394,7 +403,7 @@ function updateRuleFile(absPath: string, sectionMd: string): void {
 
   // Avoid useless writes (preserves file mtime + git noise)
   if (updated !== content) {
-    fs.writeFileSync(absPath, updated, "utf8");
+    fs.writeFileSync(absPath, withEol(updated, eolOf(raw)), "utf8");
   }
 }
 

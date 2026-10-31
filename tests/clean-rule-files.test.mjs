@@ -106,7 +106,31 @@ describe("rule-file block", () => {
 });
 
 describe("a teammate's clone stays clean", () => {
-  it("pulling memory and running the CLI doesn't change the committed rule files", () => {
+  it("pulling memory and running the CLI doesn't change the committed rule files", () => teamClone([]));
+  // 0.47.0: Windows checkouts (core.autocrlf=true) have CRLF rule files; the
+  // refresh must keep them byte-identical, not rewrite them with LF.
+  it("…also when git checks the files out with CRLF (Windows autocrlf)", () => teamClone(["-c", "core.autocrlf=true"]));
+
+  it("an update keeps the file's CRLF line endings", () => {
+    const dir = project();
+    appendEntry(dir, { type: "gotcha", msg: "first" });
+    refreshRuleFilesFromMemory(dir);
+    const f = path.join(dir, ".cursorrules");
+    fs.writeFileSync(f, ("# Team rules\n\n" + read(f)).replace(/\n/g, "\r\n"));
+    const before = read(f);
+    refreshRuleFilesFromMemory(dir);
+    expect(read(f)).toBe(before);                         // nothing new: untouched
+    appendEntry(dir, { type: "gotcha", msg: "second" });
+    refreshRuleFilesFromMemory(dir);
+    const after = read(f);
+    expect(after).toContain("second");
+    expect(after).toContain("# Team rules");
+    expect(after.replace(/\r\n/g, "")).not.toContain("\n");   // every line still ends in CRLF
+  });
+});
+
+function teamClone(cloneOpts) {
+  {
     const base = tmp("infernoflow-team-");
     const home = tmp("infernoflow-teamh-");
     const remote = path.join(base, "remote.git");
@@ -123,7 +147,7 @@ describe("a teammate's clone stays clean", () => {
     git(a, "add", ".ai-memory", ".cursorrules", ".github", "CLAUDE.md"); git(a, "commit", "-qm", "memory"); git(a, "push", "-q", "origin", "HEAD");
 
     const b = path.join(base, "omer");
-    git(base, "clone", "-q", remote, b);
+    git(base, "clone", "-q", ...cloneOpts, remote, b);
     initGit(b, "Omer");
     fs.writeFileSync(path.join(b, ".ai-memory", ".last-cli-version"), VERSION);
     expect(cli(["refresh"], b, home).status).toBe(0);
@@ -132,5 +156,6 @@ describe("a teammate's clone stays clean", () => {
       .filter(l => /\.cursorrules|copilot-instructions|CLAUDE\.md|AGENTS\.md/.test(l));
     expect(dirty).toEqual([]);
     expect(read(path.join(b, ".cursorrules"))).toContain("auth: stopped at refresh");
-  });
-});
+    if (cloneOpts.length) expect(read(path.join(b, ".cursorrules"))).toContain("\r\n");   // the CRLF checkout really happened
+  }
+}
