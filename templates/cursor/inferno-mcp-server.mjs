@@ -1,4 +1,4 @@
-// infernoflow-server-version: 3  (bump when this file changes; copies are only replaced by a newer version)
+// infernoflow-server-version: 4  (bump when this file changes; copies are only replaced by a newer version)
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -239,6 +239,7 @@ if (refreshRuleFiles) {
 // boot stamp every time the server starts so `infernoflow setup` and
 // `infernoflow doctor` can compare against the installed CLI version and
 // tell the user when to restart their AI tool.
+let SERVER_VERSION = "0.0.0-unknown";   // reported in initialize → serverInfo
 try {
   const root = (() => { try { return findInfernoflowRoot(); } catch { return null; } })();
   let runtimeVersion = "0.0.0-unknown";
@@ -246,6 +247,7 @@ try {
     try { runtimeVersion = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version || runtimeVersion; }
     catch {}
   }
+  SERVER_VERSION = runtimeVersion;
   const memDir = path.join(PROJECT_DIR, ".ai-memory");
   if (fs.existsSync(memDir)) {
     fs.writeFileSync(path.join(memDir, ".mcp-runtime.json"), JSON.stringify({
@@ -820,7 +822,7 @@ rl.on("line", (line) => {
   const { id, method, params } = msg;
   if (method === "initialize") {
     try { CLIENT_NAME = String((params && params.clientInfo && params.clientInfo.name) || "").slice(0, 100); } catch { CLIENT_NAME = ""; }
-    sendResult(id, { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "infernoflow", version: "1.0.0" } });
+    sendResult(id, { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "infernoflow", version: SERVER_VERSION } });
     return;
   }
   if (method === "tools/list") { sendResult(id, { tools: listedTools() }); return; }

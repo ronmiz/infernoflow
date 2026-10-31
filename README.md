@@ -19,6 +19,11 @@ Built-in assistant memory remembers *you*. infernoflow remembers the *codebase*:
 
 ---
 
+## What's new in 0.47
+
+- **Committed configs stay clean across the team.** `.vscode/mcp.json` and `.cursor/mcp.json` no longer hold your machine's paths (`infernoflow mcp` in `${workspaceFolder}`), and the rule files no longer list recent commits or personal memory — so a teammate's pull doesn't leave changed files. Optional `AGENTS.md` support.
+- **Save reminders from what you type** (Claude Code): "remember this", "we decided…", "turns out…" — in English or Hebrew — remind the agent to save it in its own words. Hebrew frustration phrases are logged too.
+
 ## What's new in 0.46
 
 - **Memory maintenance hints** (0.46.5): `status`, `recap` and the session start tell you when memory has duplicates, noise or entries about files that changed since, and name the command to fix it. Set `"maintenance": "auto"` in `.ai-memory/amp.json` to tidy up once a day, or `"off"`. Also: every command has its own `--help` that never runs the command.

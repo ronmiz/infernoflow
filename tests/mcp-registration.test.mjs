@@ -123,6 +123,8 @@ describe("`infernoflow mcp` runs the packaged server", () => {
     await new Promise(r => proc.on("exit", r));
     const lines = out.split("\n").filter(Boolean).map(l => JSON.parse(l));   // stdout is pure JSON-RPC
     expect(lines.find(l => l.id === 1).result.serverInfo.name).toBe("infernoflow");
+    // 0.47.0: the real package version, not a hard-coded "1.0.0".
+    expect(lines.find(l => l.id === 1).result.serverInfo.version).toBe(JSON.parse(fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8")).version);
     expect(lines.find(l => l.id === 2).result.tools.length).toBeGreaterThan(5);
     const w = lines.find(l => l.id === 3).result.content[0].text;
     expect(w).toContain(`store: ${path.join(dir, ".ai-memory")}`);
