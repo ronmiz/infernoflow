@@ -1,5 +1,24 @@
 # Changelog — infernoflow
 
+## 0.47.0 — portable IDE MCP config, save reminders, clean rule files
+
+### Added
+- **Save reminders from what you type (Claude Code).** When your prompt asks the agent to remember something ("remember this", "don't forget", "תזכור"), states a decision ("we decided", "let's go with", "החלטנו", "נלך על") or a finding ("turns out", "the problem was", "מסתבר ש"), the prompt hook adds a one-line reminder to the agent's context to save it with `amp_write`, in its own words. The hook itself stores nothing for these. Decisions and findings remind at most once per 10 minutes each; an explicit "remember" always does. Cursor's prompt hook can't add context to the agent, so there the same triggers are in the `amp_write` tool description.
+- **Hebrew frustration phrases** ("לא עובד", "עדיין לא עובד", "שוב אותה שגיאה", "תנסה שוב" and more) are logged like the English ones, in the Claude Code and Cursor hooks.
+- **`doctor` checks MCP portability**: it warns when `.vscode/mcp.json` or `.cursor/mcp.json` has this machine's paths (`doctor --fix` rewrites them), or runs `infernoflow` without it on PATH.
+- **AGENTS.md.** When a project has an `AGENTS.md` (read by Cursor, Copilot, Codex, Windsurf and others), infernoflow keeps its memory block in it, between its own markers; your text around it is never touched. It isn't created by default, because tools that read both AGENTS.md and their own rule file would load the block twice. Add it with `infernoflow refresh --targets AGENTS.md,...` if you want it anyway.
+
+### Fixed
+- **`.vscode/mcp.json` and `.cursor/mcp.json` no longer hold this machine's paths.** They are usually committed, but setup wrote the absolute path of the installed CLI and of the project into them, so every teammate who ran setup rewrote them (a modified file after each pull), and a clone could start a server from someone else's disk. The entry is now `infernoflow mcp` with `INFERNOFLOW_PROJECT_DIR: "${workspaceFolder}"` (or `npx -y infernoflow mcp` when infernoflow isn't installed globally). Both editors start the server in the opened folder and expand `${workspaceFolder}`; this was checked on Windows in VS Code and Cursor. Old entries are rewritten once on upgrade (commit that change). An entry that is already portable is never rewritten, so machines with different installs don't take turns changing it. Claude Code's `.mcp.json` is unchanged (gitignored, this machine only).
+- **The MCP server reports its real version** in `initialize` (it said "1.0.0").
+- **The MCP server ignores an unexpanded `${workspaceFolder}`** and falls back to the folder it was started in, and it refuses to write memory into a folder that has no `.ai-memory` instead of starting a new store in the wrong place.
+- **`doctor --fix` works on Windows.** It ran the fix commands as a bare `infernoflow`, which Node can't start without a shell on Windows, and passed the explanation after the command as arguments.
+- **Rule files keep their line endings.** On Windows git checks files out with CRLF; infernoflow rewrote its block with LF, so the text was the same but git showed the file as modified. The file's own line endings are kept now, and a file whose text wouldn't change is never written. (The VS Code extension gets the same fix in its next release.)
+- **A teammate's clone no longer ends up with changed rule files after a pull.** The memory block in `.cursorrules`, `copilot-instructions.md` and `CLAUDE.md` listed the 5 latest commits, so it was out of date after every commit and the next infernoflow command rewrote it, leaving modified files (which AI agents then reported as "uncommitted changes"). The commit list is now off by default (`injection.maxCommits: 0`; git log has it anyway). Projects whose `amp.json` still has the old seeded `maxCommits: 5` are moved to 0 on upgrade; any other value is kept.
+- **Personal and local-only memory no longer goes into committed rule files.** The block was built from all memory, including `global.jsonl` (personal preferences) and the automatic resume points that are meant to stay on your machine. It now uses only the memory shared through git, so every clone writes the same text.
+- **`bookmark` updates the rule files**, as `log` does. Removing a bookmark does too.
+- **`--max-commits 0` means none.** It used to fall back to 10 commits.
+
 ## 0.46.5 — maintenance hints, per-command help
 
 ### Added

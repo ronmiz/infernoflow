@@ -71,7 +71,7 @@ describe("upgrade backfill replaces outdated security-sensitive copies", () => {
     expect(cursorHook).toBe(fs.readFileSync(TMPL_CURSOR_HOOK, "utf8"));
 
     const claudeHook = fs.readFileSync(path.join(project, ".claude", "hooks", "log-frustration.mjs"), "utf8");
-    expect(claudeHook).toContain("infernoflow-hook-version: 5");
+    expect(claudeHook).toContain("infernoflow-hook-version: 6");
     expect(claudeHook).not.toMatch(/shell:\s*process\.platform/);
 
     // The user is told, on stderr, and asked to restart their AI tool.
@@ -163,7 +163,7 @@ describe("the MCP server template's version marker is bumped with every change",
   // Copies are only replaced by a NEWER version (0.46.3), so a changed
   // template with the same number would never reach existing projects.
   // When this fails: bump "infernoflow-server-version" and record the new hash.
-  const KNOWN = { 1: "b8fd0a82562476aa13e1b7182dcc07551ab7e8ee4bc7d789550fa54920233c5c" };
+  const KNOWN = { 1: "b8fd0a82562476aa13e1b7182dcc07551ab7e8ee4bc7d789550fa54920233c5c", 2: "d4fe8f825d9cb105520f7f3273b8dccf894125eeb3203575fe5037a5c31e895f", 3: "3937c95e08bb9dfc5cdc87470837ffd4168562dec477f5f12525b18768a9dc5d", 4: "a32bd1516e4f15468287258f65b3eae222cc6f4229f55b62f3711f6f96a5d0d7" };
   it("the current template matches the hash recorded for its version", async () => {
     const { createHash } = await import("node:crypto");
     const text = fs.readFileSync(TMPL_SERVER, "utf8").replace(/\r\n/g, "\n");

@@ -19,6 +19,11 @@ Built-in assistant memory remembers *you*. infernoflow remembers the *codebase*:
 
 ---
 
+## What's new in 0.47
+
+- **Committed configs stay clean across the team.** `.vscode/mcp.json` and `.cursor/mcp.json` no longer hold your machine's paths (`infernoflow mcp` in `${workspaceFolder}`), and the rule files no longer list recent commits or personal memory — so a teammate's pull doesn't leave changed files. Optional `AGENTS.md` support.
+- **Save reminders from what you type** (Claude Code): "remember this", "we decided…", "turns out…" — in English or Hebrew — remind the agent to save it in its own words. Hebrew frustration phrases are logged too.
+
 ## What's new in 0.46
 
 - **Memory maintenance hints** (0.46.5): `status`, `recap` and the session start tell you when memory has duplicates, noise or entries about files that changed since, and name the command to fix it. Set `"maintenance": "auto"` in `.ai-memory/amp.json` to tidy up once a day, or `"off"`. Also: every command has its own `--help` that never runs the command.
@@ -67,7 +72,7 @@ Both are installed automatically by `infernoflow init` (fresh **and** on re-run 
 
 Every new AI session today starts cold. The agent re-reads your code, re-derives the obvious, and re-makes the same wrong move someone else made yesterday. infernoflow closes that loop in four stages:
 
-1. **Capture** — while you and the agent work, moments worth saving get logged automatically: a gotcha hit, a decision made, an attempted fix that failed, a pattern noticed, a resume point marked. The AI writes them via the `amp_write` MCP tool. A protocol block injected into the rule files teaches it exactly when. Prompt hooks (Claude Code `UserPromptSubmit`, Cursor `beforeSubmitPrompt`) backstop the AI by scanning **the text you typed** — subagent hand-backs, system reminders, fenced or indented code, quotes and stack traces are skipped — for trouble signals (`not working`, `still broken`, `same error`; `!!` / `retry` only in short prompts) and writing the entry deterministically when the AI doesn't. The Cursor hook also turns *"bookmark this"* into a bookmark.
+1. **Capture** — while you and the agent work, moments worth saving get logged automatically: a gotcha hit, a decision made, an attempted fix that failed, a pattern noticed, a resume point marked. The AI writes them via the `amp_write` MCP tool. A protocol block injected into the rule files teaches it exactly when. Prompt hooks (Claude Code `UserPromptSubmit`, Cursor `beforeSubmitPrompt`) backstop the AI by scanning **the text you typed** — subagent hand-backs, system reminders, fenced or indented code, quotes and stack traces are skipped — for trouble signals (`not working`, `still broken`, `same error`; `!!` / `retry` only in short prompts) and writing the entry deterministically when the AI doesn't (English and Hebrew). In Claude Code the hook also notices when you ask the agent to remember something, state a decision or describe a finding, and reminds the agent to save it in its own words — it stores nothing itself for those. The Cursor hook also turns *"bookmark this"* into a bookmark.
 2. **Link** — each captured moment becomes a structured AMP entry (`gotcha | decision | attempt | note | detection | pattern | bookmark`) with timestamp, `file:line`, tags, and a stable AMP id.
 3. **Persist** — entries land in `.ai-memory/branches/<branch>.jsonl` (git-tracked, travels with your branch — teammates inherit it) plus `.ai-memory/global.jsonl` (personal preferences, gitignored, synced across your machines via any OS-synced folder).
 4. **Restore** — when a new session starts, the agent reads `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` at boot. The most relevant entries are already there. **Warm start; no cold derivation.**
@@ -134,15 +139,15 @@ Cursor, Claude Code, and any MCP-capable client use the same MCP server. **One p
 
 ## Keeping it lean: token budget + rotation
 
-The injected memory block is paid for on every AI turn (and twice when a tool loads both `CLAUDE.md` and `copilot-instructions.md`). infernoflow ships lean defaults — 4 entries, 5 commits, 200-char truncation, and a **compact ~3-line protocol** (the full trigger table is redundant with the `amp_*` tool descriptions, so it's off by default: ~430 tokens/file/turn saved). Tune further in `.ai-memory/amp.json`:
+The injected memory block is paid for on every AI turn (and twice when a tool loads both `CLAUDE.md` and `copilot-instructions.md`). infernoflow ships lean defaults — 4 entries, no commit list (0.46.6: a commit list made the committed rule files change after every commit), 200-char truncation, and a **compact ~3-line protocol** (the full trigger table is redundant with the `amp_*` tool descriptions, so it's off by default: ~430 tokens/file/turn saved). Tune further in `.ai-memory/amp.json`:
 
 ```jsonc
 "config": {
   "injection": {
     "maxEntries": 4,                          // memory entries injected
-    "maxCommits": 5,                          // git commits injected
+    "maxCommits": 0,                          // git commits injected (0 = none, the default)
     "maxEntryChars": 200,                     // per-entry truncation
-    "targets": ["CLAUDE.md", ".cursorrules"], // drop a file from the list and its stale block is stripped automatically
+    "targets": ["CLAUDE.md", ".cursorrules"], // drop a file from the list and its stale block is stripped automatically; add "AGENTS.md" to write it there (an existing AGENTS.md is used by default)
     "protocolStyle": "compact"                // "compact" (default) · "full" (restore the trigger table) · "off"
   },
   "rotation": {
@@ -157,7 +162,7 @@ The injected memory block is paid for on every AI turn (and twice when a tool lo
 Or write the same values via CLI flags:
 
 ```bash
-infernoflow setup   --max-memory 3 --max-commits 5 --max-entry-chars 200 --protocol-style compact
+infernoflow setup   --max-memory 3 --max-commits 0 --max-entry-chars 200 --protocol-style compact
 infernoflow refresh --targets CLAUDE.md,.cursorrules # only these get the block; the rest are stripped
 infernoflow refresh --targets auto                   # canonical file for the IDE you're in (kills Copilot's double-load)
 infernoflow prune --apply --max-age-days 14          # one-off cleanup
@@ -302,7 +307,7 @@ Local-first by design:
 - 🚫 **No `postinstall` script.** `npm install -g infernoflow` runs no code — it only copies files.
 - 🚫 **No network calls in any default command path** (with telemetry off, which is the default).
 - 🚫 **No auto-updates of the package, no background processes, no cloud sync.**
-- ✅ **MCP is registered per project.** Claude Code gets the project's own `.mcp.json` (gitignored — it holds this machine's paths); Cursor and VS Code get `.cursor/mcp.json` / `.vscode/mcp.json`. All of them run the server from the installed package (`infernoflow mcp`), not a copy inside the repo.
+- ✅ **MCP is registered per project.** Claude Code gets the project's own `.mcp.json` (gitignored — it holds this machine's paths); Cursor and VS Code get `.cursor/mcp.json` / `.vscode/mcp.json` with no machine paths (`infernoflow mcp` in `${workspaceFolder}`), so they are safe to commit and stay unchanged when teammates run setup. All of them run the server from the installed package (`infernoflow mcp`), not a copy inside the repo.
 - ⚠️ **Writes outside the project:** Claude Desktop has no per-project config, so `setup` adds one entry per project there (`infernoflow-<repo>`). Pre-0.45 versions left a single `infernoflow` entry in `~/.claude.json` / the Desktop config that pinned every project to one repo; it is removed automatically (backup in `~/.infernoflow/backups/`). Personal settings and API keys live in `~/.infernoflow/`.
 - ✅ **Auto-injected content is wrapped in markers** (`<!-- infernoflow:start -->` / `<!-- infernoflow:end -->`) — your manual edits outside the block are never touched.
 - ✅ **Secrets are redacted before anything is written** — GitHub/npm/OpenAI/Anthropic/AWS/Google/Slack/Stripe tokens, JWTs, private keys, URL credentials and `password=`-style values become `[REDACTED:<kind>]`. Memory files are still plain text committed with your repo, so treat them like code: review `.ai-memory/` diffs.

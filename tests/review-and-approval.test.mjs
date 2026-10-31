@@ -140,12 +140,12 @@ describe("memory-keeper guard fails closed and can't mark entries reviewed", () 
 });
 
 describe("R5.2 frustration hook keeps at most 60 characters", () => {
-  it("the installed hook (version 5) keeps a 60-character prefix", () => {
+  it("the installed hook (version 6) keeps a 60-character prefix", () => {
     const dir = repo();
-    expect(CAPTURE_HOOK_VERSION).toBe(5);
+    expect(CAPTURE_HOOK_VERSION).toBe(6);
     expect(cli(["setup", "--yes"], dir).status).toBe(0);
     const hook = path.join(dir, ".claude", "hooks", "log-frustration.mjs");
-    expect(fs.readFileSync(hook, "utf8")).toContain("infernoflow-hook-version: 5");
+    expect(fs.readFileSync(hook, "utf8")).toContain("infernoflow-hook-version: 6");
     expect(fs.readFileSync(hook, "utf8")).toContain(".slice(0, 60)");
     // The end-to-end check (hook → CLI → entry length) is in security-refresh.test.mjs.
   }, 60_000);

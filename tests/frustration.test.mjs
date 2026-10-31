@@ -10,7 +10,7 @@ import * as os   from "node:os";
 import * as path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { humanText, isFrustration } from "../lib/frustration.mjs";
+import { humanText, isFrustration, saveSignal } from "../lib/frustration.mjs";
 import { CAPTURE_HOOK_SCRIPT, CAPTURE_HOOK_VERSION } from "../lib/commands/setup.mjs";
 import { isMisfiredHookEntry } from "../lib/commands/curate.mjs";
 
@@ -86,11 +86,32 @@ describe("bounded work on every prompt", () => {
   });
 });
 
+describe("0.47.0: Hebrew frustration and save signals", () => {
+  it("Hebrew frustration phrases count; ordinary Hebrew does not", () => {
+    for (const p of ["זה לא עובד", "עדיין לא עובד אחרי התיקון", "שוב אותה שגיאה", "זה עדיין שבור", "אין שינוי", "תנסה שוב", "למה!!"])
+      expect(frustrated(p), p).toBe(true);
+    for (const p of ["אני רוצה לעבוד על זה", "עדיין לא סיימתי את הבדיקה", "יש שינוי בקובץ", "מה המצב?", "תוסיף טסט"])
+      expect(frustrated(p), p).toBe(false);
+  });
+
+  it("saveSignal finds remember / decision / discovery in both languages", () => {
+    const cases = {
+      remember:  ["remember this: the API port is 8080", "don't forget the staging key rotates", "תזכור שהפורט הוא 8080", "אל תשכח להריץ את הטסטים לפני שחרור"],
+      decision:  ["we decided to use Postgres", "let's go with pnpm", "from now on all dates are UTC", "החלטנו ללכת עם postgres", "נלך על הגרסה הפשוטה", "מעכשיו כל התאריכים ב-UTC"],
+      discovery: ["turns out the cache was stale", "the problem was that the token expired", "מסתבר שהבעיה בקאש", "הבעיה הייתה בהרשאות"],
+    };
+    for (const [kind, list] of Object.entries(cases)) for (const p of list) expect(saveSignal(humanText(p)), p).toBe(kind);
+    for (const p of ["תקבע תזכורת למחר", "fix the login page", "מה מצב הבדיקות?", "התוכנית טובה", "<system-reminder>we decided X</system-reminder>", "```\n// turns out\n```"])
+      expect(saveSignal(humanText(p)), p).toBe(null);
+  });
+});
+
 describe("one source of truth for the hooks", () => {
-  it("the Claude Code hook embeds lib/frustration.mjs verbatim (hook version 5)", () => {
-    expect(CAPTURE_HOOK_VERSION).toBe(5);
+  it("the Claude Code hook embeds lib/frustration.mjs verbatim (hook version 6)", () => {
+    expect(CAPTURE_HOOK_VERSION).toBe(6);
     expect(CAPTURE_HOOK_SCRIPT).toContain("const humanText = " + humanText.toString() + ";");
     expect(CAPTURE_HOOK_SCRIPT).toContain("const isFrustration = " + isFrustration.toString() + ";");
+    expect(CAPTURE_HOOK_SCRIPT).toContain("const saveSignal = " + saveSignal.toString() + ";");
     expect(CAPTURE_HOOK_SCRIPT).not.toMatch(/const MARKERS/);
   });
 
@@ -102,13 +123,14 @@ describe("one source of truth for the hooks", () => {
     const { CAPTURE_HOOK_SCRIPT: built } = await import(pathToFileURL(dist).href);
     expect(built).toMatch(/const humanText = function/);
     expect(built).toMatch(/const isFrustration = function/);
+    expect(built).toMatch(/const saveSignal = function/);
   });
 
   it("the Cursor hook carries an identical copy", () => {
     const cursor = fs.readFileSync(path.join(ROOT, "templates", "cursor", "hooks", "inferno-session-draft.mjs"), "utf8");
     expect(cursor).toContain(humanText.toString().replace(/^function /, "function "));
     expect(cursor).toContain(isFrustration.toString());
-    expect(cursor).toContain("infernoflow-hook-version: 5");
+    expect(cursor).toContain("infernoflow-hook-version: 6");
     expect(cursor).not.toMatch(/TRIGGER_RES/);
   });
 });
@@ -162,6 +184,27 @@ describe("Claude Code prompt hook end to end", () => {
     expect(logged).toHaveLength(1);
     expect(logged[0].msg).toBe("User frustration: it's still not working, same error");
     expect(logged[0].meta && logged[0].meta.agent).toBe("hook");      // Fix #4: attributed to the hook
+  }, 60_000);
+
+  it("0.47.0: a decision / finding / remember prompt adds a reminder for the agent and stores nothing", () => {
+    const ctx = (r) => { expect(r.status).toBe(0); return r.stdout.trim() ? JSON.parse(r.stdout).hookSpecificOutput : null; };
+    const d = ctx(runHook("החלטנו ללכת עם postgres בגלל ה-JSONB"));
+    expect(d.hookEventName).toBe("UserPromptSubmit");
+    expect(d.additionalContext).toMatch(/decision/);
+    expect(d.additionalContext).not.toContain("postgres");                 // the prompt is not echoed
+    expect(ctx(runHook("we decided to keep the old API too"))).toBe(null);  // one decision reminder per 10 minutes
+    expect(ctx(runHook("turns out the cache was stale")).additionalContext).toMatch(/gotcha/);
+    expect(ctx(runHook("תזכור שהפורט 8080")).additionalContext).toMatch(/remember/);
+    expect(ctx(runHook("remember this too")).additionalContext).toMatch(/remember/);   // explicit requests always count
+    expect(ctx(runHook("fix the login page"))).toBe(null);
+    expect(entries()).toHaveLength(0);                                       // nothing written by the hook
+  }, 60_000);
+
+  it("0.47.0: Hebrew frustration is logged like English", () => {
+    expect(runHook("זה עדיין לא עובד!!").status).toBe(0);
+    const logged = entries().filter(e => /User frustration/.test(e.msg));
+    expect(logged).toHaveLength(1);
+    expect(logged[0].msg).toBe("User frustration: זה עדיין לא עובד!!");
   }, 60_000);
 });
 
