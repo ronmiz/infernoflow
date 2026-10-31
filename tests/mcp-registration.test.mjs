@@ -64,8 +64,9 @@ describe("setup registers per project, never one pinned user-level entry", () =>
       expect(fs.realpathSync(e.env.INFERNOFLOW_PROJECT_DIR)).toBe(fs.realpathSync(dir));
       expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf8")).toMatch(/^\.mcp\.json$/m);
       expect(fs.existsSync(path.join(dir, ".cursor", "inferno-mcp-server.mjs"))).toBe(false); // no copy in the repo
-      expect(rd(path.join(dir, ".vscode", "mcp.json")).servers.infernoflow.args[1]).toBe("mcp");
-      expect(rd(path.join(dir, ".cursor", "mcp.json")).mcpServers.infernoflow.args[1]).toBe("mcp");
+      // 0.47.0: IDE configs are committed — portable entry, no machine paths.
+      expect(rd(path.join(dir, ".vscode", "mcp.json")).servers.infernoflow).toEqual({ type: "stdio", command: "infernoflow", args: ["mcp"], env: { INFERNOFLOW_PROJECT_DIR: "${workspaceFolder}" } });
+      expect(rd(path.join(dir, ".cursor", "mcp.json")).mcpServers.infernoflow).toEqual({ command: "infernoflow", args: ["mcp"], env: { INFERNOFLOW_PROJECT_DIR: "${workspaceFolder}" } });
     }
 
     const cj = rd(path.join(home, ".claude.json"));

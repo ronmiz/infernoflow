@@ -34,7 +34,7 @@ describe("resolveInjectionSettings (pure)", () => {
     for (const cfg of [null, undefined, {}, { config: {} }]) {
       const s = resolveInjectionSettings(cfg);
       expect(s.maxEntries).toBe(4);
-      expect(s.maxCommits).toBe(5);
+      expect(s.maxCommits).toBe(0);
       expect(s.maxEntryChars).toBe(200);
       expect(s.includeProtocol).toBe(true);
       expect(Array.isArray(s.targets)).toBe(true);
@@ -45,7 +45,7 @@ describe("resolveInjectionSettings (pure)", () => {
   it("honors a partial injection object, defaulting the rest", () => {
     const s = resolveInjectionSettings({ config: { injection: { maxEntries: 2 } } });
     expect(s.maxEntries).toBe(2);
-    expect(s.maxCommits).toBe(5);       // default
+    expect(s.maxCommits).toBe(0);       // default (0.46.6)
     expect(s.maxEntryChars).toBe(200);  // default
   });
 

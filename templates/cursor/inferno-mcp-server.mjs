@@ -1,4 +1,4 @@
-// infernoflow-server-version: 1  (bump when this file changes; copies are only replaced by a newer version)
+// infernoflow-server-version: 3  (bump when this file changes; copies are only replaced by a newer version)
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -204,10 +204,14 @@ if (INFERNOFLOW_ROOT) {
 //   2. WORKSPACE_FOLDER_PATHS[0] — the folder the IDE actually opened (Cursor / VS Code set this)
 //   3. findProjectRoot(cwd)      — walk up to .ai-memory / .git / a manifest (subfolder case)
 //   4. process.cwd()             — last resort
+// 0.47.0: committed IDE configs pass INFERNOFLOW_PROJECT_DIR="${workspaceFolder}".
+// An editor that doesn't expand it hands us the literal text — skip any hint
+// that is unexpanded or doesn't exist and fall through to the next one.
 function resolveProjectDir() {
-  const hint = process.env.INFERNOFLOW_PROJECT_DIR
-            || (process.env.WORKSPACE_FOLDER_PATHS || "").split(path.delimiter).filter(Boolean)[0];
-  const start = (hint && fs.existsSync(hint)) ? hint : process.cwd();
+  const usable = (v) => !!v && !/\$\{[^}]*\}/.test(v) && fs.existsSync(v);
+  const hints = [process.env.INFERNOFLOW_PROJECT_DIR,
+                 ...(process.env.WORKSPACE_FOLDER_PATHS || "").split(path.delimiter).filter(Boolean)];
+  const start = hints.find(usable) || process.cwd();
   if (typeof findProjectRoot === "function") {
     try { return findProjectRoot(start); } catch { /* fall through to start */ }
   }
@@ -316,7 +320,7 @@ function isCmdError(result) {
 const TOOLS = [
   // ── AMP-spec memory tools (the product) ──────────────────────────────────
   { name: "amp_read",    description: "AMP: read session memory entries with optional filters.", inputSchema: { type: "object", properties: { file: { type: "string", maxLength: 1000 }, type: { type: "string", enum: AGENT_TYPES }, query: { type: "string", maxLength: 500 }, limit: { type: "integer", minimum: 1, maximum: 200 } } } },
-  { name: "amp_write",   description: "AMP: log a new entry. Required: type + msg (one sentence). Optional: file, line, tags, detail. Use 'detail' for a rich multi-paragraph body (repro steps, code, full reasoning, or a session snapshot) — it's stored in a sidecar and loaded on demand, so it never bloats the always-on memory index.", inputSchema: { type: "object", properties: { type: { type: "string", enum: AGENT_TYPES }, msg: { type: "string", maxLength: 2000 }, file: { type: "string", maxLength: 1000 }, line: { type: "integer", minimum: 1, maximum: 10000000 }, tags: { type: "array", maxItems: 20, items: { type: "string", maxLength: 100 } }, detail: { type: "string", maxLength: 200000, description: "Optional rich body (Tier-2). Stored in the consolidated details store; NOT injected into rule files. Put the long-form context here; keep 'msg' to one summary sentence." } }, required: ["type","msg"] } },
+  { name: "amp_write",   description: "AMP: log a new entry. Required: type + msg (one sentence). Optional: file, line, tags, detail. Call it without being asked when: the user is stuck ('!!', 'not working', 'same error', 'retry' → type attempt: what was tried and how it failed); the user asks you to remember something (save the fact in your own words); a decision is made (type decision: X over Y because Z); you learn something non-obvious (type gotcha, with file/line). These apply in any language the user writes in. Don't log what can be re-derived from the code. Use 'detail' for a rich multi-paragraph body (repro steps, code, full reasoning, or a session snapshot) — it's stored in a sidecar and loaded on demand, so it never bloats the always-on memory index.", inputSchema: { type: "object", properties: { type: { type: "string", enum: AGENT_TYPES }, msg: { type: "string", maxLength: 2000 }, file: { type: "string", maxLength: 1000 }, line: { type: "integer", minimum: 1, maximum: 10000000 }, tags: { type: "array", maxItems: 20, items: { type: "string", maxLength: 100 } }, detail: { type: "string", maxLength: 200000, description: "Optional rich body (Tier-2). Stored in the consolidated details store; NOT injected into rule files. Put the long-form context here; keep 'msg' to one summary sentence." } }, required: ["type","msg"] } },
   { name: "amp_search",  description: "AMP: search entries by keyword. Optional type filter.", inputSchema: { type: "object", properties: { query: { type: "string", maxLength: 500 }, type: { type: "string", enum: AGENT_TYPES } }, required: ["query"] } },
   { name: "amp_bookmark", description: "AMP: drop a named session bookmark — a resume point. Required: label (short name). Optional: note. If note is OMITTED, the current session transcript is auto-captured as the bookmark's context (the 'save everything here' resume point). Use when the user says 'bookmark this' / 'mark this point', or before a risky change / when the context window is filling up, so the exact state can be recalled later and appears in the next session's handoff. Bookmarks are never auto-pruned.", inputSchema: { type: "object", properties: { label: { type: "string", maxLength: 200 }, note: { type: "string", maxLength: 200000, description: "Optional explicit context. Omit to auto-capture the session transcript instead. Stored in a sidecar; not injected into rule files." } }, required: ["label"] } },
   { name: "amp_resume",  description: "AMP: 'where were we?' in one call — the latest resume point with its note, open dead ends (don't repeat them), recent decisions/notes, uncommitted changes, and which memory store this is. Call it at the start of work in a session. Optional: file (rank entries about that file first).", inputSchema: { type: "object", properties: { file: { type: "string", maxLength: 1000 } } } },
@@ -641,6 +645,8 @@ function routeByFile(file) {
   return { dir: PROJECT_DIR, file: path.isAbsolute(String(file)) ? undefined : file };
 }
 
+const WRITE_TOOLS = new Set(["amp_write", "amp_bookmark", "amp_handoff"]);
+
 function handleTool(id, name, rawInput) {
   try {
     const checked = validateToolInput(name, rawInput);
@@ -650,6 +656,12 @@ function handleTool(id, name, rawInput) {
     }
     const input = checked.value;
     let text = "";
+    // 0.47.0: never start a memory store in a folder that isn't the project
+    // (an editor that launched us from the wrong place). Writes need an
+    // existing .ai-memory here or in another open workspace folder.
+    if (WRITE_TOOLS.has(name) && !fs.existsSync(path.join(PROJECT_DIR, ".ai-memory")) && !workspaceRoots().length) {
+      return sendResult(id, { content: [{ type: "text", text: `infernoflow isn't set up in ${PROJECT_DIR} (no .ai-memory folder), so nothing was saved. If this is the right project, run \`infernoflow setup\` there; otherwise the editor started the server from the wrong folder.` }], isError: true });
+    }
     if (CONTRACT_TOOLS.has(name) && !hasContract()) {
       return sendResult(id, { content: [{ type: "text", text: NO_CONTRACT_TEXT }] });
     }

@@ -52,7 +52,7 @@ const SECTION_END   = "<!-- infernoflow:end -->";
 // defaults identical to lib/ruleFiles.mjs so whichever writer runs last
 // produces a matching block (no churn).
 const DEFAULT_ENTRY_CAP   = 4;
-const DEFAULT_COMMIT_CAP  = 5;
+const DEFAULT_COMMIT_CAP  = 0;   // 0.46.6: CLI parity — a commit list in committed rule files changes on every commit
 const DEFAULT_ENTRY_CHARS = 200;
 
 type ProtocolStyle = "full" | "compact" | "off";

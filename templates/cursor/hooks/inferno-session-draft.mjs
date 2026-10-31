@@ -18,7 +18,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawnSync, execFileSync } from "node:child_process";
 
-// infernoflow-hook-version: 5
+// infernoflow-hook-version: 6
 // SECURITY (0.44.20): the CLI is run as `node infernoflow.mjs ...` with NO
 // shell. Before 0.44.20 this hook used spawnSync("infernoflow.cmd", args,
 // { shell: true }) on Windows, which hands the prompt text to cmd.exe
@@ -215,12 +215,20 @@ function isFrustration(text) {
     /\bbroken again\b/i,
     /\bsame (?:error|issue|problem)\b/i,
     /\bno change\b/i,
+    // Hebrew (0.47.0). \b is ASCII-only, so these are plain phrases; a
+    // one-letter prefix (ש/ו/כ) in front still matches, which is wanted.
+    /לא\s+עובד(?:ת|ים|ות)?(?![\u0590-\u05FF])/u,
+    /עדיין\s+(?:לא\s+(?:עובד|תקין|מתקמפל|נבנה|רץ|עובר|מופיע|נטען)|שבור|נכשל|אותו\s+דבר|אותה\s+שגיאה)/u,
+    /(?:אותה|אותו)\s+(?:שגיאה|בעיה|באג)(?![\u0590-\u05FF])/u,
+    /שוב\s+(?:נשבר|נכשל|לא\s+עובד)/u,
+    /(?:זה|הוא|היא)\s+(?:עדיין\s+|שוב\s+)?(?:שבור|שבורה|נשבר|נשברה)(?![\u0590-\u05FF])/u,
+    /אין\s+שינוי/u,
   ];
   if (PHRASES.some((re) => re.test(text))) return true;
   // Noisy signals only in a short prompt: "!!" ending a word ("fix it!!",
-  // "why!!", "!!") but not code like "!!value"; "retry".
+  // "why!!", "!!") but not code like "!!value"; "retry" / "תנסה שוב".
   const short = text.length <= 200;
-  return short && (/!{2,}(?=\s|$)/.test(text) || /\bretry(?:ing)?\b/i.test(text));
+  return short && (/!{2,}(?=\s|$)/.test(text) || /\bretry(?:ing)?\b/i.test(text) || /תנס(?:ה|י|ו)\s+שוב/u.test(text));
 }
 
 // Deterministic BOOKMARK triggers — an explicit "bookmark this" is an intentional
