@@ -1,5 +1,14 @@
 # Changelog — infernoflow VS Code extension
 
+## 0.8.0 — 2026-11-01 — one writer for the rule files
+
+Pairs with CLI 0.47.0.
+
+### Fixed
+- **Rule files no longer flip between the extension and the CLI.** The extension wrote its own memory block into `.cursorrules`, `copilot-instructions.md` and `CLAUDE.md` at start-up (ranked for the open file, from all memory, including personal and local-only entries), and the CLI wrote a different one, so the files kept changing and showed up as modified in git. The extension now runs `infernoflow refresh`, so the CLI is the only writer. When the CLI can't run (no Node, not installed), the extension only adds a missing block at start-up and never rewrites an existing one. "Rebuild AI rule files" also goes through the CLI.
+- Rule files keep their line endings (CRLF on Windows checkouts) when the extension's own writer is used.
+- README: Copilot in VS Code does support MCP; the Language Model Tools are an addition that needs no setup, not a replacement.
+
 ## 0.7.22 — 2026-10-09 — entries name who wrote them
 
 Pairs with CLI 0.46.3.

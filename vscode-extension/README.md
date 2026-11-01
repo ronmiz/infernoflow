@@ -8,11 +8,11 @@ This extension is the visual surface over [**AMP — the AI Memory Protocol**](h
 
 ## Features
 
-### 🤖 Copilot Chat captures memory for you — no MCP, no setup
+### 🤖 Copilot Chat captures memory for you — no setup
 
-GitHub Copilot Chat doesn't support MCP, so other memory tools can't hook into it. infernoflow registers `amp_write` and `amp_read` as native **VS Code Language Model Tools** — so Copilot can recall a past decision on its own and offer to log a gotcha mid-conversation, the moment it notices something worth remembering. Saving asks you first (memory is shared with your team through git). Nothing to wire up: install the extension and Copilot's tool picker shows `🔥 amp_write`. You can also call them by hand with `#amp_write` / `#amp_read` in the chat box.
+infernoflow registers `amp_write` and `amp_read` as native **VS Code Language Model Tools** — so Copilot can recall a past decision on its own and offer to log a gotcha mid-conversation, the moment it notices something worth remembering. Saving asks you first (memory is shared with your team through git). Nothing to wire up: install the extension and Copilot's tool picker shows `🔥 amp_write`. You can also call them by hand with `#amp_write` / `#amp_read` in the chat box.
 
-(Cursor and Claude Code get the same capability through the MCP server the CLI installs.)
+These work without any MCP configuration. The CLI also registers its MCP server in `.vscode/mcp.json`, so Copilot's agent mode can use the full set of `amp_*` tools; Cursor and Claude Code get them the same way.
 
 ### 🔥 Always-on session-memory sidebar
 
