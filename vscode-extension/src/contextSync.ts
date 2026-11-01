@@ -36,6 +36,7 @@ import * as path from "path";
 import { execSync } from "child_process";
 import { ampIO } from "./amp";
 import { DATA_NOT_INSTRUCTIONS, sessionHookInstalled, visible, setUpHere } from "./store";
+import { runCliSync } from "./cli";
 import type { AMPEntry } from "infernoflow-amp";
 
 const RULE_FILES = [
@@ -407,22 +408,48 @@ function updateRuleFile(absPath: string, sectionMd: string): void {
   }
 }
 
-/**
- * Rewrite all three rule files with the file-prioritized memory section.
- * Returns the count of files actually changed (0 if everything was already up to date).
- */
+// ── One writer: the CLI (extension 0.8.0) ────────────────────────────────────
+// The rule-file block is committed with the repo. When the extension wrote its
+// own copy (ranked for the open file, from all memory) and the CLI wrote
+// another, the two kept replacing each other and the files showed up as
+// modified in git. The extension now asks the CLI (`infernoflow refresh`) and
+// only falls back to its own writer when the CLI can't run (no Node / not
+// installed) — and at start-up the fallback only adds a missing block, it
+// never rewrites an existing one.
+
+type RebuildResult = { updated: number; total: number; via?: "cli" | "extension" | "skipped" };
+
+/** Run `infernoflow refresh --json` in the project. Null when the CLI can't run or answer. */
+function refreshViaCli(root: string): RebuildResult | null {
+  const r = runCliSync(["refresh", "--json"], { cwd: root, timeout: 30_000 });
+  if (!r || r.status !== 0 || typeof r.stdout !== "string") return null;
+  const out = r.stdout;
+  const i = out.indexOf("{"), j = out.lastIndexOf("}");
+  if (i === -1 || j <= i) return null;
+  try {
+    const parsed = JSON.parse(out.slice(i, j + 1)) as { ok?: boolean; results?: Array<{ created?: boolean; updated?: boolean }> };
+    if (!parsed.ok || !Array.isArray(parsed.results)) return null;
+    return { updated: parsed.results.filter(x => x.created || x.updated).length, total: parsed.results.length, via: "cli" };
+  } catch { return null; }
+}
+
 /** Rebuild the rule files at VS Code start-up — only in projects set up on this machine (not a fresh clone). */
 export async function rebuildAiRuleFilesOnStartup(): Promise<void> {
   const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  if (!root || !setUpHere(root)) return;
-  await rebuildAiRuleFiles();
+  if (!root || !setUpHere(root) || !vscode.workspace.isTrusted) return;
+  if (refreshViaCli(root)) return;
+  await rebuildAiRuleFiles(undefined, { onlyIfMissing: true, skipCli: true });
 }
 
-export async function rebuildAiRuleFiles(activeFile?: string): Promise<{ updated: number; total: number; via?: "extension" | "skipped" }> {
+export async function rebuildAiRuleFiles(activeFile?: string, opts: { onlyIfMissing?: boolean; skipCli?: boolean } = {}): Promise<RebuildResult> {
   const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!root) return { updated: 0, total: 0 };
   // Restricted Mode: never write files on behalf of an untrusted repository.
   if (!vscode.workspace.isTrusted) return { updated: 0, total: 0, via: "skipped" };
+  if (!opts.skipCli) {
+    const viaCli = refreshViaCli(root);
+    if (viaCli) return viaCli;
+  }
 
   // Same block as the CLI's `infernoflow refresh` (framed as data, resolved
   // entries and commit notes left out), ranked for the active file. Claude Code
@@ -444,6 +471,8 @@ export async function rebuildAiRuleFiles(activeFile?: string): Promise<{ updated
   for (const rel of RULE_FILES) {
     const abs = path.join(root, rel);
     const before = fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : "";
+    // Fallback at start-up: add a missing block, never rewrite or remove one.
+    if (opts.onlyIfMissing && (before.includes(SECTION_START) || !targetSet.has(norm(rel)) || (hookServesClaude && norm(rel) === "CLAUDE.md"))) continue;
     if (targetSet.has(norm(rel)) && !(hookServesClaude && norm(rel) === "CLAUDE.md")) {
       updateRuleFile(abs, sectionMd);
     } else {
