@@ -79,6 +79,8 @@ Every new AI session today starts cold. The agent re-reads your code, re-derives
 3. **Persist** — entries land in `.ai-memory/branches/<branch>.jsonl` (git-tracked, travels with your branch — teammates inherit it) plus `.ai-memory/global.jsonl` (personal preferences, gitignored, synced across your machines via any OS-synced folder).
 4. **Restore** — when a new session starts, the agent reads `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` at boot. The most relevant entries are already there. **Warm start; no cold derivation.**
 
+And at the last moment before a repeat: when a commit touches a file that memory has a gotcha, failed attempt or decision about, the git **pre-commit note** prints those entries — to you or to the agent running `git commit`. It never blocks the commit. (`setup` / `init` install it in `.git/hooks`; turn it off with `"preCommit": "off"` in `.ai-memory/amp.json`.)
+
 No service to log into. No SaaS. JSONL on disk, an MCP server, and three rule files your IDE already reads.
 
 ---
