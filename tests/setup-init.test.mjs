@@ -38,7 +38,9 @@ it("setup reports what is really installed, with the reason for anything skipped
   fs.mkdirSync(dir);
   const home = tmp("ifx-ss2h-");
   const env = { ...process.env, NO_COLOR: "1", HOME: home, USERPROFILE: home, APPDATA: path.join(home, "AppData", "Roaming"), XDG_CONFIG_HOME: path.join(home, ".config"), INFERNOFLOW_HOME: path.join(home, ".infernoflow"), CODEX_HOME: path.join(home, "no-codex") };
-  const setup = () => spawnSync(process.execPath, [BIN, "setup", "--yes"], { cwd: dir, encoding: "utf8", timeout: 60_000, env }).stdout;
+  // Plain Windows consoles get ASCII symbols ([OK], *, ->): compare in one form.
+  const norm = (s) => String(s).replace(/\[OK\]/g, "✔").replace(/\[X\]/g, "✘").replace(/ -> /g, " → ").replace(/^(\s*)\* /gm, "$1· ");
+  const setup = () => norm(spawnSync(process.execPath, [BIN, "setup", "--yes"], { cwd: dir, encoding: "utf8", timeout: 60_000, env }).stdout);
   // No git yet: everything but the pre-commit note, which says why.
   let out = setup();
   for (const l of ["✔ Memory store", "✔ Claude Code", "✔ Cursor", "✔ VS Code Copilot", "✔ Git policy"]) expect(out, l).toContain(l);
@@ -49,5 +51,5 @@ it("setup reports what is really installed, with the reason for anything skipped
   out = setup();
   expect(out).toContain("✔ Git pre-commit note → .git/hooks/pre-commit");
   expect(out).toContain("✔ Claude Code → .mcp.json, session hooks, prompt hook, skill, memory-keeper agent");
-  expect(out).not.toContain("✖");
+  expect(out).not.toContain("✘");
 }, 120_000);
