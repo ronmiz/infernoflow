@@ -280,7 +280,10 @@ if (projIdx !== -1) {
 const args = [cmd, ...rest];
 
 // ── Silent version-skew backfill ──────────────────────────────────────────
-if (!helpRequested) try {
+// Not inside `git commit` (pre-commit hook): a backfill there could rewrite
+// files after they were staged and leave the tree dirty.
+const inGitHook = cmd === "hook" && rest[0] === "pre-commit";
+if (!helpRequested && !inGitHook) try {
   const { runUpgradeBackfillIfNeeded } = await import("../lib/upgradeCheck.mjs");
   await runUpgradeBackfillIfNeeded(VERSION, cmd);
 } catch { /* never block the user's command on the upgrade check */ }
