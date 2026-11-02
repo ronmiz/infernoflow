@@ -1,5 +1,16 @@
 # Changelog — infernoflow
 
+## Unreleased
+
+### Added
+- **Unsaved decisions come back (Claude Code).** When a session ends, the session hook looks through it for prompts where you asked to remember something, stated a decision or described a finding (English or Hebrew), with no memory save after them. At the next session start the agent sees up to three of them, once, under "Possibly unsaved from the last session", and is asked to offer saving one in its own words, asking you first. The quotes stay on this machine (`.ai-memory/.hook-state.json`, gitignored) and never go into shared memory. Checked with a real Claude Code session: the next session asked whether to save the decision from the one before.
+
+### Changed
+- **`setup` lists what is really installed.** It used to print only what its last pass changed, so on a first run (init does most of the work) it listed three items although everything was in place, and a re-run looked like nothing was set up. It now reads the project and shows each part (memory store, Claude Code, Cursor, VS Code Copilot, Codex, Claude Desktop, the git pre-commit note, the git policy) as installed, skipped with the reason (for example "not a git repository — run `git init`, then `infernoflow setup --yes` again", or "Codex isn't installed on this machine"), or missing with the command that fixes it.
+
+### Fixed
+- **`setup` runs init with the CLI you installed.** In a project without `.ai-memory/` it ran `npx infernoflow init` through a shell, which runs whatever version npm has published (and downloads it if needed), so a project could be set up by different code than yours. It now runs the same CLI directly, without a shell. (Found when CI, which has no global install, picked up 0.48.0 from npm.)
+
 ## 0.48.0 — Codex CLI, pre-commit note, safer uninstall
 
 ### Added
