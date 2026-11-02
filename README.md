@@ -21,6 +21,12 @@ Built-in assistant memory remembers *you*. infernoflow remembers the *codebase*:
 
 ---
 
+## What's new in 0.49
+
+- **Unsaved decisions come back.** If a Claude Code session ends with a decision or finding you stated but nobody saved, the next session starts with a one-time reminder to offer saving it (the quote stays on your machine).
+- **`setup` shows what is really installed** — every part, installed, skipped with the reason, or missing with the command that fixes it.
+- **`setup` runs init with the CLI you installed**, never `npx` through a shell.
+
 ## What's new in 0.48
 
 - **Codex CLI.** `setup` registers the MCP server in `.codex/config.toml` (no machine paths, safe to commit) and creates `AGENTS.md` with the memory block, on machines with Codex.
