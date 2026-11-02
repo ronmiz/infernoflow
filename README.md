@@ -17,6 +17,8 @@ infernoflow is a local-first CLI + VS Code extension + open protocol (AMP) that 
 
 Built-in assistant memory remembers *you*. infernoflow remembers the *codebase*: the memory lives in your repo under `.ai-memory/`, travels through git to your teammates, and works the same in Claude Code, Cursor and Copilot.
 
+![Demo: Dana logs a gotcha and bookmarks where she stopped. Omer pulls, runs infernoflow resume, then asks Claude Code "where were we?" and it picks up where Dana left off.](https://raw.githubusercontent.com/ronmiz/infernoflow/main/docs/demo.gif)
+
 ---
 
 ## What's new in 0.47
