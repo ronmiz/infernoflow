@@ -21,6 +21,10 @@ Built-in assistant memory remembers *you*. infernoflow remembers the *codebase*:
 
 ---
 
+## What's new in 0.50
+
+- **The MCP server tells the agent how to use the memory.** Clients that show MCP server instructions, such as Claude Code, now get the memory protocol when they connect: check where you stopped, search before changing a file, save decisions, gotchas and failed attempts without being asked. It works even where no hook or rule file loads it.
+
 ## What's new in 0.49
 
 - **Unsaved decisions come back.** If a Claude Code session ends with a decision or finding you stated but nobody saved, the next session starts with a one-time reminder to offer saving it (the quote stays on your machine).
