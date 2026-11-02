@@ -21,6 +21,12 @@ Built-in assistant memory remembers *you*. infernoflow remembers the *codebase*:
 
 ---
 
+## What's new in 0.48
+
+- **Codex CLI.** `setup` registers the MCP server in `.codex/config.toml` (no machine paths, safe to commit) and creates `AGENTS.md` with the memory block, on machines with Codex.
+- **Pre-commit note.** When a commit touches a file that memory has a gotcha, failed attempt or decision about, `git commit` shows it first. Never blocks.
+- **Safer uninstall.** It removes only infernoflow's block from your rule files; it used to delete `CLAUDE.md` whole.
+
 ## What's new in 0.47
 
 - **Committed configs stay clean across the team.** `.vscode/mcp.json` and `.cursor/mcp.json` no longer hold your machine's paths (`infernoflow mcp` in `${workspaceFolder}`), and the rule files no longer list recent commits or personal memory — so a teammate's pull doesn't leave changed files. Optional `AGENTS.md` support.

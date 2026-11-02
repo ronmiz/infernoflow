@@ -1,6 +1,6 @@
 # Changelog — infernoflow
 
-## Unreleased
+## 0.48.0 — Codex CLI, pre-commit note, safer uninstall
 
 ### Added
 - **Pre-commit note.** When a commit touches a file that project memory has a gotcha, failed attempt or decision about, `git commit` prints those entries (newest first, at most 6) before it goes through, so a person or an AI agent committing sees the warning at the last moment. It never blocks a commit and takes about 0.1 s. `setup` / `init` add it to `.git/hooks/pre-commit`, at the top of a hook you already have so your own lines keep working; a custom `core.hooksPath` (husky and similar) is left alone, with the one line to add yourself. Works when the memory lives in a subfolder of a monorepo. Turn it off with `"preCommit": "off"` in `.ai-memory/amp.json`; `uninstall` removes only these lines.
