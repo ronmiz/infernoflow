@@ -32,3 +32,22 @@ it("setup never shells out to npx to run init", () => {
   expect(fs.existsSync(marker)).toBe(false);
   expect(fs.existsSync(path.join(dir, ".ai-memory", "amp.json"))).toBe(true);        // init ran (this CLI)
 }, 60_000);
+
+it("setup reports what is really installed, with the reason for anything skipped", () => {
+  const dir = path.join(tmp("ifx-ss2-"), "app");
+  fs.mkdirSync(dir);
+  const home = tmp("ifx-ss2h-");
+  const env = { ...process.env, NO_COLOR: "1", HOME: home, USERPROFILE: home, APPDATA: path.join(home, "AppData", "Roaming"), XDG_CONFIG_HOME: path.join(home, ".config"), INFERNOFLOW_HOME: path.join(home, ".infernoflow"), CODEX_HOME: path.join(home, "no-codex") };
+  const setup = () => spawnSync(process.execPath, [BIN, "setup", "--yes"], { cwd: dir, encoding: "utf8", timeout: 60_000, env }).stdout;
+  // No git yet: everything but the pre-commit note, which says why.
+  let out = setup();
+  for (const l of ["✔ Memory store", "✔ Claude Code", "✔ Cursor", "✔ VS Code Copilot", "✔ Git policy"]) expect(out, l).toContain(l);
+  expect(out).toMatch(/· Git pre-commit note \(not a git repository/);
+  expect(out).toMatch(/· Codex \(Codex isn't installed/);
+  // A second run (nothing left to change) still lists everything — it used to show only 3 lines.
+  execFileSync("git", ["init", "-q"], { cwd: dir });
+  out = setup();
+  expect(out).toContain("✔ Git pre-commit note → .git/hooks/pre-commit");
+  expect(out).toContain("✔ Claude Code → .mcp.json, session hooks, prompt hook, skill, memory-keeper agent");
+  expect(out).not.toContain("✖");
+}, 120_000);
