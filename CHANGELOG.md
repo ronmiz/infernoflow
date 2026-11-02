@@ -5,6 +5,9 @@
 ### Added
 - **Unsaved decisions come back (Claude Code).** When a session ends, the session hook looks through it for prompts where you asked to remember something, stated a decision or described a finding (English or Hebrew), with no memory save after them. At the next session start the agent sees up to three of them, once, under "Possibly unsaved from the last session", and is asked to offer saving one in its own words, asking you first. The quotes stay on this machine (`.ai-memory/.hook-state.json`, gitignored) and never go into shared memory. Checked with a real Claude Code session: the next session asked whether to save the decision from the one before.
 
+### Fixed
+- **`setup` runs init with the CLI you installed.** In a project without `.ai-memory/` it ran `npx infernoflow init` through a shell, which runs whatever version npm has published (and downloads it if needed), so a project could be set up by different code than yours. It now runs the same CLI directly, without a shell. (Found when CI, which has no global install, picked up 0.48.0 from npm.)
+
 ## 0.48.0 — Codex CLI, pre-commit note, safer uninstall
 
 ### Added
