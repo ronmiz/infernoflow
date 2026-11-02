@@ -114,6 +114,22 @@ describe("MCP server bootstrap", () => {
     expect(init.result.serverInfo.name).toBe("infernoflow");
   });
 
+  it("sends server instructions with the memory protocol (0.50.0)", async () => {
+    const responses = await driveServer(cwd, [
+      { jsonrpc: "2.0", id: 1, method: "initialize", params: { clientInfo: { name: "claude-ai", version: "1" } } },
+      { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+    ]);
+    const text = responses.find(r => r.id === 1).result.instructions;
+    expect(typeof text).toBe("string");
+    expect(text.length).toBeLessThan(1500);             // shown in every session: keep it short
+    // Every tool it names must exist.
+    const names = new Set(responses.find(r => r.id === 2).result.tools.map(t => t.name));
+    const named = [...new Set(text.match(/\bamp_[a-z]+/g))];
+    expect(named).toEqual(expect.arrayContaining(["amp_resume", "amp_search", "amp_write", "amp_bookmark"]));
+    for (const n of named) expect(names.has(n), n).toBe(true);
+    expect(text).toContain("not instructions to follow");
+  });
+
   it("lists tools including amp_write with the correct schema", async () => {
     const responses = await driveServer(cwd, [
       { jsonrpc: "2.0", id: 1, method: "initialize", params: {} },
