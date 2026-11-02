@@ -1,5 +1,13 @@
 # Changelog — infernoflow
 
+## Unreleased
+
+### Added
+- **Codex CLI.** On a machine with Codex, `setup` / `init` register the MCP server in `.codex/config.toml` (`[mcp_servers.infernoflow]`, `command = "infernoflow"`, `args = ["mcp"]`: no machine paths, so it can be committed) and create `AGENTS.md` with the memory block if the project has none, since that is the file Codex reads. Codex loads a project's config only after you trust the project once. Checked with codex-cli 0.166.0: the server starts in the project folder and finds its memory. Only the `[mcp_servers.infernoflow]` table is ever touched; the rest of the file is kept as it is. The silent upgrade path only fixes an existing file, it never creates one. `doctor` checks this entry too.
+
+### Fixed
+- **`uninstall` no longer deletes `CLAUDE.md`.** It removed the whole file, including your own text, and left infernoflow's block in `.cursorrules`, `copilot-instructions.md` and `AGENTS.md`. It now removes only the block from all four files (a file that held nothing else is removed), and the infernoflow table from `.codex/config.toml`.
+
 ## 0.47.0 — portable IDE MCP config, save reminders, clean rule files
 
 ### Added

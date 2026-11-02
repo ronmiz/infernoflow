@@ -29,7 +29,7 @@ import*as n from"node:fs";import*as t from"node:path";import*as H from"node:read
 `));return}const O=K(e);console.log(`
   `+s("\u{1F525} infernoflow")+l(` \u2014 let's get you set up (30 seconds)
 `)),console.log("  Detected: "+r(O)+`
-`),xe(e),n.existsSync(v)||n.writeFileSync(v,"","utf8"),Oe(e,{project:O,config:{autoCapture:!0}}),Z(e);const N=Q(e);for(const h of N)"created"in h&&(h.created||h.updated)&&k((h.created?"Created: ":"Updated: ")+r(h.rel));const R=oe(e,o),_=ne(e,o);R+_>0&&te();try{ee(e)}catch(h){T("MCP auto-setup skipped: "+h.message)}const y=await Je({yes:i});y?(B(e,{ts:new Date().toISOString(),agent:"user",type:"gotcha",summary:y,source:"init"}),console.log(`
+`),xe(e),n.existsSync(v)||n.writeFileSync(v,"","utf8"),Oe(e,{project:O,config:{autoCapture:!0}}),Z(e);const N=Q(e);for(const h of N)"created"in h&&(h.created||h.updated)&&k((h.created?"Created: ":"Updated: ")+r(h.rel));const R=oe(e,o),_=ne(e,o);R+_>0&&te();try{ee(e,{create:!0})}catch(h){T("MCP auto-setup skipped: "+h.message)}const y=await Je({yes:i});y?(B(e,{ts:new Date().toISOString(),agent:"user",type:"gotcha",summary:y,source:"init"}),console.log(`
   `+d("\u2714")+" First gotcha logged!")):i&&B(e,{ts:new Date().toISOString(),agent:"infernoflow",type:"note",summary:"infernoflow init complete \u2014 memory loop is live. Run `infernoflow status` to verify.",source:"init"}),console.log(`
   `+d("\u2714")+` You're set up. Quick commands:
 `),console.log("  "+r("infernoflow status")+l("        \u2014 verify the loop end-to-end")),console.log("  "+r('infernoflow log "..."')+l("    \u2014 remember something")),console.log("  "+r("infernoflow switch")+l("         \u2014 generate handoff for next AI")),console.log("  "+r("infernoflow recap")+l(`          \u2014 session summary
