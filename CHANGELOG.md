@@ -1,9 +1,9 @@
 # Changelog — infernoflow
 
-## Unreleased
+## 0.50.0 — the MCP server tells the agent how to use the memory
 
 ### Added
-- **The MCP server tells the agent how to use the memory.** It now sends MCP server instructions when a client connects: read where we stopped (`amp_resume`) at the start of work, search memory before changing a file, and save decisions, gotchas, failed attempts and "remember this" in one sentence each, without being asked. Clients that show server instructions up front get this even where no hook or rule file loads the memory protocol (Claude Desktop, and Cowork through it), and even when the tools themselves are only loaded on demand. Checked with a real Claude Code session: the model quotes the instructions word for word.
+- **The MCP server tells the agent how to use the memory.** It now sends MCP server instructions when a client connects: read where we stopped (`amp_resume`) at the start of work, search memory before changing a file, and save decisions, gotchas, failed attempts and "remember this" in one sentence each, without being asked. Clients that show server instructions up front get this even where no hook or rule file loads the memory protocol, and even when the tools themselves are only loaded on demand. Aimed at Claude Desktop and Cowork, which have no hooks; not yet checked there. Checked with a real Claude Code session: the model quotes the instructions word for word.
 
 ## 0.49.0 — unsaved decisions come back, setup shows what is installed
 
